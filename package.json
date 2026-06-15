@@ -1,0 +1,14 @@
+{
+  "name": "adattarolas-a-felhoben",
+  "version": "1.0.0",
+  "description": "A minimal Node.js application",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "node --test",
+    "start": "node src/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}
