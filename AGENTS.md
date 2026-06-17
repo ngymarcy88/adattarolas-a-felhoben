@@ -786,6 +786,21 @@ Do not commit generated build outputs unless intentionally required.
 
 Do not commit `.env`.
 
+### Branch strategy
+
+Follow the thesis package's evidence-first branch flow for AI-assisted work:
+
+- Do not commit directly to `main` or the default branch.
+- Create a separate branch before making implementation or documentation changes.
+- Use the branch naming convention `ai/<short-kebab-case-scope>` for AI-assisted work unless the user explicitly asks for another name.
+- Examples:
+  - `ai/milestone-01-repo-foundation`
+  - `ai/product-scope-docs`
+  - `ai/storage-architecture-adrs`
+- Open a pull request / merge request back to `main`.
+- Keep the PR/MR as draft while checks, evidence, or human review are still missing.
+- Only merge to `main` after review and green checks, or after explicitly documenting why checks are not available yet.
+
 ---
 
 ## Definition of Done
