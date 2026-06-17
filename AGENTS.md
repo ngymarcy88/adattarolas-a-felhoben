@@ -815,3 +815,35 @@ Ask for confirmation before:
 - implementing multipart upload
 - implementing cloud deployment
 - deleting or rewriting large parts of the project
+
+## Subagent usage rules
+
+Use subagents proactively for complex or parallelizable tasks, especially when the task involves review, planning, architecture, security, tests or documentation consistency.
+
+Prefer subagents for:
+
+- architecture review
+- security review
+- backend implementation review
+- frontend implementation review
+- test strategy review
+- documentation consistency review
+- ADR review
+- AI verification review
+
+When using subagents, split the work by responsibility instead of asking every agent to do the same thing.
+
+Recommended subagent roles:
+
+- `architecture-reviewer`: checks architecture, ADRs, C4 diagrams and tradeoffs
+- `security-reviewer`: checks auth, authorization, secrets, file validation, XSS and privacy risks
+- `backend-reviewer`: checks NestJS, Prisma, PostgreSQL and storage adapter logic
+- `frontend-reviewer`: checks Vue, TypeScript, Tailwind, UX states and API usage
+- `test-reviewer`: checks unit test coverage, edge cases and missing tests
+- `docs-reviewer`: checks README, docs, ADRs, prompt log and verification log consistency
+
+For large changes, ask subagents to inspect independently, then consolidate their findings into one prioritized summary.
+
+Do not spawn subagents for small, simple edits such as typo fixes or a single small function.
+
+Because subagents consume more tokens, use them when the expected quality gain is worth the cost.
