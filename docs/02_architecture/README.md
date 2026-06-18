@@ -1,4 +1,4 @@
-# Architektura dokumentumok
+# Architektúra dokumentumok
 
 Ez a mappa a rendszer architektúrájának és technikai döntéseinek van előkészítve.
 
