@@ -8,8 +8,8 @@ The goal is to build a product-quality, AI-assisted web application where users 
 
 Before implementing anything, read and respect:
 
-- `plan_final.md`
-- `milestones.md`
+- `docs/plan.md`
+- `docs/milestones.md`
 - `README.md`, if it already exists
 - relevant files under `docs/`
 
