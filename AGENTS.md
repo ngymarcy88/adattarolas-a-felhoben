@@ -80,8 +80,8 @@ Prefer this monorepo structure:
 /
   README.md
   AGENTS.md
-  plan_final.md
-  milestones.md
+  docs/plan.md
+  docs/milestones.md
   .gitignore
   .env.example
 
