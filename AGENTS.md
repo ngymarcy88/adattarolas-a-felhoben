@@ -13,7 +13,7 @@ Before implementing anything, read and respect:
 - `README.md`, if it already exists
 - relevant files under `docs/`
 
-If `plan_final.md` or `milestones.md` conflicts with a user instruction, follow the user's latest explicit instruction and mention the conflict.
+If `docs/plan.md` or `docs/milestones.md` conflicts with a user instruction, follow the user's latest explicit instruction and mention the conflict.
 
 ---
 
