@@ -7,6 +7,6 @@ Minden ADR tartalmazza majd:
 - cím, dátum, státusz;
 - context;
 - decision;
-- legalabb ket alternativa;
+- legalább két alternatíva;
 - következmények;
 - verification terv vagy evidence link.
