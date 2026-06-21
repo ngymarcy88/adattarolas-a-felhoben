@@ -41,9 +41,9 @@ Tervezett későbbi irány:
 
 ```bash
 # Kesobbi merfoldko utan varhato parancsok
-pnpm install
-pnpm test
-pnpm run build
+npm install
+npm test
+npm run build
 ```
 
 ## Konfiguráció

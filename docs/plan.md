@@ -678,7 +678,7 @@ Javasolt struktúra:
 ├── .env.example
 ├── docker-compose.yml
 ├── package.json
-├── pnpm-workspace.yaml
+├── package-lock.json
 │
 ├── frontend/
 │   ├── package.json
@@ -950,7 +950,7 @@ A cél, hogy a projekt lokálisan, lehetőleg 15 percen belül elindítható leg
 ### 20.1 Szükséges komponensek
 
 - Node.js LTS
-- pnpm
+- npm
 - Docker Desktop
 - PostgreSQL konténer
 - MinIO konténer
