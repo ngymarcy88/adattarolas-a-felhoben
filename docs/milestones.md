@@ -276,10 +276,12 @@ A backend alapjainak és az adatmodellnek a kialakítása.
 
 - `id`
 - `fileObjectId`
-- `token`
+- `createdByUserId`
+- `tokenHash`
 - `expiresAt`
 - `maxAccessCount`
 - `accessCount`
+- `revokedAt`
 - `createdAt`
 
 #### AuditEvent
@@ -546,7 +548,7 @@ Az egyszerű `SUM(sizeBytes)` lekérdezés MVP-ben működhet, de nagyobb fájls
 
 ### Megoldási irány
 
-A `User` táblában legyen `usedStorageBytes` mező. Ezt a backend frissíti sikeres feltöltés, törlés, visszaállítás és purge esetén.
+A `User` táblában legyen `usedStorageBytes` mező. A backend sikeres feltöltés után növeli, végleges purge után csökkenti. A soft delete és a visszaállítás nem módosítja, mert a bináris objektum közben végig foglalja a tárhelyet.
 
 ### Feladatok
 
@@ -702,7 +704,7 @@ A rendszer használható, átlátható frontend felületet kapjon.
 - [ ] Fájl lista / galéria oldal.
 - [ ] Fájl részletező oldal.
 - [ ] Feltöltés oldal vagy modal.
-- [ ] Törölt fájlok oldal, ha belefér.
+- [ ] Törölt fájlok oldal egyedi visszaállítási lehetőséggel.
 - [ ] Megosztási link kezelő UI.
 - [ ] Alap beállítások oldal, ha belefér.
 
@@ -850,7 +852,9 @@ A rendszer felelősen kezelje a felhasználói adatokat, fájlokat és titkokat.
 ### Feladatok
 
 - [ ] AI Manifest kitöltése.
+- [ ] A használt AI-eszközök kliens-/termékverziójának és – ha bizonyítható – modellverziójának rögzítése.
 - [ ] Fontosabb promptok dokumentálása.
+- [ ] A végső Prompt Logban 10-20 fontos prompt szerepel.
 - [ ] Verification Log folyamatos vezetése.
 - [ ] AI által javasolt döntések összevetése saját döntéssel.
 - [ ] AI által generált kód ellenőrzésének dokumentálása.
@@ -879,7 +883,8 @@ A rendszer felelősen kezelje a felhasználói adatokat, fájlokat és titkokat.
 ### Definition of Done
 
 - [ ] AI Manifest kitöltve.
-- [ ] Prompt Log tartalmazza a fő promptokat.
+- [ ] AI Manifest tartalmazza az eszköz- és az ismert modellverziókat, az ismeretlen történeti verziók pedig őszintén jelöltek.
+- [ ] Prompt Log 10-20 fő promptot tartalmaz.
 - [ ] Verification Log tartalmaz legalább 5 bejegyzést.
 - [ ] Látszik, hogy a végső döntéseket nem az AI hozta önállóan.
 - [ ] Látszik, hogyan ellenőriztem az AI által javasolt megoldásokat.
@@ -908,6 +913,15 @@ Ez nem első körös feladat, de a végső termékminőséghez szükséges lesz.
 - [ ] Soft delete + restore flow.
 - [ ] Megosztási link flow.
 - [ ] Hibás fájl feltöltési flow.
+- [ ] Legalább 1 API contract vagy további e2e teszt, hogy az e2e/contract tesztek száma elérje a 6-ot.
+
+### Végső tesztminimum
+
+- [ ] Legalább 30 automata teszt összesen.
+- [ ] Legalább 18 unit jellegű teszt.
+- [ ] Legalább 6 integration teszt.
+- [ ] Legalább 6 e2e/UI/contract jellegű teszt.
+- [ ] Legalább 5 negatív teszt invalid inputra, jogosultságra vagy hibafolyamatokra.
 
 ### Későbbi CI/CD
 
@@ -917,6 +931,7 @@ Ez nem első körös feladat, de a végső termékminőséghez szükséges lesz.
 - [ ] Unit tests futtatása.
 - [ ] Integration tests futtatása.
 - [ ] Build ellenőrzése.
+- [ ] A pipeline hibára megáll, és a `main` ágra csak zöld kötelező ellenőrzések után lehet merge-elni.
 - [ ] CI badge README-be.
 - [ ] Deployment későbbi megtervezése.
 
@@ -932,6 +947,7 @@ Ez nem első körös feladat, de a végső termékminőséghez szükséges lesz.
 - [ ] A későbbi fázis feladatai dokumentálva vannak.
 - [ ] Nem keverednek bele túl korán az MVP scope-ba.
 - [ ] A végső leadás előtt ezekből a szükséges részek elkészülnek.
+- [ ] A végső tesztminimum teljesül, és ezt friss CI run valamint teszt riport bizonyítja.
 
 ---
 
@@ -1042,6 +1058,10 @@ A projekt leadásra alkalmas állapotba hozása.
 - [ ] Threat model és privacy dokumentum ellenőrzése.
 - [ ] Ismert hiányosságok dokumentálása.
 - [ ] Önértékelés elkészítése.
+- [ ] Legalább 30 automata teszt ellenőrzése a 18 unit + 6 integration + 6 e2e/contract cél szerinti megoszlásban.
+- [ ] Legalább 5 negatív teszt ellenőrzése.
+- [ ] CI build, lint/format és teszt kapuk zöld állapotának ellenőrzése.
+- [ ] Legalább 8 elfogadott ADR ellenőrzése.
 
 ### Végső ellenőrzőlista
 
@@ -1124,6 +1144,7 @@ Ha szűkíteni kell, az első bemutatható MVP ezekből álljon:
 - [ ] Fájl letöltés.
 - [ ] Tárhelyhasználat kijelzés.
 - [ ] Soft delete.
+- [ ] Visszaállítás a megőrzési időn belül.
 - [ ] Backend validáció.
 - [ ] Unit tesztek a core logikára.
 - [ ] README quickstart.

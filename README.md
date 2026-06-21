@@ -23,6 +23,7 @@ Ez a repo az **1. mérföldkő: Projektindítás és repo-alapok** állapotában
 - Időkorlátos megosztási linkek.
 - Tárhelyhasználat megjelenítése.
 - Soft delete és késleltetett object purge stratégia.
+- Törölt fájlok visszaállítása a megőrzési időn belül.
 
 ## Dokumentáció
 
