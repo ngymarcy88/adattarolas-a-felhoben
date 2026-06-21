@@ -1,0 +1,20 @@
+* text=auto
+
+# Repository text files use LF on every platform.
+*.md text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.ts text eol=lf
+*.vue text eol=lf
+*.css text eol=lf
+*.prisma text eol=lf
+*.sh text eol=lf
+.env.example text eol=lf
+.gitignore text eol=lf
+.gitattributes text eol=lf
+.editorconfig text eol=lf
+
+# Windows command scripts require Windows line endings.
+*.bat text eol=crlf
+*.cmd text eol=crlf
