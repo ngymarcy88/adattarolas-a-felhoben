@@ -159,7 +159,7 @@ A fájl törlése nem csak azt jelenti, hogy a `FileObject` rekord kap egy `dele
 A tervezett megoldás:
 
 - A felhasználói törlés első lépésben soft delete legyen: a fájl eltűnik a normál listából, de az adatbázisban megmarad.
-- A `FileObject` kapjon `deletedAt` és `purgeAfterAt` mezőt.
+- A `FileObject` kapjon `deletedAt` és `purgeAfter` mezőt.
 - A soft delete után a fájl például 30 napig visszaállítható maradhat.
 - A végleges törlést egy háttérfolyamat végezze, például NestJS `@nestjs/schedule` alapú cron job.
 - A purge job törölje az objektumot MinIO/S3-ból, majd frissítse vagy végleg törölje az adatbázis rekordot.
@@ -231,7 +231,7 @@ Az MVP célja, hogy a rendszer végig demonstrálja a legfontosabb felhasználó
 6. A felhasználó látja az aktuális tárhelyhasználatát.
 7. A felhasználó meg tud osztani egy fájlt időkorlátos megosztási linkkel.
 8. A felhasználó soft delete-tel törölni tudja a saját fájlját.
-9. A rendszer a törölt fájlok életciklusát kezeli: `deletedAt`, `purgeAfterAt`, későbbi háttér cleanup.
+9. A rendszer a törölt fájlok életciklusát kezeli: `deletedAt`, `purgeAfter`, visszaállítás a megőrzési időn belül, későbbi háttér cleanup.
 10. A rendszer alapvető hibákat kezel: túl nagy fájl, nem támogatott fájltípus, magic number alapján érvénytelen fájl, lejárt megosztási link, jogosulatlan hozzáférés.
 
 ### 7.1 MVP user story javaslatok
@@ -302,8 +302,9 @@ Elfogadási kritériumok:
 
 - A felhasználó csak saját fájlt törölhet.
 - Törlés után a fájl soft delete állapotba kerül és eltűnik a normál listából.
-- A rekord `deletedAt` és `purgeAfterAt` mezőt kap.
-- A tárhelyhasználat a választott quota-szabály szerint frissül vagy külön aktív/törölt bontásban jelenik meg.
+- A rekord `deletedAt` és `purgeAfter` mezőt kap.
+- A felhasználó a 30 napos megőrzési időn belül vissza tudja állítani a fájlt.
+- A soft delete és a visszaállítás nem módosítja a `usedStorageBytes` értékét; az csak a végleges purge után csökken.
 - A rendszer kezeli, ha a storage-ból végleges törlés közben hiba történik.
 - A későbbi háttérfolyamat véglegesen törli az objektumot MinIO/S3-ból és frissíti az adatbázist.
 
@@ -322,7 +323,7 @@ Az MVP tudatosan nem tartalmazza az alábbiakat:
 - Automatikus videó transzkódolás.
 - Teljes körű admin panel.
 - Komplex keresőmotor.
-- Teljes trash UI és felhasználói visszaállítási felület az első MVP-ben; a backend soft delete és purge alapjai viszont tervezettek.
+- Fejlett trash-kezelés, például tömeges visszaállítás vagy egyedi megőrzési idő. Az MVP egyszerű listázást és egyedi visszaállítást biztosít.
 - Multipart upload teljes implementáció az első MVP-ben; ez későbbi szakdolgozati bővítés.
 - CI/CD pipeline az első fejlesztési fázisban.
 - Integrációs és e2e tesztek az első fejlesztési fázisban.
@@ -347,7 +348,7 @@ A későbbi bővítésekhez ajánlott funkciók:
 - Oracle Cloud Object Storage konkrét integráció.
 - AWS S3 konkrét integráció.
 - Lifecycle policy dokumentáció.
-- Trash/restore UI a soft delete alatt álló fájlokhoz.
+- Fejlett trash/restore UI, például tömeges műveletekkel.
 - Háttérben futó purge job NestJS `@nestjs/schedule` használatával.
 - S3 Lifecycle Policy bevezetése cloud környezetben a véglegesen törlendő objektumokra.
 - Magic number alapú fájltípus-ellenőrzés mélyebb validációval.
@@ -461,10 +462,10 @@ A végleges implementáció előtt ADR-ben kell eldönteni, hogy az MVP-ben pres
 
 1. Felhasználó törlést kér egy saját fájlra.
 2. Backend ellenőrzi a tulajdonjogot.
-3. Backend soft delete állapotba teszi a rekordot: `deletedAt`, `purgeAfterAt`, `status = SOFT_DELETED`.
+3. Backend soft delete állapotba teszi a rekordot: `deletedAt`, `purgeAfter`, `status = SOFT_DELETED`.
 4. A fájl eltűnik a normál listából.
-5. A rendszer a választott quota-szabály szerint frissíti vagy külön bontásban megjeleníti a tárhelyhasználatot.
-6. A háttérben futó purge job időszakosan megkeresi a `purgeAfterAt <= now()` rekordokat.
+5. A `usedStorageBytes` nem változik; a felület opcionálisan külön jelölheti az aktív és a visszaállítható fájlok méretét.
+6. A háttérben futó purge job időszakosan megkeresi a `purgeAfter <= now()` rekordokat.
 7. A purge job törli az objektumot MinIO/S3-ból.
 8. Sikeres törlés után az adatbázis rekord `PURGED` állapotba kerül vagy végleg törlődik.
 9. Ha S3 törlés közben hiba történik, a rekord retry-ra alkalmas állapotban marad, és a hiba bekerül a logba.
@@ -487,7 +488,7 @@ Fő mezők:
 - `email`
 - `passwordHash`
 - `displayName`
-- `storageQuotaBytes`
+- `storageLimitBytes`
 - `usedStorageBytes`
 - opcionálisan `deletedStorageBytes` vagy `recoverableStorageBytes`, ha külön szeretnénk mutatni a soft deleted fájlok méretét
 - `createdAt`
@@ -513,7 +514,7 @@ Fő mezők:
 - `createdAt`
 - `updatedAt`
 - `deletedAt`
-- `purgeAfterAt`
+- `purgeAfter`
 
 ### ShareLink
 
@@ -526,6 +527,8 @@ Fő mezők:
 - `createdByUserId`
 - `tokenHash`
 - `expiresAt`
+- `maxAccessCount`
+- `accessCount`
 - `revokedAt`
 - `createdAt`
 
@@ -546,12 +549,12 @@ Későbbi alternatívák:
 - PostgreSQL trigger.
 - Külön `StorageUsage` tábla audit célokra.
 
-### AuditLog későbbi fázisban
+### AuditEvent későbbi fázisban
 
 Nem MVP-kötelező, de később hasznos lehet:
 
 - `id`
-- `userId`
+- `actorUserId`
 - `action`
 - `resourceType`
 - `resourceId`
@@ -599,7 +602,7 @@ Javasolt API csoportok:
 - `GET /api/v1/files/:id`
 - `GET /api/v1/files/:id/view-url`
 - `DELETE /api/v1/files/:id`
-- `POST /api/v1/files/:id/restore` későbbi trash/restore UI esetén
+- `POST /api/v1/files/:id/restore`
 
 ### Sharing
 
@@ -781,11 +784,13 @@ A szakdolgozói leadandó csomag miatt a dokumentáció nem opcionális. A dokum
 ### 16.1 Első körben elkészítendő dokumentumok
 
 - `README.md`
-- `plan.md`
+- `docs/plan.md`
 - `docs/00_index.md`
 - `docs/01_product/vision.md`
 - `docs/01_product/scope_contract.md`
 - `docs/01_product/capability_map.md`
+- `docs/01_product/metrics.md`
+- `docs/01_product/ux_flows.md`
 - `docs/02_architecture/c4_context.md`
 - `docs/02_architecture/c4_container.md`
 - `docs/02_architecture/quality_attributes.md`
@@ -813,9 +818,11 @@ A szakdolgozói leadandó csomag miatt a dokumentáció nem opcionális. A dokum
 - `docs/05_security_ops/threat_model.md`
 - `docs/05_security_ops/privacy_licensing.md`
 - `docs/05_security_ops/deploy_runbook.md`
+- `docs/05_security_ops/runbook.md`
 - `docs/05_security_ops/observability.md`
 - `docs/06_release/demo_script.md`
 - `docs/06_release/release_notes.md`
+- `docs/06_release/self_assessment.md`
 
 ---
 

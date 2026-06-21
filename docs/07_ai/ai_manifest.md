@@ -6,9 +6,15 @@ Ez a dokumentum összefoglalja, hogyan használ AI-asszisztenst a projekt, és m
 
 ## Használt eszközök
 
-| Eszköz | Felhasználás | Megjegyzés |
-|---|---|---|
-| Codex / OpenAI asszisztens | repo-tervezés, dokumentációs váz, kódmódosítások előkészítése | A konkrét válaszokat emberi review és verifikáció követi. |
+Az alábbi verzióadatok 2026-06-21-i állapotot rögzítenek. A modell nevét csak akkor tüntetjük fel konkrétan, ha az a használatkor bizonyítható volt; egy szolgáltatás jelenleg elérhető modellje nem bizonyítja, hogy egy korábbi review pontosan azzal futott.
+
+| Eszköz | Szerep | Kliens- vagy termékverzió | Használt modell | Verification / megjegyzés |
+|---|---|---|---|---|
+| OpenAI Codex agent | Elsődleges implementációs és dokumentációs ágens | `codex-cli 0.142.0-alpha.1`; telepített OpenAI VS Code extension: `26.5616.51431` | GPT-5 modellcsalád; a pontos deployment snapshot nem látható | A kliensverziók lokálisan ellenőrizve `codex --version`, illetve a VS Code `extensions.json` alapján. Minden változást emberi review és verifikáció követ. |
+| GitHub Copilot Chat | Független review | Telepített VS Code komponens: `0.53.1` | A review-kor használt konkrét modell nem lett rögzítve | A verzió a telepített `copilot/package.json` alapján ellenőrizve. A Copilot több választható modellt támogat, ezért utólag nem rendelünk hozzá feltételezett modellt. |
+| Google Gemini | Terv független felülvizsgálata | Használt felület/verzió nem lett rögzítve | A review-kor használt konkrét Gemini modell nem lett rögzítve | A korábbi használat tényét a hallgató erősítette meg. A következő használattól a felületet és a modell címkéjét a Prompt Logban is rögzíteni kell. |
+
+Az eszköz- és modellverziókat használati eseményenként kell rögzíteni. A korábbi bejegyzéseket nem szabad egy később megjelent „aktuális” modell nevével felülírni.
 
 ## Felhasználási területek
 
@@ -16,6 +22,7 @@ Ez a dokumentum összefoglalja, hogyan használ AI-asszisztenst a projekt, és m
 - Dokumentáció: README, indexek, AI naplók és későbbi ADR-ek vázlata.
 - Kód: későbbi scaffold, backend/frontend modulok és tesztek előkészítése.
 - Debug és verifikáció: hibaokok keresése, tesztesetek és ellenőrzési lépések javaslata.
+- Független review: GitHub Copilot a változások ellenőrzésére, Gemini a terv felülvizsgálatára.
 
 ## Emberi ellenőrzés
 

@@ -179,6 +179,7 @@ The MVP should focus on:
 - image/video preview
 - file download
 - soft delete
+- restore during the retention window
 - storage usage display
 - basic sharing link
 - backend validation
@@ -353,7 +354,8 @@ Suggested fields:
 
 - `id`
 - `fileObjectId`
-- `token`
+- `tokenHash`
+- `createdByUserId`
 - `expiresAt`
 - `maxAccessCount`
 - `accessCount`
@@ -788,18 +790,20 @@ Do not commit `.env`.
 
 ### Branch strategy
 
-Follow the thesis package's evidence-first branch flow for AI-assisted work:
+Follow the BSc branch strategy defined by the thesis tooling guide:
 
-- Do not commit directly to `main` or the default branch.
-- Create a separate branch before making implementation or documentation changes.
-- Use the branch naming convention `ai/<short-kebab-case-scope>` for AI-assisted work unless the user explicitly asks for another name.
-- Examples:
-  - `ai/milestone-01-repo-foundation`
-  - `ai/product-scope-docs`
-  - `ai/storage-architecture-adrs`
-- Open a pull request / merge request back to `main`.
-- Keep the PR/MR as draft while checks, evidence, or human review are still missing.
-- Only merge to `main` after review and green checks, or after explicitly documenting why checks are not available yet.
+- `main` contains only stable, submission-ready changes.
+- Do not commit implementation or documentation changes directly to `main`.
+- Use `feature/<short-kebab-case-scope>` for features.
+- Use `fix/<short-kebab-case-scope>` for bug fixes.
+- Use `docs/<short-kebab-case-scope>` for documentation-only work.
+- Open a pull request / merge request from the working branch to `main`.
+- Before CI is introduced in the dedicated later milestone, merge only after PR review and documented manual verification.
+- After CI is introduced, merge to `main` only after review and after all required CI checks are green.
+- A separate `develop` branch is not required for this BSc project.
+- AI-assisted work uses the same branch names; record the AI contribution in `docs/07_ai/` instead of encoding it in the branch name.
+
+Existing historical commit messages and branch names do not need to be rewritten. Apply this strategy and Conventional Commits to new work from now on.
 
 ---
 

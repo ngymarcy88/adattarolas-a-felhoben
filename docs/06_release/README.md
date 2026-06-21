@@ -6,4 +6,4 @@ Későbbi fájlok:
 
 - `demo_script.md`
 - `release_notes.md`
-- opcionálisan `scorecard.md`
+- `self_assessment.md`
