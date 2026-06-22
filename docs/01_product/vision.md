@@ -21,7 +21,7 @@ A cél nem egy teljes Dropbox- vagy Google Drive-alternatíva létrehozása, han
 - **Helyzet:** telefonon és számítógépen készült képeket, rövid videókat szeretne egy helyen tárolni.
 - **Cél:** gyorsan feltölteni, később megtalálni, megnyitni vagy letölteni a saját fájljait.
 - **Igény:** egyszerű felület, érthető visszajelzések, látható tárhelykeret és biztonságos alapbeállítások.
-- **Fájdalompont:** nem szeretne cloud credentialökkel, bucketekkel vagy technikai storage-beállításokkal foglalkozni.
+- **Fájdalompont:** nem szeretne cloud credentialekkel, bucketekkel vagy technikai storage-beállításokkal foglalkozni.
 
 ### Persona 2: Bence, technikailag tudatos megosztó
 
