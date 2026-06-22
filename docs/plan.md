@@ -203,7 +203,7 @@ Mivel a projekt képek mellett videókat is kezel, a nagy fájlok feltöltése k
 
 MVP döntés:
 
-- Az első MVP-ben legyen fájlméret-limit, például 50-100 MB.
+- Az első MVP-ben a fájlméret-limit 100 MB legyen.
 - A sima presigned upload elegendő az MVP demonstrációhoz.
 - A dokumentációban és ADR-ben szerepeljen, hogy nagy fájlokra később S3 Multipart Upload szükséges.
 

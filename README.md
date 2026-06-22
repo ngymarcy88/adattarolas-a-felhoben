@@ -4,7 +4,7 @@ Személyes cloud media storage alkalmazás, amely képek és videók biztonságo
 
 ## Jelenlegi állapot
 
-Ez a repo az **1. mérföldkő: Projektindítás és repo-alapok** állapotában van. Futtatható frontend vagy backend alkalmazás még nincs scaffoldolva; ebben a fázisban a leadandó csomag repo-struktúrája, dokumentációs váza, konfigurációs szerződése és AI-dokumentációs alapja készül el.
+Az **1. mérföldkő: Projektindítás és repo-alapok**, valamint a **2. mérföldkő: Termékvízió, scope és MVP meghatározása** dokumentációs eredményei elkészültek. A termékvízió, a hat user story-ból álló MVP scope, a capability map, a tervezett metrikák és a fő UX-folyamatok rögzítve vannak. Futtatható frontend vagy backend alkalmazás még nincs scaffoldolva, ezért minden termékképesség tervezett státuszú.
 
 ## Tervezett stack
 
@@ -30,6 +30,11 @@ Ez a repo az **1. mérföldkő: Projektindítás és repo-alapok** állapotában
 - [Dokumentációs index](docs/00_index.md)
 - [High-level szakdolgozati terv](docs/plan.md)
 - [Mérföldkövek](docs/milestones.md)
+- [Termékvízió](docs/01_product/vision.md)
+- [MVP scope contract](docs/01_product/scope_contract.md)
+- [Capability map](docs/01_product/capability_map.md)
+- [Termékmetrikák](docs/01_product/metrics.md)
+- [Fő UX-folyamatok](docs/01_product/ux_flows.md)
 - [AI Manifest](docs/07_ai/ai_manifest.md)
 - [Prompt Log](docs/07_ai/prompt_log.md)
 - [Verification Log](docs/07_ai/verification_log.md)

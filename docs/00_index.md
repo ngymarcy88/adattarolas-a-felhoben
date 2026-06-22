@@ -6,13 +6,18 @@ Ez az index a szakdolgozói leadandó csomag Docs-as-Code belépési pontja. A d
 
 - [High-level szakdolgozati terv](plan.md)
 - [Mérföldkövek](milestones.md)
+- [Termékvízió](01_product/vision.md)
+- [MVP scope contract](01_product/scope_contract.md)
+- [Capability map](01_product/capability_map.md)
+- [Termékmetrikák](01_product/metrics.md)
+- [Fő UX-folyamatok](01_product/ux_flows.md)
 - [AI Manifest](07_ai/ai_manifest.md)
 - [Prompt Log](07_ai/prompt_log.md)
 - [Verification Log](07_ai/verification_log.md)
 
 ## Előkészített dokumentációs területek
 
-- [01_product](01_product/README.md): vision, scope contract, capability map, metrics és UX flow-k.
+- [01_product](01_product/README.md): elkészült vision, scope contract, capability map, metrics és UX flow-k.
 - [02_architecture](02_architecture/README.md): C4 diagramok, quality attributes és ADR-ek.
 - [03_design](03_design/README.md): API, adatmodell és hibakezelési szerződés.
 - [04_quality](04_quality/README.md): tesztstratégia, teszt riport és minőségi kapuk.
@@ -29,3 +34,11 @@ Ez az index a szakdolgozói leadandó csomag Docs-as-Code belépési pontja. A d
 - A projekt célja a root `README.md` fájlban röviden le van írva.
 - A Codex számára van projekt-specifikus `AGENTS.md`.
 - Az AI dokumentációs alapfájlok létrejöttek.
+
+## Második mérföldkő dokumentációs eredménye
+
+- Két célpersona és a termék értékajánlata rögzített.
+- Hat MVP user story rendelkezik elfogadási kritériumokkal.
+- Az MVP és a későbbi funkciók határa dokumentált.
+- A value és productization képességek, a sikermetrikák és három fő UX-folyamat követhető.
+- A leírt termékképességek továbbra is tervezett státuszúak, amíg későbbi mérföldkövek nem igazolják az implementációjukat.

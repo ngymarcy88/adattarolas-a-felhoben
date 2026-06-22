@@ -92,19 +92,22 @@ Az MVP célja egy minimálisan működő, de szakdolgozati szempontból jól ér
 - [ ] Felhasználó bejelentkezés.
 - [ ] Védett frontend felület.
 - [ ] Kép vagy videó feltöltése MinIO-ba backend által generált presigned URL-lel.
+- [ ] Egy fájl legfeljebb 100 MB lehet az MVP-ben.
 - [ ] Fájl metaadatainak mentése PostgreSQL adatbázisba.
 - [ ] Saját fájlok listázása.
 - [ ] Kép/videó előnézet vagy megtekintés.
 - [ ] Fájl letöltése.
 - [ ] Fájl soft delete állapotba helyezése.
+- [ ] Törölt fájl egyedi visszaállítása a 30 napos megőrzési időn belül.
 - [ ] Tárhelyhasználat megjelenítése dashboardon.
+- [ ] Alap időkorlátos megosztási link létrehozása és érvényességének ellenőrzése.
 - [ ] Alap validáció: fájlméret, MIME type, magic number.
 - [ ] Egységes backend hibamodell.
 
 #### MVP-n kívüli, későbbi funkciók
 
 - [ ] Multipart upload nagy videókhoz.
-- [ ] Nyilvános vagy időkorlátos megosztási linkek fejlettebb kezelése.
+- [ ] Megosztási link visszavonása, hozzáférésszám-korlátja és fejlett kezelése.
 - [ ] Admin felület.
 - [ ] Teljes CI/CD pipeline.
 - [ ] Integration és e2e tesztek.
@@ -115,20 +118,20 @@ Az MVP célja egy minimálisan működő, de szakdolgozati szempontból jól ér
 
 ### Dokumentációs output
 
-- [ ] `docs/01_product/vision.md`
-- [ ] `docs/01_product/scope_contract.md`
-- [ ] `docs/01_product/capability_map.md`
-- [ ] `docs/01_product/metrics.md`
-- [ ] `docs/01_product/ux_flows.md`
+- [x] `docs/01_product/vision.md`
+- [x] `docs/01_product/scope_contract.md`
+- [x] `docs/01_product/capability_map.md`
+- [x] `docs/01_product/metrics.md`
+- [x] `docs/01_product/ux_flows.md`
 
 ### Definition of Done
 
-- [ ] Van 1-2 persona.
-- [ ] Van 3-6 MVP user story.
-- [ ] Minden MVP story-hoz van acceptance criteria.
-- [ ] Van non-goals lista.
-- [ ] Van legalább 6 capability, ebből legalább 3 value és 3 productization.
-- [ ] A scope nem túl nagy, később is bővíthető.
+- [x] Van 1-2 persona.
+- [x] Van 3-6 MVP user story.
+- [x] Minden MVP story-hoz van acceptance criteria.
+- [x] Van non-goals lista.
+- [x] Van legalább 6 capability, ebből legalább 3 value és 3 productization.
+- [x] A scope nem túl nagy, később is bővíthető.
 
 ---
 
@@ -659,7 +662,6 @@ Első körben egyszerű, időkorlátos megosztási link elegendő. A megosztási
 - [ ] ShareLink entitás létrehozása.
 - [ ] Megosztási link generálása.
 - [ ] Megosztási link lejárati idővel.
-- [ ] Megosztási link visszavonása.
 - [ ] Backend validáció link eléréskor.
 - [ ] Rövid lejáratú read URL generálás.
 - [ ] Frontend megosztás gomb.
@@ -670,9 +672,7 @@ Első körben egyszerű, időkorlátos megosztási link elegendő. A megosztási
 
 - [ ] Link token generálás.
 - [ ] Lejárt link visszautasítása.
-- [ ] Visszavont link visszautasítása.
 - [ ] Törölt fájl megosztása tiltott.
-- [ ] Max access count logika, ha implementálva van.
 
 ### Dokumentációs output
 
@@ -684,9 +684,10 @@ Első körben egyszerű, időkorlátos megosztási link elegendő. A megosztási
 
 - [ ] A felhasználó tud linket generálni.
 - [ ] A link lejár.
-- [ ] A link visszavonható.
 - [ ] A megosztás nem kerüli meg a backend kontrollját.
 - [ ] A megosztási logika unit tesztekkel védett.
+
+Megosztási link visszavonása, hozzáférésszám-korlátja és részletes analitikája későbbi bővítés, ezért nem része ennek a mérföldkőnek a Definition of Done feltételeinek.
 
 ---
 
@@ -1185,4 +1186,3 @@ A projekt nem csak „feltöltök fájlt S3-ba” típusú demo, hanem több oly
 - Multipart upload tudatos későbbi tervezése.
 - AI-használat dokumentált és verifikált módon.
 - ADR-ekkel alátámasztott mérnöki döntések.
-
