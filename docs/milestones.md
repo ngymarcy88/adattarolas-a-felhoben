@@ -166,31 +166,39 @@ A bináris tartalom MinIO/S3-ban él, az alkalmazási metaadatok PostgreSQL-ben.
 
 Készítendő ADR-ek:
 
-- [ ] `ADR-001`: Vue 3 + Vite + TypeScript választása frontendhez.
-- [ ] `ADR-002`: NestJS választása backendhez.
-- [ ] `ADR-003`: PostgreSQL + Prisma választása metaadat-tárolásra.
-- [ ] `ADR-004`: S3-kompatibilis object storage és lokális MinIO használata.
-- [ ] `ADR-005`: Backend által kontrollált presigned URL upload/download folyamat.
-- [ ] `ADR-006`: Soft delete + késleltetett purge stratégia.
-- [ ] `ADR-007`: Denormalizált `usedStorageBytes` mező a felhasználói tárhelyhasználathoz.
-- [ ] `ADR-008`: Magic number alapú fájltípus-validáció.
-- [ ] `ADR-009`: Multipart upload későbbi fázisra halasztása.
+- [x] `ADR-001`: Vue 3 + Vite + TypeScript választása frontendhez.
+- [x] `ADR-002`: NestJS választása backendhez.
+- [x] `ADR-003`: PostgreSQL + Prisma választása metaadat-tárolásra.
+- [x] `ADR-004`: S3-kompatibilis object storage és lokális MinIO használata.
+- [x] `ADR-005`: Backend által kontrollált presigned URL upload/download folyamat.
+- [x] `ADR-006`: Soft delete + késleltetett purge stratégia.
+- [x] `ADR-007`: Denormalizált `usedStorageBytes` mező a felhasználói tárhelyhasználathoz.
+- [x] `ADR-008`: Magic number alapú fájltípus-validáció.
+- [x] `ADR-009`: Multipart upload későbbi fázisra halasztása.
 
 ### Dokumentációs output
 
-- [ ] `docs/02_architecture/c4_context.md`
-- [ ] `docs/02_architecture/c4_container.md`
-- [ ] `docs/02_architecture/c4_component.md` opcionális, később
-- [ ] `docs/02_architecture/quality_attributes.md`
-- [ ] `docs/02_architecture/adr/*.md`
+- [x] `docs/02_architecture/c4_context.md`
+- [x] `docs/02_architecture/c4_container.md`
+- [x] `docs/02_architecture/c4_component.md`
+- [x] `docs/02_architecture/quality_attributes.md`
+- [x] `docs/02_architecture/adr/*.md`
 
 ### Definition of Done
 
-- [ ] Van C4 Context diagram.
-- [ ] Van C4 Container diagram.
-- [ ] Legalább 5 ADR elkészült.
-- [ ] Az ADR-ek tartalmaznak alternatívákat és következményeket.
-- [ ] Minden fontos döntéshez van rövid verification terv.
+- [x] Van C4 Context diagram.
+- [x] Van C4 Container diagram.
+- [x] Legalább 5 ADR elkészült.
+- [x] Az ADR-ek tartalmaznak alternatívákat és következményeket.
+- [x] Minden fontos döntéshez van rövid verification terv.
+
+### Evidence
+
+- C4 és quality dokumentumok: `docs/02_architecture/c4_context.md`, `docs/02_architecture/c4_container.md`, `docs/02_architecture/c4_component.md`, `docs/02_architecture/quality_attributes.md`.
+- ADR lista és linkek: `docs/02_architecture/adr/README.md`.
+- Markdown link sanity check: scriptelt relatív link ellenőrzés a README és docs Markdown fájlokra.
+- Formázási sanity check: `git diff --check`.
+- Koncentrált konzisztencia-ellenőrzés: nincs runtime appként megfogalmazott állítás; a dokumentumok a 3. mérföldkő dokumentációs hatókörében maradnak.
 
 ---
 
@@ -423,7 +431,7 @@ A felhasználó tudjon képet vagy videót feltölteni, a fájl pedig MinIO-ban 
 
 - [ ] `docs/03_design/api.md` file upload endpointokkal
 - [ ] `docs/03_design/data_model.md` FileObject státuszokkal
-- [ ] `docs/02_architecture/adr/ADR-005-presigned-url-upload.md`
+- [ ] `docs/02_architecture/adr/ADR-005-backend-controlled-presigned-flow.md`
 
 ### Definition of Done
 
@@ -581,7 +589,7 @@ A soft delete állapotú fájl továbbra is foglalja a felhasználó tárhelyét
 
 - [ ] `docs/03_design/data_model.md`
 - [ ] `docs/01_product/metrics.md`
-- [ ] `docs/02_architecture/adr/ADR-007-used-storage-denormalization.md`
+- [ ] `docs/02_architecture/adr/ADR-007-denormalized-storage-usage.md`
 
 ### Definition of Done
 
@@ -632,7 +640,7 @@ A felhasználó ne veszítsen azonnal végleg adatot törléskor, de az objektum
 
 ### Dokumentációs output
 
-- [ ] `docs/02_architecture/adr/ADR-006-soft-delete-purge.md`
+- [ ] `docs/02_architecture/adr/ADR-006-soft-delete-delayed-purge.md`
 - [ ] `docs/03_design/data_model.md`
 - [ ] `docs/05_security_ops/runbook.md`
 - [ ] `docs/07_ai/verification_log.md`
@@ -1024,7 +1032,7 @@ Az MVP-ben normál presigned upload lesz fájlméretlimittel. A multipart upload
 
 ### Dokumentációs output
 
-- [ ] `docs/02_architecture/adr/ADR-009-multipart-upload-later.md`
+- [ ] `docs/02_architecture/adr/ADR-009-defer-multipart-upload.md`
 - [ ] `docs/03_design/api.md` későbbi tervként
 - [ ] `docs/01_product/scope_contract.md` stretch goal rész
 

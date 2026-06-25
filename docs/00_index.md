@@ -11,6 +11,11 @@ Ez az index a szakdolgozói leadandó csomag Docs-as-Code belépési pontja. A d
 - [Capability map](01_product/capability_map.md)
 - [Termékmetrikák](01_product/metrics.md)
 - [Fő UX-folyamatok](01_product/ux_flows.md)
+- [C4 Context](02_architecture/c4_context.md)
+- [C4 Container](02_architecture/c4_container.md)
+- [C4 Component](02_architecture/c4_component.md)
+- [Quality Attributes](02_architecture/quality_attributes.md)
+- [Architecture Decision Records](02_architecture/adr/README.md)
 - [AI Manifest](07_ai/ai_manifest.md)
 - [Prompt Log](07_ai/prompt_log.md)
 - [Verification Log](07_ai/verification_log.md)
@@ -42,3 +47,10 @@ Ez az index a szakdolgozói leadandó csomag Docs-as-Code belépési pontja. A d
 - Az MVP és a későbbi funkciók határa dokumentált.
 - A value és productization képességek, a sikermetrikák és három fő UX-folyamat követhető.
 - A leírt termékképességek továbbra is tervezett státuszúak, amíg későbbi mérföldkövek nem igazolják az implementációjukat.
+
+## Harmadik mérföldkő dokumentációs eredménye
+
+- Elkészült a C4 Context, Container és lightweight Component nézet.
+- Rögzítve vannak a fő quality attribute-ok és azok későbbi verifikációs irányai.
+- Kilenc Accepted státuszú ADR dokumentálja a fő technológiai és architekturális döntéseket.
+- A dokumentumok továbbra sem állítanak futtatható alkalmazást; a scaffold, Docker Compose, Prisma schema és runtime API későbbi mérföldkő része.
