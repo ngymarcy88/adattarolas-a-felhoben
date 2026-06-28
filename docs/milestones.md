@@ -164,7 +164,7 @@ A bináris tartalom MinIO/S3-ban él, az alkalmazási metaadatok PostgreSQL-ben.
 
 ### ADR-ek
 
-Készítendő ADR-ek:
+Elkészült ADR-ek:
 
 - [x] `ADR-001`: Vue 3 + Vite + TypeScript választása frontendhez.
 - [x] `ADR-002`: NestJS választása backendhez.
