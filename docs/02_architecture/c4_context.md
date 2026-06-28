@@ -1,10 +1,10 @@
 # C4 Context
 
-## Statusz
+## Státusz
 
-Ez a dokumentum a 3. merfoldko architekturatervezesi eredmenye. A benne szereplo komponensek tervezett allapotot irnak le; futtathato alkalmazaskod ebben a merfoldkoben meg nem keszul.
+Ez a dokumentum a 3. mérföldkő architektúratervezési eredménye. A benne szereplő komponensek tervezett állapotot írnak le; futtatható alkalmazáskód ebben a mérföldkőben még nem készül.
 
-## Cel
+## Cél
 
 A context nezet azt mutatja meg, hogy a CloudVault rendszer milyen kulso szereplokkel es infrastruktura-elemekkel mukodik egyutt. A fo dontes: a bongeszo nem kozvetlenul kezeli az object storage credentialeket, hanem minden jogosultsagi dontes es presigned URL kiadas a backend API-n keresztul tortenik.
 
