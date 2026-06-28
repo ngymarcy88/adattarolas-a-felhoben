@@ -4,9 +4,9 @@
 
 Ez a dokumentum a tervezett MVP kontener szintu architekturajat rogziti. A leirt kontenerek kesobbi merfoldkovekben lesznek scaffoldolva es implementalva.
 
-## Cel
+## Cél
 
-A container nezet az alkalmazas futtathato nagyobb egysegeit es a koztuk levo felelossegi hatarokat mutatja. A kulcsfontossagu szerzodes az, hogy a frontend csak a backend API-val beszel, a binaris fajlok pedig privat object storage-ban vannak.
+A container nézet az alkalmazás futtatható nagyobb egységeit és a köztük lévő felelősségi határokat mutatja. A kulcsfontosságú szerződés az, hogy a frontend a backend API-val intézi a jogosultságot és a presigned URL-ek kiadását, míg a bináris adatátvitel presigned URL-lel közvetlenül a privát object storage felé történik.
 
 ## Diagram
 
