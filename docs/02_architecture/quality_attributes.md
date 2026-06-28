@@ -1,8 +1,8 @@
 # Quality Attributes
 
-## Statusz
+## Státusz
 
-Ez a dokumentum a 3. merfoldko architekturatervezesi resze. A kovetelmenyek a kesobbi implementaciohoz adnak ellenorizheto iranyt.
+Ez a dokumentum a 3. mérföldkő architektúratervezési része. A követelmények a későbbi implementációhoz adnak ellenőrizhető irányt.
 
 ## Security
 
