@@ -8,43 +8,68 @@ Ez lightweight komponensnezet a kesobbi NestJS backend modulhataraihoz. Nem impl
 
 A komponensnezet segit abban, hogy a kesobbi backend scaffold ne egyetlen nagy service-be gyujtse az uzleti logikat. A controller retegek vekonyak maradnak, a szabalyok service-ekben es adapterekben lesznek tesztelhetok.
 
-## Diagram
+## Diagramok
+
+A ket fokuszalt nezet ugyanazt a tervezett backend architekturat mutatja. Az elso a keresek es az uzleti modulok kozotti hivasokat, a masodik a kozos technikai es perzisztenciafuggosegeket emeli ki.
+
+### API- es domainfolyam
 
 ```mermaid
-flowchart TB
-    api["Controllers\nREST API boundary"]
-    auth["Auth module\nregistration, login, guards"]
-    users["Users module\nprofile, quota fields"]
-    files["Files module\nmetadata, lifecycle, ownership"]
-    sharing["Sharing module\nshare token hash, expiry"]
-    storage["Storage module\nStorageService + S3 adapter"]
-    audit["Audit module\naudit events"]
-    common["Common module\nerrors, decorators, validation utils"]
-    config["Config module\nenvironment mapping"]
-    health["Health module\nbasic health endpoint"]
-    prisma["Prisma service"]
-    objectStorage["MinIO / S3"]
-    postgres["PostgreSQL"]
+flowchart LR
+    subgraph boundary["API boundary"]
+        direction TB
+        api["Controllers\nREST endpoints"]
+        health["Health module\nhealth endpoint"]
+    end
+
+    subgraph domain["Domain modules"]
+        direction TB
+        auth["Auth\nregistration, login, guards"]
+        users["Users\nprofile, quota fields"]
+        files["Files\nmetadata, lifecycle, ownership"]
+        sharing["Sharing\ntoken hash, expiry"]
+    end
+
+    subgraph support["Domain support"]
+        direction TB
+        storage["Storage\npresigned URLs, object operations"]
+        audit["Audit\naudit events"]
+    end
 
     api --> auth
     api --> files
     api --> sharing
     api --> health
     auth --> users
-    auth --> common
     files --> users
     files --> storage
     files --> audit
-    files --> common
     sharing --> files
     sharing --> audit
-    sharing --> common
+```
+
+### Technikai es perzisztenciafuggosegek
+
+Ebben a nezetben a `Domain modules` doboz az elozo diagram `auth`, `users`, `files` es `sharing` moduljainak osszevont jelolese. Nem jelent uj backend komponenst.
+
+```mermaid
+flowchart LR
+    domain["Domain modules\nauth, users, files, sharing"]
+    audit["Audit module"]
+    common["Common module\nerrors, decorators, validation"]
+    config["Config module\nenvironment mapping"]
+    storage["Storage module\nS3-compatible adapter"]
+    prisma["Prisma service"]
+    objectStorage["MinIO / S3\nbinary objects"]
+    postgres["PostgreSQL\nmetadata"]
+
+    domain -.->|"shared helpers"| common
+    domain -->|"metadata access"| prisma
+    domain -->|"file operations"| storage
+    domain -->|"security-relevant events"| audit
+    audit --> prisma
     storage --> config
     storage --> objectStorage
-    users --> prisma
-    files --> prisma
-    sharing --> prisma
-    audit --> prisma
     prisma --> postgres
 ```
 
