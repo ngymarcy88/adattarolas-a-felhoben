@@ -16,6 +16,10 @@ Az alábbi verzióadatok 2026-06-21-i állapotot rögzítenek. A modell nevét c
 
 Az eszköz- és modellverziókat használati eseményenként kell rögzíteni. A korábbi bejegyzéseket nem szabad egy később megjelent „aktuális” modell nevével felülírni.
 
+### 2026-07-12 dokumentációs rebaseline
+
+Az SZD2 rebaseline a Codex desktop környezetben, elsődleges ágenssel és felelősség szerint szétválasztott product/design/security review alágensekkel készült. A futás pontos desktop kliensverziója és deployment modell-snapshotja nem volt külön bizonyítható a task felületén, ezért ezeket nem következtetjük ki és nem írjuk felül utólag egy aktuális verzióval.
+
 ## Felhasználási területek
 
 - Tervezés: mérföldkövek, scope és dokumentációs szerkezet finomítása.
@@ -23,6 +27,18 @@ Az eszköz- és modellverziókat használati eseményenként kell rögzíteni. A
 - Kód: későbbi scaffold, backend/frontend modulok és tesztek előkészítése.
 - Debug és verifikáció: hibaokok keresése, tesztesetek és ellenőrzési lépések javaslata.
 - Független review: GitHub Copilot a változások ellenőrzésére, Gemini a terv felülvizsgálatára.
+
+## Két külön AI-fogalom a projektben
+
+### AI-asszisztált fejlesztés
+
+Ez a manifest, a Prompt Log és a Verification Log a szakdolgozat elkészítéséhez használt AI-eszközöket, azok outputját és az emberi ellenőrzést dokumentálja. Ezek az eszközök nem részei a CloudVault futásidejű architektúrájának.
+
+### Opcionális alkalmazásbeli MI-képesség
+
+A tervezett `MVP+` kép-metaadat-javaslat külön termékfunkció. Első körben csak aktív képnél, explicit felhasználói indítással adhat címke- és leírásjavaslatot. A felhasználó elfogadja, szerkeszti vagy elutasítja az eredményt; providerhiba nem akadályozhat core storage műveletet.
+
+Ehhez a funkcióhoz jelenleg nincs kiválasztott provider, modell, dependency vagy feldolgozási queue. Implementáció előtt külön privacy-, licensing- és dependency-jóváhagyás szükséges. Arcfelismerés, biometria és érzékeny tulajdonság következtetése tiltott.
 
 ## Emberi ellenőrzés
 
@@ -40,6 +56,7 @@ Az eszköz- és modellverziókat használati eseményenként kell rögzíteni. A
 | Storage biztonság | Kockázatok és mitigációk listázása | Threat model, security tesztek és verification log alapján. |
 | Auth és jogosultság | Implementációs minták javaslata | Unit/integration tesztekkel és kód review-val ellenőrizve. |
 | AI dokumentáció | Sablonok és naplózási forma javaslata | A hallgató ellenőrzi, hogy valós promptokra és eredményekre hivatkozik. |
+| Opcionális termék-MI | Providerhatár, hibafolyamat és tesztesetek javaslata | Külön ADR, threat/privacy review, human-in-the-loop tesztek és explicit implementációs jóváhagyás. |
 
 ## Fő kockázatok
 
@@ -47,9 +64,11 @@ Az eszköz- és modellverziókat használati eseményenként kell rögzíteni. A
 - Hibás security tanács: egy látszólag kényelmes megoldás gyengíti az adatvédelmet.
 - Licenc vagy forrás kockázat: nem tisztázott eredetű kód vagy szöveg kerülne be.
 - Scope creep: az AI túl nagy feature-listát javasol a szakdolgozati MVP-hez.
+- Fogalmi összemosás: az AI-asszisztált fejlesztés és a futásidejű MI-funkció evidence-e összekeveredhet.
 
 ## Kezelés
 
 - Minden fontos AI-javaslat a [Prompt Log](prompt_log.md) dokumentumba kerül.
 - A kockázatos vagy termékminőségi állítások a [Verification Log](verification_log.md) dokumentumban kapnak bizonyítékot.
 - A végső döntéseket ADR-ek, tesztek és dokumentált futtatási eredmények támasztják alá.
+- A product-AI státuszát minden dokumentum `MVP+` jelöléssel, a Core MVP-től elkülönítve kezeli.

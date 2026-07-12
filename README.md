@@ -1,95 +1,109 @@
 # Adattárolás a felhőben
 
-Személyes cloud media storage alkalmazás, amely képek és videók biztonságos feltöltését, kezelését, megtekintését, megosztását és tárhelyhasználat-követését mutatja be termékminőségű, AI-asszisztált fejlesztési folyamatban.
+S3-kompatibilis objektumtárolóra tervezett személyes médiafájl-kezelő webalkalmazás szakdolgozati repository-ja.
 
 ## Jelenlegi állapot
 
-Az **1. mérföldkő: Projektindítás és repo-alapok**, a **2. mérföldkő: Termékvízió, scope és MVP meghatározása**, valamint a **3. mérföldkő: Architektúra és fő technológiai döntések** dokumentációs eredményei elkészültek. A termékvízió, a hat user story-ból álló MVP scope, a capability map, a tervezett metrikák, a fő UX-folyamatok, a C4 nézetek, a quality attribute-ok és az első ADR-készlet rögzítve vannak. Futtatható frontend vagy backend alkalmazás még nincs scaffoldolva, ezért minden termékképesség tervezett státuszú.
+A repository **dokumentáció-only tervezési állapotban** van. Nincs futtatható frontend vagy backend, Prisma schema, Docker Compose, package manifest, automata tesztkörnyezet vagy CI/CD pipeline. A dokumentumok célarchitektúrát és jövőbeli viselkedést írnak le; a termékfunkciók még nem implementáltak.
+
+Elkészült dokumentációs alapok:
+
+- projekt- és repo-alapok;
+- termékvízió és hat core MVP user story;
+- C4 architektúranézetek és ADR-k;
+- SZD2 dokumentációs rebaseline a részletes design-, quality- és security-szerződésekkel.
+
+## Szakmai irány
+
+A terv négy pillérre épül:
+
+1. **Core cloud-storage MVP:** auth, privát médiafeltöltés, lista, preview, download, usage, sharing, soft delete és restore.
+2. **Megbízható fájl-életciklus:** pending upload, idempotens confirm, kvótafoglalás, magic-number validáció, cleanup és későbbi purge-stratégia.
+3. **Skálázható és karbantartható architektúra:** stateless backend, cursor pagination, storage adapter, modulhatárok és reprodukálható lokális környezet.
+4. **Opcionális termék-MI:** core MVP utáni, explicit felhasználói indítású kép-címke- és leírásjavaslat emberi jóváhagyással.
+
+Az alkalmazásba tervezett MI-funkció külön fogalom az AI-asszisztált fejlesztési folyamattól. A fejlesztés AI-használatát és emberi verifikációját a `docs/07_ai/` naplói követik.
+
+## Scope
+
+### Core MVP
+
+- regisztráció, login és védett felület;
+- legfeljebb 100 MB-os kép vagy rövid videó feltöltése privát MinIO/S3 bucketbe;
+- PostgreSQL metaadat-kezelés;
+- saját aktív fájlok cursor-lapozott listája;
+- biztonságos preview és download;
+- denormalizált tárhelyhasználat;
+- időkorlátos alap share-link;
+- soft delete és egyedi restore 30 napon belül;
+- backend validation, authorization, alap audit és unit tesztek.
+
+### MVP+
+
+- opcionális, első körben csak képekhez használható MI-metaadat-javaslat;
+- explicit trigger, accept/edit/reject és provider-failure fallback;
+- nem része a Core MVP Definition of Done feltételeinek.
+
+### Later
+
+- automatizált purge worker;
+- multipart upload;
+- cloud deployment;
+- integration, contract és e2e tesztek;
+- CI/CD és fejlett monitoring;
+- thumbnail, transzkódolás, admin és fejlett keresés.
 
 ## Tervezett stack
 
-- Frontend: Vue 3 + Vite + TypeScript + Tailwind CSS
-- Backend: Node.js + TypeScript + NestJS
-- Adatbázis: PostgreSQL + Prisma
-- Lokális object storage: MinIO
-- Későbbi cloud storage: AWS S3 vagy OCI Object Storage S3-kompatibilis API-val
-- Első tesztelési fókusz: unit tesztek
-
-## Főbb tervezett képességek
-
-- Felhasználói regisztráció és bejelentkezés.
-- Kép- és videófeltöltés privát S3-kompatibilis tárolóba.
-- Saját fájlok listázása, megtekintése és letöltése.
-- Időkorlátos megosztási linkek.
-- Tárhelyhasználat megjelenítése.
-- Soft delete és késleltetett object purge stratégia.
-- Törölt fájlok visszaállítása a megőrzési időn belül.
+- Frontend: Vue 3, Vite, TypeScript, Tailwind CSS és Vue Router.
+- Backend: Node.js, TypeScript és NestJS.
+- Adatbázis: PostgreSQL + Prisma.
+- Lokális object storage: MinIO.
+- Későbbi cloud target: AWS S3 vagy OCI Object Storage S3-kompatibilis API-val.
+- Első tesztelési szint: unit tesztek.
 
 ## Dokumentáció
 
+Kanonikus belépési pontok:
+
 - [Dokumentációs index](docs/00_index.md)
 - [High-level szakdolgozati terv](docs/plan.md)
-- [Mérföldkövek](docs/milestones.md)
-- [Termékvízió](docs/01_product/vision.md)
-- [MVP scope contract](docs/01_product/scope_contract.md)
-- [Capability map](docs/01_product/capability_map.md)
-- [Termékmetrikák](docs/01_product/metrics.md)
-- [Fő UX-folyamatok](docs/01_product/ux_flows.md)
-- [C4 Context](docs/02_architecture/c4_context.md)
-- [C4 Container](docs/02_architecture/c4_container.md)
-- [C4 Component](docs/02_architecture/c4_component.md)
-- [Quality Attributes](docs/02_architecture/quality_attributes.md)
-- [ADR-ek](docs/02_architecture/adr/README.md)
-- [AI Manifest](docs/07_ai/ai_manifest.md)
-- [Prompt Log](docs/07_ai/prompt_log.md)
-- [Verification Log](docs/07_ai/verification_log.md)
+- [Mérföldkövek és státusz](docs/milestones.md)
+- [Core MVP scope contract](docs/01_product/scope_contract.md)
+- [Architektúra és ADR-ek](docs/02_architecture/README.md)
+- [API-, adatmodell- és hibaszerződések](docs/03_design/README.md)
+- [Tesztstratégia és teszt baseline](docs/04_quality/README.md)
+- [Security, privacy és operations](docs/05_security_ops/README.md)
+- [AI-használat és verifikáció](docs/07_ai/ai_manifest.md)
 
 ## Quickstart
 
-Jelenleg nincs futtatható alkalmazás, ezért nincs telepítési vagy indítási parancs. A későbbi mérföldkövekben a README ezen része konkrét, reprodukálható parancsokra bővül.
+Jelenleg nincs futtatható alkalmazás, ezért nincs hiteles telepítési, indítási, build- vagy tesztparancs. Ezek csak a későbbi scaffold és lokális környezet tényleges elkészülte, majd tiszta környezetben végzett kézi ellenőrzése után kerülhetnek ide.
 
-Tervezett későbbi irány:
+## Konfiguráció és titkok
 
-```bash
-# Kesobbi merfoldko utan varhato parancsok
-npm install
-npm test
-npm run build
-```
+A repository kizárólag placeholder konfigurációt tartalmaz a [.env.example](.env.example) fájlban. Valódi `.env`, jelszó, JWT secret, access key, cloud credential vagy személyes adat nem commitolható.
 
-## Konfiguráció
+Normál lokális fejlesztéshez a későbbiekben sem lesz szükség valós AWS- vagy OCI-credentialre; a cél a PostgreSQL és MinIO alapú környezet.
 
-A repo csak placeholder konfigurációt tartalmaz: [.env.example](.env.example).
-
-Valódi `.env` fájlt, tokent, jelszót, access keyt vagy cloud credentialt nem szabad commitolni. A `.gitignore` minden `.env*` fájlt tilt, kivéve a dokumentációs célra használt `.env.example` sablont.
-
-## Tesztelés
-
-Automata tesztfuttató még nincs bevezetve. Az első unit teszt setup a későbbi backend/frontend scaffold mérföldkövekben készül el, és ekkor kerül ide a pontos futtatási parancs.
-
-## Repo struktura
+## Repository szerkezet
 
 ```text
 /
 ├── README.md
 ├── AGENTS.md
-├── .env.example
-├── .gitignore
-├── frontend/
-├── backend/
+├── frontend/             # jelenleg placeholder
+├── backend/              # jelenleg placeholder
 └── docs/
-    ├── 00_index.md
-    ├── plan.md
-    ├── milestones.md
-    ├── 01_product/
-    ├── 02_architecture/
-    ├── 03_design/
-    ├── 04_quality/
-    ├── 05_security_ops/
-    ├── 06_release/
-    └── 07_ai/
+    ├── 01_product/       # termékvízió és kanonikus scope
+    ├── 02_architecture/  # C4 és ADR-ek
+    ├── 03_design/        # tervezett API/adatmodell/error szerződés
+    ├── 04_quality/       # tesztstratégia és baseline
+    ├── 05_security_ops/  # threat, privacy, runbook, observability
+    ├── 06_release/       # placeholder a tényleges release-ig
+    └── 07_ai/            # AI-asszisztált fejlesztés evidence
 ```
 
-## Licenc és harmadik fél komponensek
+## Dokumentációs alapelv
 
-Licenc és dependency lista még nincs véglegesítve, mert alkalmazáskód és csomagkezelő még nincs a repóban. A későbbi dependency-k bevezetése után a `docs/05_security_ops/privacy_licensing.md` fogja tartalmazni a részleteket.
+A repository nem állíthat implementáltként olyan API-t, entitást, funkciót, tesztet vagy üzemeltetési képességet, amelyhez nincs tényleges kód és verifikálható evidence. A tervezett és megvalósított állapot minden mérföldkőben külön kezelendő.

@@ -1,95 +1,92 @@
 # C4 Component
 
-## Statusz
+## Státusz
 
-Ez lightweight komponensnezet a kesobbi NestJS backend modulhataraihoz. Nem implementalt modulokat dokumental, hanem a tervezett felelossegeket es fuggosegi iranyokat rogziti.
+**Tervezett állapot – nem implementált funkcionalitás.**
 
-## Cel
+## Cél
 
-A komponensnezet segit abban, hogy a kesobbi backend scaffold ne egyetlen nagy service-be gyujtse az uzleti logikat. A controller retegek vekonyak maradnak, a szabalyok service-ekben es adapterekben lesznek tesztelhetok.
+A komponensnézet a későbbi NestJS API felelősségi határait rögzíti. A controllerek vékonyak, az üzleti szabályok service-ekben, a külső rendszerek pedig adapterek mögött maradnak.
 
-## Diagramok
-
-A ket fokuszalt nezet ugyanazt a tervezett backend architekturat mutatja. Az elso a keresek es az uzleti modulok kozotti hivasokat, a masodik a kozos technikai es perzisztenciafuggosegeket emeli ki.
-
-### API- es domainfolyam
+## Core komponensek
 
 ```mermaid
 flowchart LR
-    subgraph boundary["API boundary"]
-        direction TB
-        api["Controllers\nREST endpoints"]
-        health["Health module\nhealth endpoint"]
-    end
+    controllers["REST controllers\nDTO validation és auth boundary"]
+    auth["Auth module"]
+    users["Users module"]
+    files["Files module\nlifecycle és pagination"]
+    sharing["Sharing module"]
+    audit["Audit module"]
+    storage["Storage service\nproviderfüggetlen interface"]
+    s3["S3 adapter"]
+    prisma["Prisma service"]
+    db["PostgreSQL"]
+    objects["MinIO / S3"]
 
-    subgraph domain["Domain modules"]
-        direction TB
-        auth["Auth\nregistration, login, guards"]
-        users["Users\nprofile, quota fields"]
-        files["Files\nmetadata, lifecycle, ownership"]
-        sharing["Sharing\ntoken hash, expiry"]
-    end
-
-    subgraph support["Domain support"]
-        direction TB
-        storage["Storage\npresigned URLs, object operations"]
-        audit["Audit\naudit events"]
-    end
-
-    api --> auth
-    api --> files
-    api --> sharing
-    api --> health
+    controllers --> auth
+    controllers --> files
+    controllers --> sharing
     auth --> users
     files --> users
     files --> storage
     files --> audit
     sharing --> files
+    sharing --> storage
     sharing --> audit
+    auth --> prisma
+    users --> prisma
+    files --> prisma
+    sharing --> prisma
+    audit --> prisma
+    storage --> s3
+    s3 --> objects
+    prisma --> db
 ```
 
-### Technikai es perzisztenciafuggosegek
-
-Ebben a nezetben a `Domain modules` doboz az elozo diagram `auth`, `users`, `files` es `sharing` moduljainak osszevont jelolese. Nem jelent uj backend komponenst.
+## Opcionális MVP+ komponensek
 
 ```mermaid
 flowchart LR
-    domain["Domain modules\nauth, users, files, sharing"]
-    audit["Audit module"]
-    common["Common module\nerrors, decorators, validation"]
-    config["Config module\nenvironment mapping"]
-    storage["Storage module\nS3-compatible adapter"]
+    controller["AI metadata controller"]
+    service["AI metadata service\nhuman-in-the-loop"]
+    jobs["Job boundary\nkésőbbi workerre cserélhető"]
+    provider["AI provider interface"]
+    adapter["Külső provider adapter"]
+    files["Files service"]
+    audit["Audit service"]
     prisma["Prisma service"]
-    objectStorage["MinIO / S3\nbinary objects"]
-    postgres["PostgreSQL\nmetadata"]
 
-    domain -.->|"shared helpers"| common
-    domain -->|"metadata access"| prisma
-    domain -->|"file operations"| storage
-    domain -->|"security-relevant events"| audit
-    audit --> prisma
-    storage --> config
-    storage --> objectStorage
-    prisma --> postgres
+    controller --> service
+    service --> files
+    service --> jobs
+    jobs --> provider
+    provider --> adapter
+    service --> audit
+    service --> prisma
 ```
 
-## Tervezett backend modulok
+Az MVP+ komponensek hiánya vagy hibája nem akadályozhat auth-, upload-, list-, preview-, download-, delete-, restore- vagy sharing-műveletet.
 
-| Modul | Felelosseg | Fontos szerzodes |
+## Komponensfelelősségek
+
+| Komponens | Felelősség | Fontos szerződés |
 |---|---|---|
-| `auth` | Regisztracio, login, password hash ellenorzes, JWT vagy valasztott session strategia, guardok. | Bejelentkezesi hiba nem arulhatja el, hogy email vagy jelszo volt hibas. |
-| `users` | Felhasznaloi rekordok, `usedStorageBytes`, `storageLimitBytes`. | Usage adatot nem dashboardon szamolunk ujra `SUM(sizeBytes)` alapjan. |
-| `files` | Fajlmetaadat, pending/active/deleted statusz, ownership, soft delete es restore. | Csak sajat aktiv fajl listazhato normal listaban; soft delete nem csokkenti a usage erteket. |
-| `storage` | Storage interface, S3-kompatibilis adapter, presigned upload/read URL-ek. | Direct S3/MinIO SDK hivas nem szorodhat szet a codebase-ben. |
-| `sharing` | Idokorlatos linkek, token hash, link ervenyesites. | A publikus link nem lehet tartos nyers S3 URL. |
-| `audit` | Fontos muveletek audit esemenyei. | Nem logolhat credentialt, tokent, presigned URL-t vagy fajltartalmat. |
-| `health` | Minimalis health endpoint kesobbi lokalis es uzemeltetesi ellenorzeshez. | Nem adhat vissza secretet vagy tul reszletes belso hibat. |
-| `config` | Kornyezeti valtozok centralizalt kezelese. | `process.env` kozvetlen hasznalata ne terjedjen szet. |
-| `common` | Error shape, guard/decorator segedek, validacios utilok. | Az API hibak egységes, dokumentalhato formatumot kapjanak. |
+| `auth` | Regisztráció, login, logout, JWT-cookie és guard | Generic login hiba; token nem kerül localStorage-ba vagy logba |
+| `users` | Profile, `usedStorageBytes`, `reservedStorageBytes` | Számlálók csak tranzakciós use case-ben változhatnak |
+| `files` | Pending/active/deleted lifecycle, ownership, cursor pagination | Confirm pontosan egyszer könyvel; lista stabil rendezésű |
+| `storage` | Presign, metadata, bounded range-read és delete interface | Direkt SDK-hívás nem szóródhat szét a codebase-ben |
+| `sharing` | Token generálás, hash, expiry és publikus validáció | Core-ban nincs revoke/access analytics |
+| `audit` | Fontos állapot- és security események | Nincs raw token, URL, fájltartalom vagy nyers MI-adat |
+| `health` | Minimális API-elérhetőség | Nem szivárogtat secretet vagy részletes belső hibát |
+| `config` | Környezeti változók validált leképezése | `process.env` használat nem szóródhat szét |
+| `common` | Error shape, request ID, guard/decorator és pure validation utilok | Stabil, dokumentált API-hibák |
+| `ai-metadata` | Opcionális suggestion lifecycle és emberi döntés | Csak aktív kép, explicit trigger, Core MVP-től független |
 
-## Komponensszintu szabalyok
+## Függőségi szabályok
 
-- A business logic service-ekben legyen, a controllerek csak DTO validaciot, auth boundaryt es service delegaciot kezeljenek.
-- A storage adapter rejtse el a provider-specifikus reszleteket, ahol ez praktikus.
-- A fajlvalidacio ne bizzon a browser altal kuldott MIME tipusban vagy fajlkiterjesztesben.
-- A kesobbi unit tesztek elsosorban auth, ownership, usage accounting, soft delete/restore, sharing es validation logikat fedjenek.
+- Controller nem hívhat közvetlenül Prisma vagy S3 klienst.
+- A domain/service réteg portokat használ külső szolgáltatásokhoz.
+- A cursor kódolja a rendezési kulcsot, de nem tartalmaz érzékeny adatot.
+- A job boundary nem jelent elfogadott queue dependency-t; a konkrét technológia későbbi ADR tárgya.
+- Audit események írása nem teheti közzé a művelethez használt credentialt vagy URL-t.

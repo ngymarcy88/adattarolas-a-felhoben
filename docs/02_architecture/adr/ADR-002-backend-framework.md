@@ -8,6 +8,10 @@ Accepted
 
 2026-06-25
 
+## Implementation status
+
+Tervezett állapot – nincs NestJS scaffold vagy futtatható API.
+
 ## Context
 
 A backendnek authentikaciot, authorizationt, fajlmetaadat-kezelest, presigned URL flow-t, usage accountingot, sharing logikat es egyseges hibakezelest kell tartalmaznia. Ezekhez tiszta modulhatarok, dependency injection es unit tesztelheto service retegek kellenek.

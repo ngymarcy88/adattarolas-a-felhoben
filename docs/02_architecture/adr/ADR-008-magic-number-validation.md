@@ -1,4 +1,4 @@
-# ADR-008: Magic number based file validation
+# ADR-008: Magic-number based post-upload validation
 
 ## Status
 
@@ -6,31 +6,45 @@ Accepted
 
 ## Date
 
-2026-06-25
+2026-06-25; frissítve: 2026-07-12
+
+## Implementation status
+
+Tervezett állapot – nincs file validation implementáció.
 
 ## Context
 
-A feltoltott fajlok tipusa nem biztonsagosan dontheto el fajlkiterjesztes vagy browser altal kuldott `Content-Type` alapjan. A rendszer kepeket es videokat enged, de veszelyes vagy ismeretlen tartalmat nem szabad inline megjelenitesre engedni.
+A fájlkiterjesztés és a browser által megadott `Content-Type` manipulálható. Presigned PUT esetén a bináris adat nem halad át a backenden, ezért a tényleges típusellenőrzést a feltöltés után, de az aktiválás előtt kell elvégezni.
 
 ## Decision
 
-Az MVP fajlvalidacioja meretlimitet, dokumentalt MIME allowlistet es magic number alapu ellenorzest hasznal. A `file-type` vagy hasonlo konyvtar hasznalhato a tenyleges tipus felismeresehez. HTML, SVG, JavaScript, XML es ismeretlen binaris tartalom nem lehet inline preview-ra engedelyezett.
+A validáció kétlépcsős:
+
+1. Initkor deklarált méret, fájlnév, MIME allowlist és kvóta ellenőrzése.
+2. Confirmkor storage `HEAD` a tényleges mérethez, majd korlátozott byte-range olvasás a magic-number detektáláshoz.
+
+A későbbi implementáció `file-type` vagy azzal egyenértékű, karbantartott könyvtárat használhat. A range mérete a választott detektor dokumentált minimumához igazodik, de nem tölti le a teljes fájlt.
+
+Csak dokumentált kép- és videótípus aktiválható. A deklarált és detektált típus eltérése, ismeretlen tartalom vagy méreteltérés validation failure. HTML, SVG, JavaScript és XML nem engedélyezett inline tartalom.
+
+Invalid objektum cleanupot igényel. A reservation csak akkor oldható fel, ha az objektum bizonyítottan nem létezik vagy sikeresen törölve lett.
 
 ## Alternatives considered
 
-- Csak fajlkiterjesztes ellenorzese: konnyen manipulalhato.
-- Csak frontend validacio: javitja a UX-et, de biztonsagi dontesre nem alkalmas.
-- Minden fajl engedelyezese attachmentkent: egyszerubb, de nem teljesiti a kep/video preview MVP celjat.
+- Csak kiterjesztés vagy frontend validáció: könnyen manipulálható.
+- Csak object metadata `Content-Type`: ugyanúgy kliens által befolyásolható.
+- Teljes objektum letöltése confirmkor: erősebb ellenőrzési lehetőség, de indokolatlan memória-, hálózat- és latency-költség.
+- Minden fájl attachmentként: csökkenti az inline kockázatot, de nem teljesíti a média-preview célt.
 
 ## Consequences
 
-- A backend validacio osszetettebb, de jobban ved manipulalt feltoltesek es XSS kockazatok ellen.
-- A frontend elozetes validaciot adhat UX celbol, de a backend marad az igazsagforras.
-- A `detectedMimeType` es a browser altal kuldott MIME elterhet; ezt dokumentalni es kezelni kell.
-- Biztonsagos `Content-Disposition` szabalyokra lesz szukseg preview es download flow-ban.
+- A confirm több storage műveletet végez, de a fájl csak ellenőrzés után lesz aktív.
+- A bounded read korlátozza a backend terhelését.
+- A `mimeType` és `detectedMimeType` külön metadata marad.
+- A checksum nem tekinthető igazoltnak pusztán az S3 ETag alapján; külön end-to-end checksum későbbi döntés.
 
 ## Verification
 
-- Unit tesztek fedik a tul nagy, nem tamogatott, magic number alapjan eltero es ismeretlen fajlokat.
-- Security review ellenorzi az inline preview allowlistet.
-- API es data model dokumentacio a kesobbi implementacio utan rogziti a validacios mezoket es hibakodokat.
+- Unit tesztek valódi támogatott signature-ökre, MIME-eltérésre, unknown/HTML/SVG mintára és rövid/corrupt bufferre.
+- Unit teszt HEAD méreteltérésre és range-read/storage hibára.
+- Security review ellenőrzi az inline allowlistet és a safe `Content-Disposition` logikát.

@@ -1,4 +1,4 @@
-# ADR-006: Soft delete es delayed purge strategy
+# ADR-006: Soft delete és delayed purge strategy
 
 ## Status
 
@@ -6,31 +6,45 @@ Accepted
 
 ## Date
 
-2026-06-25
+2026-06-25; frissítve: 2026-07-12
+
+## Implementation status
+
+Tervezett állapot – nincs implementált delete, restore vagy purge folyamat.
 
 ## Context
 
-A felhasznaloi torlesnel termekminosegu rendszerben nem szerencses azonnal veglegesen torolni a fajlt. A media objektum es a metadata kulon rendszerekben el, ezert a torles eletciklusat explicit allapotokkal kell kezelni.
+A bináris objektum és a relációs metadata külön rendszerben él. Az azonnali hard delete rossz felhasználói élményt ad, a kizárólag DB-s soft delete pedig árván maradt objektumokhoz és hibás elszámoláshoz vezetne.
 
 ## Decision
 
-Az MVP soft delete-et hasznal: torleskor a `FileObject` rekord `deletedAt` es 30 nappal kesobbi `purgeAfter` erteket kap, eltunik a normal listabol, de restore listaban megjelenhet. A restore egyedi fajlra engedelyezett a retention idon belul. A vegleges purge strategia dokumentalt, de automatizalt purge implementacio nem MVP kovetelmeny.
+A Core MVP soft delete-et és egyedi restore-t használ:
+
+- `ACTIVE → SOFT_DELETED` átmenetkor `deletedAt` és 30 nappal későbbi `purgeAfter` készül.
+- A fájl eltűnik az aktív listából, de megjelenik a tulajdonos visszaállítható listájában.
+- Restore csak a retention időn belül, ownership check után engedélyezett.
+- Soft delete és restore nem módosítja a `usedStorageBytes` értékét.
+- Soft delete ugyanabban a tranzakcióban törli a fájl meglévő `ShareLink` rekordjait; ezzel a tokenek végleg invalidak, és restore nem aktiválja őket újra.
+
+Az automatizált végleges purge **Later scope**, nem Core MVP deliverable. Későbbi működése idempotens: object delete után, tranzakcióban történik az accounting és a metadata terminális lezárása. Storage-hiba `PURGE_FAILED` retry-állapotot eredményez; usage nem csökkenhet.
 
 ## Alternatives considered
 
-- Azonnali hard delete: egyszerubb, de rosszabb felhasznaloi elmenyt es nagyobb adatvesztesi kockazatot hoz.
-- Csak database soft delete objektumtorlesi terv nelkul: arva object storage tartalmakhoz es usage inkonzisztenciahoz vezethet.
-- S3 Lifecycle Policy kizolag: segithet kesobb, de az alkalmazasi metadata szinkronjat nem oldja meg onmagaban.
+- Azonnali hard delete: egyszerűbb, de nem visszafordítható és nagyobb adatvesztési kockázat.
+- Csak DB soft delete: tartósan árva object storage tartalmat hagyhat.
+- Kizárólag S3 Lifecycle Policy: nem kezeli önmagában a relációs metadata, share link és usage szinkronját.
+- Automatizált purge a Core MVP-ben: fontos, de a core scope-ot és operációs kockázatot túlzottan növelné.
 
 ## Consequences
 
-- A teves torles 30 napon belul visszafordithato.
-- Soft delete alatt a fajl fizikailag tovabbra is tarolva van, ezert tovabbra is beleszamit a kvotaba.
-- A kesobbi purge-nek idempotensnek kell lennie, es storage hiba eseten nem csokkentheti a usage szamlalot.
-- Share linkek torolt fajlra nem adhatnak hozzaferest.
+- A téves törlés 30 napon belül visszaállítható.
+- A recoverable objektum továbbra is foglal felhasználói tárhelyet.
+- Restore után új share-link szükséges, ami elkerüli a korábbi publikus capability váratlan újraéledését.
+- A későbbi purge worker és reconciliation külön jóváhagyást és runbookot igényel.
+- A purge logikai szabályai unit tesztelhetők worker technológia nélkül is.
 
 ## Verification
 
-- A kesobbi files service unit tesztek fedik a delete, restore, lejart retention es ownership eseteket.
-- A purge implementacio elott runbook es ADR/dokumentacio frissites keszul.
-- A `docs/01_product/scope_contract.md` soft delete kriteriumai valtozatlanul ervenyesek maradnak.
+- Unit tesztek: ownership, delete/restore transition, retention boundary, listaszűrés és usage invariáns.
+- A scope contract és capability map az automatizált purge-ot Later státuszúnak jelöli.
+- Purge implementáció előtt új worker/queue döntés, részletes runbook és tesztterv szükséges.

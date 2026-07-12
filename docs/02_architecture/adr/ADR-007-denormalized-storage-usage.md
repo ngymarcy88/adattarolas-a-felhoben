@@ -1,4 +1,4 @@
-# ADR-007: Denormalized User.usedStorageBytes
+# ADR-007: Denormalized storage usage and reservation counters
 
 ## Status
 
@@ -6,31 +6,44 @@ Accepted
 
 ## Date
 
-2026-06-25
+2026-06-25; frissítve: 2026-07-12
+
+## Implementation status
+
+Tervezett állapot – nincs adatbázisséma vagy számlálólogika.
 
 ## Context
 
-A dashboardnak es a feltoltes elotti kvotaellenorzesnek gyorsan kell tudnia, mennyi tarhelyet hasznal a felhasznalo. Minden keresnel `SUM(sizeBytes)` alapu ujraszamolas egyszeru, de rosszabbul skalazodik es tobb helyen vezethet eltero logikahoz.
+A dashboardnak gyorsan kell visszaadnia a tartósan foglalt tárhelyet, miközben párhuzamos pending uploadok nem léphetik túl a kvótát. Egyetlen `usedStorageBytes` számláló nem különíti el az aktív objektumot és a rövid ideig lefoglalt, még nem confirmált méretet.
 
 ## Decision
 
-A `User` entitas tartalmazni fogja a denormalizalt `usedStorageBytes` mezot. Ez sikeres upload confirm utan no, soft delete es restore soran nem valtozik, es csak sikeres vegleges purge utan csokkenhet.
+A `User` két denormalizált számlálót kap:
+
+- `usedStorageBytes`: sikeresen aktívvá tett és még fizikailag létező objektumok mérete;
+- `reservedStorageBytes`: pending uploadok ideiglenesen lefoglalt deklarált mérete.
+
+Initkor tranzakció ellenőrzi, hogy `used + reserved + requested <= storageLimitBytes`, majd növeli a reservationt. Sikeres confirm pontosan egyszer csökkenti a reservationt és növeli a used értéket. Bizonyítottan objektum nélküli vagy sikeresen kitakarított abandoned/invalid upload után a reservation felszabadítható. Cleanup-hibánál a reservation megmarad retry-ig.
+
+Soft delete és restore nem változtatja a used értéket. Csökkenés csak a későbbi sikeres végleges purge után történhet.
 
 ## Alternatives considered
 
-- Mindig `SUM(sizeBytes)` alapjan szamolni: egyszeru kezdetben, de nem idealis dashboard es kvotaellenorzes alatt.
-- Kliens oldali usage szamolas: nem megbizhato es konnyen manipulalhato.
-- Adatbazis trigger: konzisztens lehet, de MVP-ben kevesbe atlathato es nehezebben unit tesztelheto, mint service-layer tranzakcio.
+- Dashboardon minden alkalommal `SUM(sizeBytes)`: egyszerű, de rosszabbul skálázódik és nem oldja meg a pending foglalást.
+- Pending rekordok ad hoc összegzése minden initkor: kevesebb denormalizált adat, de bonyolultabb concurrency és konzisztencia.
+- Csak kliensoldali számolás: manipulálható és nem lehet authorization/kvótadöntés alapja.
+- PostgreSQL trigger: konzisztens lehet, de kevésbé átlátható és nehezebben izolálható unit tesztben.
 
 ## Consequences
 
-- A usage gyorsan megjelenitheto es kvotahoz hasznalhato.
-- Minden upload confirm es purge logikanal fokozottan ugyelni kell a pontos egyszeri modositasra.
-- Felbehagyott vagy sikertelen upload nem novelheti tartosan a usage erteket.
-- Idonkenti reconciliation kesobbi productization feladat lehet.
+- Gyors dashboard és determinisztikus kvótadöntés érhető el.
+- Minden számlálóváltozás csak state transitionnel együtt, tranzakcióban történhet.
+- Szükséges idempotens confirm, expiry cleanup és későbbi reconciliation.
+- Cleanup-hiba ideiglenesen foglalhat kvótát; ezt user-friendly állapot és operációs jelzés kíséri.
 
 ## Verification
 
-- Unit tesztek ellenorzik, hogy usage csak sikeres confirm utan no.
-- Unit tesztek ellenorzik, hogy soft delete es restore nem modositja a usage erteket.
-- Kesobbi purge tesztek ellenorzik, hogy usage csak sikeres storage torles utan csokken.
+- Unit teszt párhuzamos init esetére.
+- Unit teszt ismételt confirmra és pontosan egyszeri counter transferre.
+- Unit teszt invalid/abandoned cleanup sikerére és hibájára.
+- Unit teszt soft delete, restore és későbbi purge accountingra.

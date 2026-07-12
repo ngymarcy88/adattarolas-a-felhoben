@@ -1,39 +1,54 @@
 # Capability map
 
-## Cél és státuszjelölések
+**Tervezett állapot – nem implementált funkcionalitás.**
 
-A capability map elkülöníti a közvetlen felhasználói értéket adó **Value** képességeket a megbízható termékműködést biztosító **Productization** képességektől.
+## Cél és jelölések
 
-- **MVP:** a tervezett MVP kötelező része, de jelenleg még nem implementált.
-- **Később:** tudatosan az MVP-n kívülre helyezett bővítés.
+A capability map elkülöníti a közvetlen felhasználói értéket adó **Value** képességeket a biztonságos, konzisztens és karbantartható működést biztosító **Productization** képességektől.
+
+- **Core MVP:** a hat kötelező storage user story vagy azok megbízható működésének feltétele.
+- **MVP+:** opcionális MI-metaadat-javaslat, amely nem lehet core függőség.
+- **Later:** tudatosan későbbre helyezett termék- vagy üzemeltetési bővítés.
 
 ## Képességek
 
-| Képesség | Kategória | Fázis | Felhasználói vagy mérnöki eredmény |
-|---|---|---|---|
-| Regisztráció és bejelentkezés | Value | MVP | Saját, elkülönített tárhely használata. |
-| Kép- és videófeltöltés | Value | MVP | Legfeljebb 100 MB-os médiafájl privát tárolása. |
-| Saját fájlok listázása | Value | MVP | A feltöltött aktív fájlok áttekintése. |
-| Kép- és videópreview | Value | MVP | Támogatott média böngészőből történő megtekintése. |
-| Fájlletöltés | Value | MVP | Saját tartalom biztonságos letöltése. |
-| Tárhelyhasználat megjelenítése | Value | MVP | Használt tárhely és kvóta követése. |
-| Időkorlátos alap megosztási link | Value | MVP | Egy fájl ideiglenes megosztása bejelentkezés nélkül. |
-| Soft delete és egyedi restore | Value | MVP | Téves törlés visszafordítása 30 napon belül. |
-| Backend oldali authorization és ownership | Productization | MVP | Más felhasználó erőforrásainak védelme. |
-| Storage adapter és presigned URL flow | Productization | MVP | Providerfüggetlenebb, credential nélküli frontend-hozzáférés. |
-| Méret-, MIME- és magic number validáció | Productization | MVP | Manipulált vagy nem támogatott feltöltések kiszűrése. |
-| Denormalizált usage accounting | Productization | MVP | Gyors és kiszámítható kvótaellenőrzés. |
-| Biztonságos preview/download headerek | Productization | MVP | Veszélyes tartalom inline futtatásának csökkentése. |
-| Egységes hibamodell | Productization | MVP | Stabil API-szerződés és érthető UI-hibák. |
-| Unit tesztek a core logikára | Productization | MVP | Auth, ownership, validáció és lifecycle ellenőrizhetősége. |
-| Idempotens végleges purge | Productization | Később | Object storage és adatbázis konzisztens takarítása. |
-| Multipart upload | Productization | Később | Nagy videók megszakítható és folytatható feltöltése. |
-| Fejlett share-link kezelés | Value | Később | Visszavonás, hozzáférési limit és analitika. |
-| Thumbnail és transzkódolás | Value | Később | Optimalizált médiaélmény. |
-| Cloud deployment AWS-re vagy OCI-ra | Productization | Később | Publikusan elérhető felhőkörnyezet. |
-| Integration, contract és e2e tesztek | Productization | Később | Komponensek közötti és teljes rendszerű bizonyíték. |
-| CI/CD és monitoring dashboard | Productization | Később | Automatizált kiadás és üzemeltetési láthatóság. |
+| Képesség | Kategória | Fázis | Kapcsolódó story | Tervezett eredmény |
+|---|---|---|---|---|
+| Regisztráció, login, logout és védett felület | Value | Core MVP | US-01 | Saját, elkülönített tárhely biztonságos használata. |
+| Kép- és videófeltöltés | Value | Core MVP | US-02 | Legfeljebb 100 MB-os médiafájl privát tárolása. |
+| Cursor-lapozott saját fájllista | Value | Core MVP | US-03 | Aktív saját fájlok determinisztikus, skálázható böngészése. |
+| Kép- és videópreview | Value | Core MVP | US-03 | Támogatott média megtekintése rövid életű read URL-lel. |
+| Fájlletöltés | Value | Core MVP | US-03 | Saját tartalom biztonságos letöltése. |
+| Tárhelyhasználat megjelenítése | Value | Core MVP | US-04 | Használt tárhely és kvóta követése. |
+| Időkorlátos alap megosztási link | Value | Core MVP | US-05 | Egy aktív fájl ideiglenes megosztása bejelentkezés nélkül. |
+| Soft delete és egyedi restore | Value | Core MVP | US-06 | Téves törlés visszafordítása 30 napon belül. |
+| Backend authorization és ownership | Productization | Core MVP | US-01–US-06 | Más felhasználó erőforrásainak védelme. |
+| Stateless backend | Productization | Core MVP | US-01–US-06 | Kéréskiszolgálás lokális példányállapot-függés nélkül. |
+| Storage adapter és presigned URL flow | Productization | Core MVP | US-02, US-03, US-05 | Storage credential nélküli frontend és providerhatár. |
+| Pending kvótafoglalás | Productization | Core MVP | US-02, US-04 | Párhuzamos upload init mellett is betartott tárhelylimit. |
+| Idempotens upload confirm | Productization | Core MVP | US-02, US-04 | Retry esetén is pontosan egyszeri aktiválás és usage accounting. |
+| Abandoned upload felismerés és cleanup | Productization | Core MVP | US-02, US-04 | Lejárt pending objektum és reservation biztonságos, retry-képes rendezése. |
+| Méret-, MIME- és magic number validáció | Productization | Core MVP | US-02 | Manipulált vagy nem támogatott feltöltések kiszűrése. |
+| Determinisztikus cursor pagination | Productization | Core MVP | US-03 | Stabil `createdAt + id` sorrend kihagyás és duplikáció nélkül. |
+| Denormalizált usage accounting | Productization | Core MVP | US-02, US-04, US-06 | Gyors kvótaellenőrzés `usedStorageBytes` és `reservedStorageBytes` számlálókkal. |
+| Biztonságos preview/download viselkedés | Productization | Core MVP | US-03, US-05 | Veszélyes tartalom inline futtatásának és adatszivárgásának csökkentése. |
+| Egységes hibaszerződés | Productization | Core MVP | US-01–US-06 | Stabil hibakódok, érthető UI-hibák és request trace. |
+| Alap audit események audit UI nélkül | Productization | Core MVP | US-01–US-06 | Fontos lifecycle- és security események érzékeny adat nélküli nyoma. |
+| Unit tesztek a core logikára | Productization | Core MVP | US-01–US-06 | Auth, ownership, validáció, lapozás és lifecycle ellenőrizhetősége. |
+| Kép-metaadat-javaslat | Value | MVP+ | Opcionális | Explicit kérésre címke- és leírásjavaslat aktív képhez. |
+| Human-in-the-loop MI-jóváhagyás | Productization | MVP+ | Opcionális | Elfogadás, szerkesztés vagy elutasítás nélkül nincs végleges metaadat-változás. |
+| MI-provider adapter és graceful degradation | Productization | MVP+ | Opcionális | Providerhiba nem akadályoz storage-műveletet, a provider cserélhető marad. |
+| MI-adatminimalizálás és provenance | Productization | MVP+ | Opcionális | Csak szükséges adat továbbítása és a javaslat eredetének követhetősége. |
+| Automatizált retention purge | Productization | Later | US-06 kiterjesztése | Lejárt soft-deleted objektumok és metaadatok idempotens végleges takarítása. |
+| Multipart upload | Productization | Later | US-02 kiterjesztése | Nagy videók megszakítható és folytatható feltöltése. |
+| Fejlett share-link kezelés | Value | Later | US-05 kiterjesztése | Visszavonás, hozzáférési limit és analitika. |
+| Thumbnail és transzkódolás | Value | Later | US-03 kiterjesztése | Optimalizált médiaélmény. |
+| Cloud deployment AWS-re vagy OCI-ra | Productization | Later | Keresztmetszeti | Publikusan elérhető felhőkörnyezet. |
+| Integration, contract és e2e tesztek | Productization | Later | Keresztmetszeti | Komponensek közötti és teljes rendszerű bizonyíték. |
+| CI/CD és monitoring dashboard | Productization | Later | Keresztmetszeti | Automatizált kiadás és részletes üzemeltetési láthatóság. |
 
-## MVP-egyensúly
+## Fáziskapuk
 
-Az MVP nyolc közvetlen értéket adó és hét termékesítési képességet tartalmaz. Ez biztosítja, hogy a projekt ne csak látványos fájlfeltöltő demó legyen, ugyanakkor a későbbi képességek ne növeljék kezelhetetlenre az első kiadás scope-ját.
+- A `Core MVP` csak akkor tekinthető teljesnek, ha a Value képességekkel együtt a hozzájuk tartozó Productization képességek is igazoltak.
+- Az `MVP+` MI-funkció fejlesztése nem módosíthatja a hat core user story Definition of Done-ját, és nem vezethet MI-függőséget a storage folyamatokba.
+- A `Later` elemek dokumentálhatók tervezett irányként, de nem állíthatók elkészült MVP-képességnek.

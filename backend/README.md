@@ -1,6 +1,6 @@
 # Backend
 
-Ez a mappa a későbbi backend API helye.
+Ez a mappa a későbbi backend API helye. Jelenleg csak dokumentációs placeholder; nincs NestJS scaffold, package manifest, Prisma schema vagy futtatható kód.
 
 Tervezett stack:
 
@@ -12,4 +12,6 @@ Tervezett stack:
 - AWS SDK v3 S3-kompatibilis storage adapterhez
 - Jest unit tesztek
 
-Az alkalmazás scaffoldolása nem az 1. mérföldkő része. A pontos telepítési, fejlesztői, migrációs és teszt parancsok a backend inicializálása után kerülnek ide és a root `README.md` Quickstart részébe.
+Tervezett modulhatárok: `auth`, `users`, `files`, `storage`, `sharing`, `audit`, `health`, `config` és `common`; az opcionális `ai-metadata` csak MVP+ fázisban kerülhet hozzájuk.
+
+A pontos telepítési, fejlesztői, migrációs és tesztparancsok csak a backend későbbi inicializálása és kézi ellenőrzése után kerülhetnek ide és a root `README.md` Quickstart részébe.
