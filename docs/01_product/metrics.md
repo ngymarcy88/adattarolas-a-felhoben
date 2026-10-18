@@ -23,6 +23,27 @@ Jelenleg nincs futtatható alkalmazás, test runner vagy mérési baseline. Az a
 | M-13 | Fő API-műveletek lokális válaszideje | p95 legfeljebb 1 másodperc, object transfer nélkül | Bemelegítés után legalább 100 ismétlés dokumentált adatmennyiséggel a lista-, usage- és URL-generáló műveleteken | Core MVP performance-verifikáció |
 | M-14 | Dokumentáció és implementáció konzisztenciája | 0 ismert, jelöletlen eltérés | README, API, adatmodell, ADR-ek, test report és release note kézi összevetése | Minden mérföldkő lezárásakor |
 
+## Kötelező SZD2 import- és feldolgozási metrikák
+
+Az M-01–M-14 korábbi storage-alapmutatók megmaradnak; az októberi célhoz az alábbiak is kötelezők. Az M-04, M-08 és M-11 vizsgálatát ki kell terjeszteni az importokra, részleges átvitelekre, feldolgozásokra és származtatott objektumokra is a lezárt szerződés szerint.
+
+| ID | Metrika | Tervezett cél / értékelés | Tervezett bizonyítás |
+|---|---|---|---|
+| M-15 | Valódi folytatás és újraküldött bájtok | A befejezett fájlok nem kerülnek újraküldésre, a félbeszakadt átvitel a már átvett adatoktól folytatódik; nincs előre ígért gyorsulási százalék | Újrakezdő és folytatható változat azonos inputtal és megszakítási pontokkal; összes küldött és ismételten küldött bináris bájt |
+| M-16 | Köteg teljes befejezési ideje | Mindkét változatra mért adat; helyesség teljesülése mellett értelmezhető | Az első átvitel kezdetétől az összes fájl és elvárt feldolgozás végállapotáig; külön upload-befejezési idővel |
+| M-17 | Eredeti és feldolgozási eredmények helyessége | 100% az érvényes bemeneteken; 0 duplikált fájl, eredmény vagy terhelés | DB-rekordok, storage-objektumok, processor-verziók és used/reserved számlálók tételes összevetése az elvárt állapottal |
+| M-18 | Hibák elkülönítése és restart recovery | Sérült fájl nem blokkolja a köteget; worker-restart és job-ismétlés nem duplikál; külön retry használható | Folyamat közbeni worker-leállítás/újraindítás; sérült kép és egy processor kontrollált hibája; eredeti és sikeres másik eredmény ellenőrzése |
+| M-19 | Érthető felhasználói folyamat | Néhány valódi próbafelhasználó elvégzi a kijelölt feladatokat; akadályok és javításuk követhető | Anonim szerepek, feladatok, segítségigény, visszajelzés, javítás és retest; fejlesztői saját próba külön jelölve |
+
+### Összehasonlító kísérlet terve
+
+1. Állíts össze kisebb és nagyobb, nem érzékeny képcsomagot; a tanári javaslat 10 és 50 fájl. Rögzíts manifestet mérettel, checksum-mal és az elvárt eredményekkel; legyen sérült kép és hiányzó metaadatú érvényes kép is.
+2. Ugyanazon verzió, gép, hálózati korlát, párhuzamosság és feldolgozóbeállítás mellett fusson az újrakezdő baseline és a folytatható változat. A különbség az átviteli viselkedés legyen; ne külön feldolgozó vagy eltérő bemenet.
+3. Mindkét méreten próbáld a zavartalan futást, előre rögzített ponton végzett hálózati megszakítást, worker-újraindítást és sérült képet. Rögzítsd a leállítás/kapcsolatvisszaadás pontos feltételeit, valamint a retry/cancel és ismételt import forgatókönyvét.
+4. Határozd meg a bájtszámláló forrását és mérési rétegét. Az újraküldött bájt a korábban már átküldött bináris tartalom ismételt küldése; HTTP-fejléceket és protokolloverheadet külön kezeld. A teljes idő tartalmazza a bináris átvitelt, a rögzített megszakítást, retryt és feldolgozást. A hibás fájl elvárt sikertelen végállapotát külön számold.
+5. Friss, azonos kezdeti állapotból ismételd a kontrollált futásokat, előre rögzített ismétlésszámmal. Jelents egyedi eredményeket, összesítést és szóródást; ne csak a legjobb futást válaszd. A correctness, kvóta és objektumok ellenőrzése előzze meg a sebességkövetkeztetést.
+6. Minden futáshoz kell dátum, commit, környezet/verziók, bemeneti manifest, lépések, elvárt/tényleges eredmény, mérési kimenet és DB/storage bizonyíték. Az eltérések és korlátok kerüljenek a tesztriportba és dolgozatba.
+
 ## MVP+ MI-metrikák
 
 Ezek a célok csak az opcionális `MVP+` kép-metaadat-javaslat megvalósítása esetén válnak mérendővé. Nem részei a `Core MVP` elfogadásának.
@@ -39,13 +60,13 @@ Az MI-javaslat szakmai minősége kvalitatív értékelést is igényelhet, de a
 ## Mérési szabályok
 
 - Sikert csak reprodukálható unit teszt, parancskimenet vagy dokumentált manuális lépéssor igazolhat.
-- A manuális eredménynél rögzíteni kell a dátumot, környezetet, tesztadatot és eredményt.
+- Minden eredménynél rögzíteni kell a dátumot, commitot, környezetet, tesztadatot, lépéseket, elvárt/tényleges eredményt és bizonyítékot.
 - Az első fejlesztési fázis unit tesztekre korlátozódik; integration vagy e2e teszt nem vezethető be pusztán e metrikák miatt.
-- A teljesítménymérésből ki kell zárni a bináris feltöltés és letöltés idejét, mert azt a fájlméret és a hálózat erősen befolyásolja.
+- Csak az M-13 API-válaszidő méréséből kell kizárni a bináris átvitelt. Az M-15–M-18 importkísérlet az átvitelt is méri, kontrollált fájlmérettel és hálózattal.
 - A p95 cél lokális fejlesztői irányérték, nem production SLA.
 - Egy metric scenario csak akkor sikeres, ha az állapot mellett a számlálók és a tiltott mellékhatások hiánya is igazolt.
 - Nem teljesülő célt és elfogadott eltérést a test reportban vagy verification logban kell dokumentálni; célérték utólag nem írható át bizonyíték nélkül.
 
-## Későbbi kvalitatív ellenőrzés
+## Felhasználói próbák
 
-A `Core MVP` stabilizálása után legalább egy, a fejlesztőtől különböző próbafelhasználóval érdemes végigjátszatni a három core UX-folyamatot. Az `MVP+` elkészülte esetén külön kell megfigyelni, hogy az MI-javaslat, a szerkesztés és az elutasítás közötti döntés érthető-e. Ezek fejlesztési inputok, nem helyettesítik a technikai Definition of Done bizonyítékait.
+A teljes alkalmazás lezárásához külső felhasználói próbák szükségesek, tervezetten az SZD2-7 fázisban, korai visszajelzéssel már az első használható változatnál. Néhány, a fejlesztőtől különböző próbafelhasználó játssza végig a storage-folyamatokat és a kötegelt import sikeres, hibás és folytatási állapotait. Rögzíts szerepet személyes azonosító nélkül, feladatot, eredményt, visszajelzést, javítást és újrapróbát. Az opcionális MVP+ esetén a javaslat/szerkesztés/elutasítás érthetőségét külön vizsgáld. A UAT kiegészíti a technikai bizonyítékokat.

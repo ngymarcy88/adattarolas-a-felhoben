@@ -6,7 +6,7 @@
 
 Az első implementációs fázis unit tesztekkel védi a Core MVP üzleti szabályait. A jelen dokumentációs kör nem hoz létre test runnert vagy tesztkódot. Backendhez később Jest, frontendhez csak nem triviális izolált logika esetén Vitest használható.
 
-`Later` scope:
+A unit-first fejlesztés nem a végső SZD2 elfogadási kapu. Az októberi célhoz komponensek együttműködését, teljes folyamatokat, recoveryt és használhatóságot is bizonyítani kell. A roadmap SZD2-6 minőségi fázisában az alábbiak tervezettek, bevezetésük előtt az AGENTS.md szerinti külön engedélyezéssel:
 
 - PostgreSQL/Prisma integration tesztek;
 - MinIO/S3 adapter integration tesztek;
@@ -17,7 +17,7 @@ Az első implementációs fázis unit tesztekkel védi a Core MVP üzleti szabá
 ## Tesztelhetőségi elvek
 
 - Business logic service-ben vagy pure functionben legyen, ne controllerben.
-- Prisma, storage, clock, random/token generator, audit és opcionális MI-provider porton keresztül mockolható.
+- Prisma, storage, clock, random/token generator, audit, processor és opcionális MI-provider porton keresztül mockolható.
 - Időfüggő szabály injektált clockot használ.
 - A state transition és counter update egy use case-ként tesztelendő.
 - Minden negatív teszt külső hibakódot és belső információszivárgás hiányát is ellenőrzi.
@@ -44,6 +44,22 @@ Az első implementációs fázis unit tesztekkel védi a Core MVP üzleti szabá
 | Audit | kötelező események; request ID; allowlistelt metadata; nincs jelszó, token, URL, file content vagy raw MI adat | US-01–US-06 |
 | Error mapping | nested wrapper; stabil kód; üres/biztonságos details; request ID; nincs stack/providerüzenet | US-01–US-06 |
 
+## Kötelező SZD2 unit tesztmátrix-kiegészítés
+
+Az alábbiak az SZD2-0-ban pontosítandó import-/feldolgozási szerződés alapján készülnek; a nevek nem jelentenek létező entitásokat vagy API-kat. Az eredeti 5 perces URL és 15 perces pending határértéket külön össze kell egyeztetni a resumable session lejáratával és megújításával.
+
+| Csoport | Tervezett esetek | Roadmap |
+|---|---|---|
+| Importazonosság | ismételt és párhuzamos azonos művelet nem hoz létre másolatot; idegen owner sessionje nem folytatható | SZD2-2–SZD2-3 |
+| Átviteli állapot | kész fájl megmarad; tartós részállapotból folytatás; párhuzamosság korlátozott; lejárt jogosultság/session, megújítás, cancel és cleanup | SZD2-3 |
+| Hibaelkülönítés | egy hibás fájl nem állítja le a többit; csak sikertelen lépés retry-ja; stabil megismételt confirm/import | SZD2-2–SZD2-4 |
+| Processor és eredmény | közös interface; verziózott, egyedi eredményazonosság; hiányzó képadat érvényes eredmény; eredeti és sikeres testvéreredmény hozzáférhető | SZD2-2, SZD2-4 |
+| Tartós workerállapot | félbeszakadt job helyreállítható; ismételt/párhuzamos végrehajtás nem duplikál outputot vagy charge-ot; elavult worker eredménye nem írhatja felül az újabb állapotot | SZD2-4 |
+| Származtatott lifecycle | előnézet és részleges tartalom foglalása/véglegesítése/takarítása; cleanup-hiba; pontos kvóta; soft delete/restore és owner határok | SZD2-4–SZD2-5 |
+| Metadata-biztonság | kinyert adat untrusted; hiány/hibás mező; szükségtelen helyadat és egyéb személyes adat nem kerül logba vagy megosztási válaszba | SZD2-4 |
+
+A mockolt unit teszt az állapotlogikát bizonyítja; a tényleges bájtszintű folytatáshoz és restart recoveryhez azonosított lokális környezetben végzett kísérlet és később engedélyezett komponensellenőrzés is kell.
+
 ## Opcionális MVP+ unit tesztek
 
 Az alábbiak csak az MI-metaadat-javaslat külön jóváhagyása után készülnek:
@@ -65,7 +81,7 @@ Vitest csak indokolt, izolált logikára:
 - file size és usage formázás;
 - cursor page merge és duplikációvédelem;
 - error-code → user message mapping;
-- upload state/progress reducer;
+- importonkénti és fájlonkénti state/progress reducer, részleges siker, folytatás és külön retry;
 - MI suggestion accept/edit/reject state, ha MVP+ elkészül.
 
 Egyszerű statikus renderelésre nem szükséges tesztet írni kizárólag darabszám növelése érdekében.
@@ -92,6 +108,21 @@ Egy jövőbeli slice csak akkor zárható le, ha:
 
 A jelenlegi baseline nélkül nincs hiteles százalékos coverage-küszöb. A későbbi első futtatás rögzíti a baseline-t. A kritikus auth-, ownership-, accounting-, validation- és lifecycle-ágak teljes viselkedési lefedése fontosabb a puszta globális százaléknál.
 
-## Későbbi tesztfázis kapuja
+## SZD2 minőségi és átadási fázis
 
-Integration/e2e/contract teszt csak explicit későbbi mérföldkőben indulhat. Bevezetésekor külön dokumentálni kell a környezetet, fixture cleanupot, MinIO/PostgreSQL izolációt, CI-erőforrást és flake-kezelést.
+Az SZD2-6 fázisban a teljes alkalmazás bizonyításához az alábbi ellenőrzési terv tartozik; jelen módosítás nem hoz létre runnert, függőséget, tesztet vagy CI-t. Az integration/e2e/contract és CI indulásához külön felhatalmazás szükséges. Bevezetéskor rögzíteni kell a környezetet, fixture cleanupot, MinIO/PostgreSQL izolációt, CI-erőforrást és flake-kezelést.
+
+| Szint | Bizonyítandó viselkedés |
+|---|---|
+| Integration | Prisma-tranzakció és párhuzamos kvótafoglalás; valódi storage-adapter és kiválasztott átviteli mechanizmus; worker-tartósság, restart és derived-output cleanup |
+| API contract | import/resume/retry/confirm, auth és ownership; hibák; verziózott eredmények és a dokumentált állapotválaszok |
+| Teljes folyamat / e2e | belépés → köteg → megszakítás → folytatás → feldolgozott galéria; külön retry; sharing, delete/restore és usage negatív esetekkel |
+| CI | reprodukálható build/typecheck és jóváhagyott automata tesztkészlet; a tényleges konfiguráció elkészülte után kötelező PR-kapu |
+| Kontrollált kísérlet | 10/50 képes újrakezdő–folytatható összehasonlítás; hálózati megszakítás, worker-restart, sérült kép; bájt/idő/helyes eredmények és DB/storage számlálók |
+| Külső UAT és telepítés | SZD2-7: néhány próbafelhasználó feladatai, visszajelzés, javítás és retest; tiszta, lehetőleg másik gépen követett Quickstart |
+
+A részletes kísérleti protokoll és metrikák a [metrics.md](../01_product/metrics.md) dokumentumban vannak. Egy worker-restart demonstráció vagy fejlesztői manuális próba nem nevezhető automatikusan e2e tesztnek vagy külső UAT-nak.
+
+A korábbi v1.2 rubric 30+ tesztet, tesztmixet és CI-t tárgyal, az új Coospace érdemi bizonyítékot kér. A végső kapu pontos alkalmazása egyeztetendő; egyik követelmény sem tekinthető automatikusan eltöröltnek. A tesztdarabszám önmagában nem bizonyít minőséget.
+
+Minden futás jelentése tartalmazzon dátumot, commitot, környezetet/verziókat, inputot, lépéseket, elvárt/tényleges eredményt és bizonyítékot. A végső app, kézirat, screenshot, riport és telepítési leírás ugyanazt a verziót mutassa. A tesztriport csak ténylegesen lefuttatott eredményeket nevezhet sikeresnek; jelenleg nincs futtatási baseline.

@@ -1,18 +1,33 @@
-# Mérföldkövek – Adattárolás a felhőben
+# Mérföldkövek – Adattárolás a felhőben / CloudVault
 
 ## Státusz és használat
 
-**Tervezett végrehajtási roadmap – a jövőbeli termékfunkciók nincsenek implementálva.**
+**2026-10-18-i tervezett végrehajtási roadmap – termékfunkció még nincs implementálva.**
 
-Ez a dokumentum a végrehajtási sorrend, a státusz és a szükséges evidence kanonikus forrása. A termék elfogadási kritériumait a [scope contract](01_product/scope_contract.md), a részletes technikai döntéseket az [ADR-ek](02_architecture/adr/README.md), az interfészeket pedig a [design dokumentáció](03_design/README.md) tartalmazza.
+Az aktuális célt a [high-level terv](plan.md), az októberi források összefoglalóját a [SKILL.md](../SKILL.md) rögzíti. Ez a dokumentum a végrehajtási sorrend, a státusz és az evidence-kapuk forrása. A részletes product/API/adatmodell/ADR szerződések még célzott kiegészítésre várnak; az alábbi követelmények elsőbbséget élveznek a korábbi thumbnail-Later/single-PUT-only scope-pal szemben.
 
-Jelölések:
+- `[x]`: fájlokkal és ellenőrzéssel igazolt történeti dokumentációs eredmény; nem működő termék.
+- `[ ]`: még nem igazolt vagy nem implementált feladat.
+- **Kötelező SZD2 mag:** teljes alapalkalmazás + folytatható képimport + két processor/recovery + bizonyítás és dolgozat.
+- **MVP+:** opcionális MI, a kötelező lezárás függőségi útvonalán kívül.
+- **Later:** külön bővítés, például nagy videók, cloud, transzkódolás vagy automatizált végleges purge.
 
-- `[x]`: repository evidence alapján lezárt dokumentációs eredmény.
-- `[ ]`: jövőbeli, még nem implementált vagy nem igazolt feladat.
-- **Core MVP**: a kötelező storage termék része.
-- **MVP+**: opcionális, csak a core MVP után indítható.
-- **Later**: tudatosan későbbi fázis.
+## Ütemezés és egyeztetendő eltérések
+
+Az alábbi dátumok 2026-os belső célok a feltöltött forrásokból; nem automatikusan elfogadott hallgatói vállalások és nem hivatalos beadási határidők.
+
+| Eredmény | Személyes témavezetői javaslat | Közös Coospace belső ütem | Kapcsolódó szelet |
+|---|---|---|---|
+| Státusz, repo-hozzáférés, scope, fejezetvázlat és teszt/UAT-terv | Folyamatos egyeztetés | Október 2. és 9. | SZD2-0 és folyamatos dolgozatírás |
+| Belépés után kis képköteg, megjelenítés, első processor és dolgozatrész | Október 23. | Október 22.: már fő folyamatok és dokumentált telepítés | SZD2-1–2 |
+| Folytatható upload, két processor és restart recovery, UI-ból | November 6. | Nincs külön azonos kapu | SZD2-3–4 |
+| Teljes alkalmazás, mérési eredmények és teljes kézirat | November 20. | November 13. | SZD2-5–6 |
+| Javítás, felhasználói próba, újrateszt és másik gépes telepítés | December 4. | December 4. | SZD2-7 |
+| Véleményezett/javított belső végleges csomag | December 11. | December 11. | SZD2-7 |
+
+Az október 22/23. és november 13/20. különbséget a hallgatónak vissza kell igazoltatnia a témavezetővel. A korábbi októberi adminisztratív feladatok teljesítésére nincs bizonyíték a repóban; ebből nem következik, hogy elmaradtak. Egyeztetendő a heti reális ráfordítás, legnehezebb rész és januári záróvizsga-szándék is. A jelenlegi induló állapotból az október 23-i cél magas kockázatú.
+
+A tanári tájékoztatás október 31-i záróvizsga-jelentkezést és december 19-i hivatalos beadást említ. Ezek az egyéni/intézeti feltételekkel és az aktuális kari tájékoztatóval ellenőrizendők; nem helyettesítik a fenti belső review-kat. A repó vagy témavezetői e-mail nem hivatalos feltöltés. A kapcsolódó ellenőrzési forrás a [SKILL.md](../SKILL.md) fájlban található.
 
 ## Történeti dokumentációs mérföldkövek
 
@@ -44,7 +59,7 @@ Jelölések:
 
 **Evidence:** `docs/02_architecture/` és V-009–V-010. A komponensek ettől még nem futtathatók.
 
-## Dokumentációs rebaseline – SZD2 előkészítés
+## Júliusi dokumentációs rebaseline – történeti lezárás
 
 ### Cél
 
@@ -67,162 +82,145 @@ A két korábbi, duplikált fő terv konszolidálása és a szakdolgozati irány
 - [x] A Prompt Log és Verification Log új, hozzáfűzött bejegyzést kap.
 - [x] A dokumentációs ellenőrzések eredménye PASS vagy dokumentált eltérés.
 
-## Jövőbeli vertikális termék-roadmap
+A fenti checkboxok a júliusi baseline történeti állapotát őrzik; nem jelentik az októberi szerződés-kiegészítések vagy termékfunkciók elkészültét.
 
-### MVP-0: Reprodukálható lokális környezet – Core MVP alap
+## Aktuális SZD2 végrehajtási sorrend
 
-**Cél:** PostgreSQL és MinIO lokális elindítása, valamint a frontend/backend scaffold reprodukálható előkészítése.
+A történeti MVP-0–MVP-7 helyett az alábbi **SZD2-0–SZD2-7** az aktuális végrehajtási sorrend. A régi azonosítók nem kész termékfunkciókat jelentettek. Az új számozás a teljes, bemutatható szeleteket és a novemberi bizonyítási kaput helyezi előtérbe.
 
-**Jövőbeli deliverable-ek:**
+### SZD2-0: Első szelet szerződései és döntési előkészítés
 
-- [ ] Docker Compose PostgreSQL és MinIO service-ekkel.
-- [ ] Privát bucket inicializálása és CORS konfiguráció a presigned PUT/GET folyamathoz.
-- [ ] NestJS és Vue scaffold a rögzített stackkel.
-- [ ] Centralizált config és environment validáció.
-- [ ] Minimális health endpoint.
-- [ ] Valós, kipróbált Quickstart parancsok.
+**Cél:** rövid, implementálható első szelet; ne újabb általános dokumentációs kör legyen.
 
-**Minőség és evidence:** build/start parancsok, health ellenőrzés, secret scan, kézzel újrajátszott Quickstart. Ebben a szeletben integration/e2e teszt még nem készül.
+- [ ] A hat meglévő alapstory kiegészítési terve import/processing acceptance criteriával és a két belső ütem eltérésével.
+- [ ] Az első slice-hoz szükséges API/adatmodell/state-machine kiegészítés: import- és fájlazonosság, processor/job/result, egyediség és ownership.
+- [ ] Az első derived preview kvótafoglalásának, finalizálásának és sikertelen cleanupjának policyja; eredeti/derived delete/restore összhang.
+- [ ] Uppy/tus és más meglévő S3-kompatibilis folytatható mechanizmus szűk PoC-terve; jogosultság, részleges resume és tényleges tárolási eredmény ellenőrzése.
+- [ ] ADR-005/009/011 érintettsége, lejárat/megújítás és adatút nyitott döntéseinek listája; nincs előre kiválasztott protokoll vagy queue.
+- [ ] Fejezetvázlat és előzetes teszt-/mérési/UAT-forgatókönyvek; heti ráfordítás egyeztetése.
 
-### MVP-1: Auth és alap adatmodell – Core MVP
+**Elfogadás:** az első szelet állapotai és számlálói ellenőrizhetők, a nyitott resumable döntés nem rejtett feltételezés. A PoC tényleges végrehajtása és az implementáció külön engedélyezett munka. Nem szükséges minden későbbi endpointot most részletezni.
 
-**Cél:** elkülönített felhasználói fiók és a későbbi fájléletciklus adatbázis-alapja.
+### SZD2-1: Reprodukálható lokális alap és auth
 
-**Jövőbeli deliverable-ek:**
+**Függőség:** SZD2-0 első szelethez szükséges szerződései.
 
-- [ ] `User`, `FileObject`, `ShareLink` és `AuditEvent` kezdeti Prisma modell.
-- [ ] `usedStorageBytes` és `reservedStorageBytes` számlálók.
-- [ ] Regisztráció, login, logout és aktuális user endpoint.
-- [ ] Egyórás JWT `HttpOnly`, `SameSite=Lax` cookie-ban, localStorage és refresh flow nélkül.
-- [ ] Protected frontend route-ok és auth hibaállapotok.
+- [ ] PostgreSQL és MinIO Docker Compose, privát bucket és a választott adatúthoz szükséges CORS-konfiguráció.
+- [ ] Vue/NestJS scaffold, centralizált és validált config, placeholder `.env.example`, health endpoint.
+- [ ] Kezdeti Prisma schema és migráció, user/fájl/kvóta/audit alapokkal és az első import/processor állapotigényével.
+- [ ] Regisztráció, login, logout és aktuális user; az elfogadott HttpOnly cookie-auth és Origin-védelem megtartása.
+- [ ] Védett frontend, auth loading/error állapotok és kipróbált Quickstart.
 
-**Unit teszt minimum:** password hash/check, regisztrációs validáció, generic login error, cookie/token logika, auth guard és user boundary.
+**Unit evidence:** hash/check, validáció, generic login hiba, auth/owner boundary és configuration hibák. **Manuális evidence:** tiszta indulás, health és belépés. **Dolgozat:** problémafelvetés, célfelhasználók, követelmények és fő tervezési döntések érdemi szövege.
 
-**Kapcsolódó docs:** API auth rész, adatmodell, auth ADR, threat model és test report.
+### SZD2-2: Első használható képköteg, galéria és processor
 
-### MVP-2: Biztonságos feltöltési folyamat – Core MVP
+**Függőség:** SZD2-1 és az első processor kvóta-/eredményszerződése. **Tanári cél:** október 23.
 
-**Cél:** legfeljebb 100 MB-os kép vagy rövid videó feltöltése privát object storage-ba, idempotens és ellenőrzött confirmmal.
+- [ ] Belépés után kis képköteg indítása, fájlonként azonosítható progress, siker és hiba; egy fájl hibája nem ejti el a többit.
+- [ ] Backend-kontrollált privát upload, storage adapter, méret/MIME/magic-number validáció, foglalás és idempotens confirm.
+- [ ] Saját galéria és jogosult előnézet/letöltés; betöltési, üres és hibaállapotok.
+- [ ] Közös processor-interfész és első beépített processor, verziózott eredménnyel. Elsőként az előnézetkészítő javasolt; ez végrehajtási javaslat, a tanár általánosan első processort kér.
+- [ ] Eredeti és derived storage konzisztens elszámolása; minimális tartós job/result és audit, titkok nélkül.
+- [ ] Bemutatható commit, valós képernyőkép, tesztriport, kipróbált lokális telepítés és aktuális dolgozatrész.
 
-**Jövőbeli deliverable-ek:**
+**Unit evidence:** quota/confirm egyszeriség, fájlvalidáció, ownership, processor-result identity és hibakezelés. **Manuális elfogadás:** belépés → kis csomag → galéria → első processor eredménye; hibás fájl mellett a jó fájlok használhatók.
 
-- [ ] `PENDING_UPLOAD` rekord és tranzakciós kvótafoglalás.
-- [ ] Rövid életű presigned PUT URL.
-- [ ] Storage adapter presign, `HEAD`, bounded range-read és delete műveletekkel.
-- [ ] Confirm: tényleges méret, allowlist és magic-number vizsgálat.
-- [ ] Pontosan egyszeri `PENDING_UPLOAD → ACTIVE` és usage accounting.
-- [ ] Lejárt, hibás vagy abandoned upload cleanup/retry viselkedés.
-- [ ] Upload progress, újrapróbálható és felhasználóbarát UI-állapotok.
-- [ ] Fontos upload események auditálása titkok nélkül.
+Ez egy kezdeti vertikális szelet. Az egyszeri PUT-tal vagy teljes fájl retry-jával működő első verzió nem nevezhető végleges folytatható importnak. A teljes resume a következő kapu követelménye.
 
-**Unit teszt minimum:** méret/MIME/magic number, storage key, párhuzamos reservation, idempotens confirm, cleanup failure és pontosan egyszeri számlálómódosítás.
+### SZD2-3: Valódi folytatható import
 
-**Kapcsolódó docs:** API upload szerződés, file state machine, ADR-005/007/008/011, threat model és test report.
+**Függőség:** SZD2-2; a transfer PoC és ADR döntése a resumable implementáció előtt. **Tanári cél:** SZD2-4-gyel együtt november 6.
 
-### MVP-3: Lista, preview és letöltés – Core MVP
+- [ ] Meglévő mechanizmus PoC-ja: kontrollált megszakítás után a már átvett adat megmarad, a folytatás tényleges MinIO/S3 eredményt hoz létre.
+- [ ] A választás, adatút és kompromisszumok rögzítése; major dependency/multipart esetén az AGENTS.md szerinti külön felhatalmazás.
+- [ ] Tartós import-, fájl- és sessionazonosság; befejezett fájlok nem indulnak újra.
+- [ ] Fájlonkénti resume/retry/cancel és partial-success UI, korlátozott párhuzamossággal.
+- [ ] Backend auth/owner check folytatáskor is; session-, URL- és auth-lejárat, megújítás és quota-retention összehangolása.
+- [ ] Részleges adat takarítása; cleanup-hibánál foglalásmegtartás és retry, kvótakiskapu nélkül.
+- [ ] Azonos import ismétlése nem duplikál fájlt vagy számlálót.
 
-**Cél:** saját aktív fájlok stabil, lapozott böngészése és biztonságos használata.
+**Unit evidence:** identitás, állapotátmenet, reservation/retry/expiry/cancel invariánsok. **Valós működési evidence:** hálózat megszakítása és UI-ból folytatás, átvett/újraküldött bájtok és kész fájlok DB/storage ellenőrzése. A teljes baseline-összehasonlítás SZD2-6 része, a resume működésbizonyítása már itt szükséges.
 
-**Jövőbeli deliverable-ek:**
+### SZD2-4: Két processor és worker-restart helyreállítás
 
-- [ ] `createdAt + id` alapú determinisztikus cursor pagination.
-- [ ] Betöltési, üres, hiba- és következő oldal UI-állapot.
-- [ ] Külön preview- és download-jogosultság.
-- [ ] Rövid életű read URL-ek megfelelő `Content-Type` és `Content-Disposition` beállítással.
-- [ ] HTML, SVG, JavaScript, XML és ismeretlen tartalom inline tiltása.
-- [ ] Cross-user IDOR elleni backend enforcement.
+**Függőség:** SZD2-2 processor-alapjai; SZD2-3-mal közös november 6-i kapu, részben párhuzamosan készíthető.
 
-**Unit teszt minimum:** ownership, törölt fájl kizárása, cursor-stabilitás, limitvalidáció, inline/attachment döntés és presign paraméterezés.
+- [ ] Előnézet és képadatkinyerés ugyanazon processor-interfészen; eredményenként azonosítható processor-verzió.
+- [ ] Képméret és rendelkezésre álló készítési idő kezelése; hiányzó metadata szabályos eredmény, sérült/dekódolhatatlan kép elkülönített hiba.
+- [ ] Tartós job-állapot, biztonságos munkafoglalás, retry és félbemaradt munka recoveryja worker-újraindítás után.
+- [ ] Ismételt munkavégrehajtásból nem keletkezik második eredmény/preview vagy dupla kvótaterhelés.
+- [ ] Csak a hibás lépés újrapróbálása a UI-ról; eredeti és sikeres másik eredmény közben elérhető.
+- [ ] Decoder erőforráskorlátok, derived ownership és metadata privacy ellenőrzése.
 
-**Kapcsolódó docs:** list/read API, UX-flow, threat model és test report.
+**Unit evidence:** job/result egyediség, külön retry, hiányzó metadata, owner boundary, derived accounting. **Valós elfogadás:** tényleges worker leállítása/felállítása és ismételt job mellett ugyanannyi helyes objektum/eredmény és helyes használat; UI-ból követhető recovery. **Dolgozat:** import/feldolgozás állapotai, szekvencia és saját döntések, működő képekkel.
 
-### MVP-4: Lifecycle, kvótaelszámolás és alap audit – Core MVP
+**November 6-i döntési kapu:** SZD2-3 és SZD2-4 együttes demonstrációja. Ha ez nem készül el, a januári befejezést és a hátralévő ütemet a témavezetővel felül kell vizsgálni.
 
-**Cél:** visszafordítható törlés és konzisztens tárhelyelszámolás.
+### SZD2-5: Teljes alapalkalmazás és egységes UX
 
-**Jövőbeli deliverable-ek:**
+**Függőség:** SZD2-2; a végső elszámolás és lifecycle SZD2-3–4 eredményeivel együtt fogadható el.
 
-- [ ] `ACTIVE → SOFT_DELETED` 30 napos `purgeAfter` időponttal.
-- [ ] Egyedi restore a retention időn belül.
-- [ ] Törölt fájlok listája és érthető kvótajelzés.
-- [ ] Soft delete és restore során változatlan `usedStorageBytes`.
-- [ ] Audit esemény upload, delete, restore és security-releváns átmenetekhez.
-- [ ] Soft delete-kor a korábbi share-linkek végleges invalidálása; restore után új link szükséges.
-- [ ] A későbbi idempotens purge kiválasztási, retry- és accounting szabályainak megtartása.
+- [ ] Determinisztikus `createdAt + id` cursor pagination és használható galéria kép-/rövidvideó-kezeléssel a meglévő limitig.
+- [ ] Biztonságos preview/download, inline allowlist és backend ownership; videótranszkódolás nélkül.
+- [ ] `usedStorageBytes`/`reservedStorageBytes` és derived policy szerinti usage kijelzés, retry közben is konzisztensen.
+- [ ] Soft delete, trash és 30 napos restore; eredeti és derived adatokhoz igazított hozzáférés/processing, újraéledő régi share-link nélkül.
+- [ ] Időkorlátos megosztás hash-elt tokennel, lejárat- és állapotellenőrzéssel, biztonságos publikus hibákkal.
+- [ ] Alap audit és request ID; érthető empty/loading/error/success állapotok és használati útmutató.
 
-**Unit teszt minimum:** ownership, state transition, időfüggő restore, idempotens delete/restore, listaszűrés és usage invariánsok.
+**Unit evidence:** lapozás, retention-határ, share-expiry/hash, jogosulatlan hozzáférés, származtatott lifecycle és usage-invariánsok. **Manuális elfogadás:** egy felhasználó végigviszi a teljes folyamatot; más user adataihoz nem fér hozzá. Az automatizált végleges purge továbbra is Later.
 
-**Fontos határ:** az automatizált purge worker nem Core MVP deliverable; csak a stratégia és a későbbi tesztelhető üzleti szabály marad dokumentált.
+### SZD2-6: Mérések, minőségi kapu és első teljes dolgozat
 
-### MVP-5: Időkorlátos megosztás – Core MVP
+**Függőség:** SZD2-3–5. A tervezés és a tesztelés előkészítése már a korábbi szeletek alatt indul. **Tanári cél:** november 20.; a Coospace november 13-i teljesleadási céljával egyeztetendő.
 
-**Cél:** aktív saját fájl kontrollált elérése bejelentkezés nélkül.
+- [ ] Kontrollált újrakezdő/folytatható összehasonlítás kis/nagy képcsomaggal (10/50 kép javaslat), azonos feltételekkel és dokumentált ismétlésekkel.
+- [ ] Normál futás, hálózati megszakítás, worker-restart és sérült kép; helyes fájl-/eredményszám, újraküldött bájt és teljes kötegidő.
+- [ ] DB/storage egyediség, tárhelyhasználat és tiltott mellékhatások tényleges ellenőrzése; eredményeket és korlátokat tartalmazó riport.
+- [ ] Unit tesztek a megvalósított logikára, negatív és concurrency/idempotencia esetekkel; valós tesztriport.
+- [ ] A végső integration/contract/e2e ellenőrzések és CI követelményeinek egyeztetése, majd bevezetése a megfelelő felhatalmazással. Javasolt kapu: reprodukálható build, lint/typecheck és tesztek, DB/storage együttműködés és fő user-flow bizonyítékokkal.
+- [ ] Threat/privacy review, runbook és minimális megfigyelhetőség; a korábbi hibák újratesztelése.
+- [ ] Első teljes dolgozat és véleményezhető projektcsomag, képernyőképekkel, kipróbált telepítéssel, mérési/tesztbizonyítékokkal és nyitott hibalistával.
 
-**Jövőbeli deliverable-ek:**
+**Fontos:** e mérföldkő tervbe foglalása nem engedélyez most CI-t vagy integration/e2e implementációt. A régi v1.2 darabszám-/tesztmix-/CI feltételek és a frissebb eredményközpontú Coospace végső alkalmazását tisztázni kell; a korábbi feltételek nem tekinthetők eltöröltnek. A felhasználóval kell rendezni a bevezetés kapuját még a lezárás előtt.
 
-- [ ] Nagy entrópiájú share token és csak hash-elt tárolás.
-- [ ] Kötelező lejárati idő.
-- [ ] Backend validáció után kiadott rövid életű read URL.
-- [ ] Lejárt, hibás vagy törölt fájlhoz tartozó link elutasítása.
-- [ ] Külön publikus hibaállapot információszivárgás nélkül.
+### SZD2-7: Felhasználói próbák, javítások és végleges átadás
 
-**Unit teszt minimum:** token hash, expiry boundary, ownership, törölt fájl, hibás token és error mapping.
+**Függőség:** SZD2-6 teljes változata. **Belső cél:** december 4-i javított csomag, december 11-i lezárás.
 
-**Later:** revoke, access limit és analitika.
+- [ ] Tényleges, lehetőleg célcsoportot képviselő felhasználói próbák: forgatókönyv, szerep, tapasztalat és javítás; személyes azonosítók nélkül.
+- [ ] Javítások utáni újrateszt, a részleges siker/hiba/folytatás UX ismételt kipróbálása.
+- [ ] Dokumentált tiszta környezetes, másik gépes telepítési próba és szükség szerint javított Quickstart.
+- [ ] Véleményezett, visszajelzések alapján javított dolgozat PDF-ben.
+- [ ] Azonosítható végleges commit/kiadás; ezzel egyező screenshotok, API/adatmodell, teszt/mérési/UAT-riport és használati útmutató.
+- [ ] Demo script, release notes, self-assessment és ismert korlátok; fontos MI-javaslatok és emberi ellenőrzések naplója.
+- [ ] A belső csomagtól külön a hivatalos feltöltés követelményeinek ellenőrzése a hallgató által.
 
-### MVP-6: MI-metaadat-javaslat – opcionális MVP+
+**Elfogadás:** a teljes alkalmazás egyeztetett környezetben bemutatható és leírás alapján újra felépíthető; fizetős cloud nem feltétel. Saját fejlesztői ellenőrzés nem külső UAT. A dolgozat önállóan is értelmezhető, és ugyanazt a tényleges verziót mutatja, mint a szoftver.
 
-**Belépési kapu:** csak a Core MVP elfogadása után, külön provider-, privacy- és dependency-jóváhagyással.
+## Párhuzamos dolgozatírás és kapcsolattartás
 
-**Jövőbeli deliverable-ek:**
+| Szoftverállapot | Egyidejű dolgozati eredmény |
+|---|---|
+| SZD2-0–1 | Probléma, meglévő megoldások, scope, követelmények, alternatívák és tervezés |
+| SZD2-2 | Első működő folyamat leírása és valós screenshotok; október 23-i dolgozatrész |
+| SZD2-3–4 | Saját transfer-/processing-döntések, állapotok, retry/recovery és kvóta; november 6-i köztes verzió |
+| SZD2-5–6 | Teljes megvalósítás, reprodukálható mérések, tesztek, korlátok és első teljes kézirat |
+| SZD2-7 | UAT, javítások, végső következtetés és témavezetői visszajelzések beépítése |
 
-- [ ] Explicit felhasználói indítás aktív képnél.
-- [ ] `AiMetadataSuggestion` provenance és státuszkezelés.
-- [ ] Címke- és rövid leírásjavaslat provider adapteren keresztül.
-- [ ] Elfogadás, szerkesztés és elutasítás.
-- [ ] Provider failure esetén degradált, de teljes értékű core működés.
-- [ ] Arcfelismerés, biometria és érzékeny következtetés tiltása.
-- [ ] Raw média, presigned URL és nyers provider-válasz logolásának tiltása.
+Minden érdemi előrelépésről a hallgató küldjön commitot, bemutatható eredményt, ellenőrzést, aktuális kéziratot és akadályt a témavezetőnek; az AI csak külön felhasználói utasításra küldhet üzenetet. A commit feltöltése önmagában nem konzultációs értesítés.
 
-**Unit teszt minimum:** csak aktív kép engedélyezése, státuszátmenetek, ownership, accept/edit/reject, providerhiba és core-függetlenség.
+## Opcionális MVP+ és későbbi bővítések
 
-**Nem döntött:** konkrét provider és queue/worker technológia. Ezekhez új, explicit döntés szükséges.
+Az MI nem előfeltétele egyik kötelező kapunak sem. Csak a kötelező mag stabilizálása és külön felhasználói/provider/privacy/dependency döntés után tervezhető harmadik processorként: aktív képre explicit indítás, címke/leírás-javaslat, accept/edit/reject és core-tól független hibakezelés. Arcfelismerés, biometria és érzékeny következtetés tiltott.
 
-### MVP-7: Mérnöki lezárás – Core release-előkészítés
+Later marad az automatizált végleges purge/reconciliation, nagyvideós multipart és 100 MB feletti limit, AWS/OCI-deployment, offline előkészítés, transzkódolás, admin, fejlett keresés/monitoring, share-revoke/access limit. Thumbnail és a kötelező képresume nem Later; a leadás előtti minőségterv nem opcionális termékbővítés.
 
-**Cél:** a megvalósított scope bizonyítható, reprodukálható és bírálható állapota.
+## Közös Definition of Done
 
-**Jövőbeli deliverable-ek:**
-
-- [ ] Unit tesztek minden megvalósított core üzleti szabályra.
-- [ ] API-, adatmodell-, security-, operations- és AI-dokumentáció szinkronizálása.
-- [ ] Test report valós parancsokkal és eredményekkel.
-- [ ] Threat model mitigációk kézi review-ja.
-- [ ] Runbook, observability, demo script, release notes és self-assessment tényleges állapotra frissítve.
-- [ ] Traceability: pillér → capability → story → API → entitás → teszt/evidence.
-- [ ] Tiszta környezetben végigjátszott Quickstart és core UX-flow-k.
-
-## Later-stage roadmap
-
-Az alábbiak nem keverhetők a Core MVP mérföldköveibe:
-
-- [ ] Automatizált, idempotens purge worker és reconciliation.
-- [ ] Multipart upload initiate/presign-parts/complete/abort flow-val.
-- [ ] AWS vagy OCI deployment.
-- [ ] Integration tesztek PostgreSQL/MinIO ellen.
-- [ ] Contract és e2e tesztek.
-- [ ] CI/CD quality gates.
-- [ ] Fejlett observability dashboard.
-- [ ] Thumbnail, transzkódolás, admin és fejlett keresés.
-
-Ezek megkezdéséhez külön felhasználói kérés vagy jóváhagyott új mérföldkő szükséges.
-
-## Közös Definition of Done minden jövőbeli szelethez
-
-- A viselkedés implementált és a slice acceptance criteria teljesül.
-- A változó üzleti logikához unit teszt készül és fut.
-- Az API-, adatmodell-, security- és UX-dokumentáció a tényleges állapotot írja.
-- Nincs hardcoded secret, PII-, token- vagy presigned URL-logolás.
-- A fontos AI-asszisztált változás bekerül a Prompt Logba és Verification Logba.
-- A manuális review-hoz konkrét evidence áll rendelkezésre.
-- A branch stratégia és Conventional Commits szabályai teljesülnek.
+- A szelet acceptance criteriája működő UI/backend/storage eredménnyel teljesül; a dokumentációs feladat saját dokumentációs eredménye külön kezelendő.
+- A változó üzleti logika releváns unit tesztjei futnak; a szelet valós próbájának verziója, környezete és eredménye rögzített.
+- A követelmény, use case, kód, API/adatmodell és teszt/evidence megfeleltethető; nincs jelöletlen terv/implementáció eltérés.
+- Nincs valódi secret vagy szükségtelen PII/token/presigned URL/fájltartalom a repóban és logokban.
+- A dolgozat, használati/telepítési leírás és AI-napló az adott készültséghez igazodik; nem állít jövőbeli képességet megvalósultnak.
+- Review és a projekt branch/commit szabályai teljesülnek; a teljes SZD2 csak a minőségi, UAT- és átadási kapukkal együtt zárható le.
