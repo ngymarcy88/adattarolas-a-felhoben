@@ -1,49 +1,61 @@
 # C4 Container
 
-## Statusz
+## Státusz
 
-Ez a dokumentum a tervezett MVP kontener szintu architekturajat rogziti. A leirt kontenerek kesobbi merfoldkovekben lesznek scaffoldolva es implementalva.
+**Tervezett állapot – nem implementált funkcionalitás.**
 
 ## Cél
 
-A container nézet az alkalmazás futtatható nagyobb egységeit és a köztük lévő felelősségi határokat mutatja. A kulcsfontosságú szerződés az, hogy a frontend a backend API-val intézi a jogosultságot és a presigned URL-ek kiadását, míg a bináris adatátvitel presigned URL-lel közvetlenül a privát object storage felé történik.
+A container nézet kizárólag a tervezett futtatható egységeket és adattárolókat mutatja. Prisma ORM, az S3 adapter és az opcionális MI adapter a Backend API belső komponensei, ezért ezen a szinten nem jelennek meg külön containerként.
 
 ## Diagram
 
 ```mermaid
 flowchart LR
     browser["Browser\nVue 3 SPA"]
-    backend["Backend API\nNestJS + TypeScript"]
-    prisma["Prisma ORM"]
-    postgres["PostgreSQL\nmetadata store"]
-    storageAdapter["Storage adapter\nS3-compatible abstraction"]
-    minio["MinIO / S3-compatible bucket\nbinary objects"]
+    api["Backend API\nNestJS + TypeScript\nstateless"]
+    postgres["PostgreSQL\nmetadata és audit"]
+    storage["MinIO / S3\nprivát bináris objektumok"]
 
-    browser -->|"HTTPS API: auth, files, sharing, usage"| backend
-    browser -->|"Short-lived presigned PUT/GET\nno credentials"| minio
-    backend -->|"Type-safe queries and transactions"| prisma
-    prisma -->|"SQL"| postgres
-    backend -->|"Create presigned URLs,\nverify object metadata where possible"| storageAdapter
-    storageAdapter -->|"S3-compatible API"| minio
+    browser -->|"HTTPS JSON API"| api
+    browser -->|"Rövid életű presigned PUT/GET"| storage
+    api -->|"SQL Prisma komponensen át"| postgres
+    api -->|"S3 API storage adapteren át"| storage
 ```
 
-## Kontenerek
+## Containerek
 
-| Kontener | Technologia | Felelosseg |
-|---|---|---|
-| Browser SPA | Vue 3, Vite, TypeScript, Tailwind CSS | UI, route-ok, protected felulet, upload/download flow inditasa, felhasznalobarat allapotok. |
-| Backend API | Node.js, NestJS, TypeScript | Auth, authorization, metadata muveletek, presigned URL kiadas, hibamodell, usage accounting. |
-| Prisma ORM | Prisma | Adatbazis-hozzaferes, migraciok, tipusos query reteg, tranzakciok. |
-| PostgreSQL | PostgreSQL | Felhasznalok, fajlmetaadatok, share link hash-ek, audit es tarhelyhasznalat. |
-| Storage adapter | AWS SDK v3 S3-kompatibilis kliens mogotti absztrakcio | Provider fuggetlenebb storage muveletek es presigned URL generalas. |
-| Object storage | MinIO lokalisan, kesobb AWS S3 vagy OCI Object Storage | Binaris kep- es videotartalom privat bucketben. |
+| Container | Technológia | Felelősség | Scope |
+|---|---|---|---|
+| Browser SPA | Vue 3, Vite, TypeScript, Tailwind CSS | UI, protected route, upload orchestration, lapozás, user-friendly állapotok | Core MVP |
+| Backend API | Node.js, NestJS, TypeScript | Auth, authorization, metadata, lifecycle, presign, usage, sharing, audit és hibamodell | Core MVP |
+| PostgreSQL | PostgreSQL | User, FileObject, ShareLink, AuditEvent, számlálók és opcionális MI-javaslat | Core + MVP+ |
+| Object storage | MinIO lokálisan; később S3-kompatibilis cloud | Privát kép- és videóobjektumok | Core MVP |
 
-## Fo adatfolyamok
+## Fő adatfolyamok
 
-- Upload: frontend metadata kerest kuld, backend validal es pending rekordot hoz letre, presigned PUT URL-t ad, frontend feltolt, majd confirm hivas utan a backend aktivva teszi a rekordot es novelheti a `usedStorageBytes` erteket.
-- Preview/download: frontend read URL-t ker, backend ownership vagy share token alapjan dont, majd rovid eletu presigned URL-t ad biztonsagos response beallitasokkal.
-- Soft delete/restore: backend metadata allapotot modosit; soft delete alatt a binaris objektum megmarad es tovabbra is beleszamit a kvotaba.
+### Upload
 
-## Nem cel ebben a merfoldkoben
+1. A SPA metadata-kérést küld a Backend API-nak.
+2. Az API tranzakcióban pending rekordot hoz létre és kvótát foglal.
+3. Az API rövid életű presigned PUT URL-t ad.
+4. A browser közvetlenül az object storage-ba tölt.
+5. Confirmkor az API object metadata és bounded range-read alapján validál.
+6. Siker esetén pontosan egyszer aktivál és könyvel usage-ot.
 
-Nem keszul Docker Compose, NestJS scaffold, Vue scaffold, Prisma schema vagy runtime API. Ezeket a kesobbi merfoldkovek valositjak meg az itt rogzitett architekturadontesek alapjan.
+### Lista és olvasás
+
+- A lista `createdAt + id` alapú cursor paginationt használ.
+- Preview vagy download előtt az API ownershipet vagy share tokent ellenőriz.
+- A bináris adatátvitel rövid életű URL-lel közvetlenül a browser és storage között történik.
+
+### Opcionális MI
+
+- Csak explicit felhasználói kérés és aktív kép esetén indul.
+- A provider kiesése nem érinti a Core MVP containereinek működését.
+- Később a feldolgozás külön workerbe mozgatható; queue/worker technológia még nincs kiválasztva.
+- A külső MI-provider ezen a nézeten nem alkalmazáscontainer: a rendszerhatár a C4 Contextben, a provider adapter pedig a Component nézetben szerepel.
+
+## Skálázási feltétel
+
+A Backend API nem tárolhat tartós felhasználói vagy job állapotot folyamatmemóriában. Több API-példány ugyanazt a PostgreSQL és object storage állapotot használhatja; a session-affinitás nem lehet előfeltétel.

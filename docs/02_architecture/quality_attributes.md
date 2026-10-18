@@ -2,61 +2,88 @@
 
 ## Státusz
 
-Ez a dokumentum a 3. mérföldkő architektúratervezési része. A követelmények a későbbi implementációhoz adnak ellenőrizhető irányt.
+**Tervezett állapot – nem implementált funkcionalitás.**
+
+Az alábbi követelmények a későbbi implementáció ellenőrizhető architekturális céljai. Nem jelentenek teljesített SLA-t vagy futtatási eredményt.
 
 ## Security
 
-- A frontend nem tarolhat S3/MinIO credentialt.
-- Minden vedett fajlmuvelethez backend oldali authentication es ownership ellenorzes kell.
-- A presigned URL-ek rovid eletuek legyenek, es ne keruljenek logba.
-- HTML, SVG, JavaScript, XML es ismeretlen binaris tartalom nem lehet inline preview-ra engedelyezett.
-- Password csak biztonsagos hash formajaban tarolhato.
+- Minden védett fájlművelet backend oldali authenticationt és ownership checket igényel.
+- JWT csak egyórás, `HttpOnly`, `SameSite=Lax` cookie-ban használható; productionben `Secure` szükséges.
+- State-changing cookie-auth kéréseknél Origin/CSRF védelem és explicit CORS allowlist szükséges.
+- A presigned URL rövid életű, szűk műveletre érvényes és nem kerül logba.
+- HTML, SVG, JavaScript, XML és ismeretlen tartalom nem jeleníthető meg inline.
+- Share token csak nagy entrópiájú, hash-elt értékként tárolható.
 
 ## Privacy
 
-- A rendszer ne logoljon jelszot, password hasht, JWT tokent, presigned URL-t, fajltartalmat vagy szuksegtelen szemelyes adatot.
-- A share token adatbazisban csak hash formajaban tarolhato.
-- Mas felhasznalo fajlazonositojanak ismerete nem adhat metadata vagy binaris tartalom hozzaferest.
+- Jelszó, password hash, JWT, share token, presigned URL, fájltartalom és szükségtelen személyes adat nem logolható.
+- Az opcionális MI-provider adatkezelése előtt explicit felhasználói indítás és privacy tájékoztatás szükséges.
+- Arcfelismerés, biometrikus azonosítás és érzékeny tulajdonság következtetése tiltott.
+- Nyers MI input/output nem kerül alkalmazáslogba; csak minimális provenance és státusz tárolható.
 
-## Modifiability
+## Reliability és consistency
 
-- A storage eleres adapteren keresztul tortenjen, hogy MinIO, AWS S3 vagy OCI Object Storage kozotti valtas ne erintse a teljes codebase-t.
-- A backend modulhatarok kozak legyenek: auth, users, files, storage, sharing, audit, health, config es common.
-- A dokumentalt ADR-eket valtoztatas eseten uj ADR-rel vagy statuszfrissitessel kell kovetni.
+- Upload csak ellenőrzött confirm után válhat aktívvá.
+- Ismételt confirm nem növelheti újra a tárhelyhasználatot.
+- Pending reservation, aktív usage és FileObject state egy tranzakciós use case-ben változik.
+- Soft delete és restore nem módosítja a `usedStorageBytes` értékét.
+- Lejárt vagy hibás pending upload cleanupja retry-képes; sikertelen storage-delete esetén a reservation nem oldható fel bizonyíték nélkül.
+- A későbbi purge idempotens; usage csak sikeres vagy idempotensen már teljesült object delete után csökkenhet.
+
+## Scalability
+
+- A Backend API stateless; új példány indítása nem igényel memóriában tárolt user/session/job állapot átvitelét.
+- A fájllista `createdAt + id` alapú cursor paginationt használ, alapértelmezett és maximális oldalmérettel.
+- A fő list/usage/presign API-műveletek nem olvassák át a bináris objektumot.
+- A browser és object storage közötti adatút tehermentesíti az API-t a bináris transfer alól.
+- Purge és MI-feldolgozás később külön workerbe szervezhető a domain interface módosítása nélkül.
+
+## Maintainability és modifiability
+
+- A storage provider adapteren keresztül cserélhető; közvetlen SDK-hívás csak az adapterben lehet.
+- A providerfüggő MI-integráció külön adapter mögött marad.
+- API-, adatmodell- és error szerződés csak a kanonikus design docsban részletezhető.
+- Döntésváltozás új ADR-t vagy meglévő ADR státuszfrissítést igényel.
+- A controllerek vékonyak, az üzleti logika izolált service-ben vagy pure utility-ben tesztelhető.
 
 ## Testability
 
-- Az uzleti szabalyok service szinten legyenek tesztelhetok, ne controllerbe vagy SDK adapterbe legyenek egetve.
-- Elso korben unit tesztek keszulnek; integration, contract es e2e tesztek kesobbi merfoldkohoz tartoznak.
-- Prioritas: password hashing, auth validation, ownership checks, storage key generation, file validation, quota accounting, soft delete/restore es share link expiry.
+- Első fázisban unit tesztek készülnek; integration, contract és e2e Later scope.
+- Prioritás: auth, ownership, quota reservation, idempotens confirm, file validation, pagination, soft delete/restore, sharing és error mapping.
+- Időfüggő logika injektált clockkal tesztelhető.
+- Storage és MI provider portjai unit tesztben mockolhatók.
 
-## Reliability
+## Graceful degradation
 
-- Feltoltes csak sikeres confirm utan valhat aktivva es novelheti a `usedStorageBytes` erteket.
-- Soft delete alatt a binaris objektum megmarad, a usage nem csokken.
-- Kesobbi purge idempotens legyen; storage torlesi hiba eseten a usage nem csokkenhet.
-- Lejart vagy hibas share link nem adhat hozzaferest.
+- MI-provider kiesése `AI_UNAVAILABLE` vagy kontrollált failed suggestion állapotot okoz, de nem blokkol core műveletet.
+- Preview-hiba mellett a biztonságos download elérhető maradhat, ha authorization és fájlállapot engedi.
+- Storage vagy PostgreSQL hiba stabil külső hibakódot ad, belső stack trace nélkül.
+- Audit- vagy cleanup-hiba nem vezethet csendes, dokumentálatlan állapotvesztéshez.
 
 ## Observability
 
-- A backend hibak stabil kodot, felhasznalobarat uzenetet es request azonositasra alkalmas mezot kapjanak.
-- Naplozasnal a hasznos technikai kontextus megengedett, de credential, token, presigned URL es fajltartalom tilos.
-- Kesobbi health endpoint legalabb az API alapelerhetoseget jelezze; reszletes monitoring dashboard nem MVP kovetelmeny.
+- Minden API-hiba request ID-val és stabil kóddal rendelkezik.
+- A log esemény neve, request ID, actor/resource referencia és eredmény tárolható; secret és content nem.
+- Tervezett metrikák: request latency, error rate, upload init/confirm/failure, cleanup backlog, usage és opcionális MI success/failure.
+- Health endpoint csak szükséges állapotot jelez; részletes dependency információ nem publikus.
 
 ## Local reproducibility
 
-- A normal fejleszteshez ne kelljen valo AWS vagy OCI credential.
-- Lokalis object storage cel a MinIO, lokalis metadata store cel a PostgreSQL.
-- A kesobbi README quickstart parancsai reprodukalhato modon inditsak a fejlesztoi kornyezetet.
+- Normál lokális fejlesztéshez nem kell valódi AWS/OCI credential.
+- PostgreSQL és MinIO később Docker Compose-ból indul.
+- A README csak ténylegesen kipróbált parancsot tartalmazhat.
 
 ## Verification matrix
 
-| Attribute | Kesobbi ellenorzes |
+| Attribute | Tervezett ellenőrzés |
 |---|---|
-| Security | Unit tesztek authorizationra, validaciora es error mappingre; manual review presigned URL logolas ellen. |
-| Privacy | Secret es token kereses; prompt/verification log kezi atnezes. |
-| Modifiability | Storage adapter boundary review; direct SDK hivasok keresese. |
-| Testability | Backend unit test coverage a core service logikara. |
-| Reliability | Upload confirm, usage accounting, soft delete/restore es purge selection unit tesztek. |
-| Observability | Error response dokumentacio es health endpoint manual check kesobbi merfoldkovekben. |
-| Local reproducibility | Docker Compose es README quickstart manual inditasi proba kesobbi merfoldkovekben. |
+| Security | Authorization, cookie, CSRF/Origin, MIME és safe-disposition unit tesztek; manual secret/log review |
+| Privacy | Threat model, provider adatfolyam review, prompt/log secret scan |
+| Reliability | Concurrent reservation, idempotens confirm, cleanup és lifecycle unit tesztek |
+| Scalability | Cursor-stabilitás; API statelessness review; dokumentált lokális latency mérés később |
+| Maintainability | Direct SDK/process.env keresés; adapter- és modulhatár review |
+| Testability | Core service unit test suite és mockolt portok |
+| Graceful degradation | Storage/MI failure unit scenario-k |
+| Observability | Error response, request ID, log-redaction és health manuális ellenőrzés |
+| Reproducibility | Tiszta környezetben végigjátszott Quickstart a scaffold után |

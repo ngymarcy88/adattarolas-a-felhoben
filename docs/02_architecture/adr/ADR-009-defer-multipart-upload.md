@@ -8,6 +8,10 @@ Accepted
 
 2026-06-25
 
+## Implementation status
+
+Tervezett Later döntés – a Core MVP-ben nincs multipart upload implementáció.
+
 ## Context
 
 A projekt kepeket es videokat kezel, igy a nagy fajlok feltoltese fontos cloud object storage tema. Ugyanakkor az MVP scope korlatozott: eloszor a teljes auth, metadata, presigned URL, validation, usage, sharing es soft delete flow-t kell mukodokepesse tenni.
@@ -19,7 +23,7 @@ Az MVP egyetlen, legfeljebb 100 MB-os presigned PUT feltoltest hasznal. Multipar
 ## Alternatives considered
 
 - Multipart upload azonnali implementalasa: termekminosegi szempontbol eros, de jelentosen noveli az elso MVP komplexitasat.
-- Backend proxy upload: egyszerubb kontrollt ad, de nagy fajloknal rosszabbul skalazodik.
+- Backend altal streamelt feltoltes: egyszerubb kontrollt ad, de nagy fajloknal rosszabbul skalazodik.
 - Nagyon magas single-upload limit: demoban latvanyos, de instabilabb es nem oldja meg a retry/resume problemat.
 
 ## Consequences

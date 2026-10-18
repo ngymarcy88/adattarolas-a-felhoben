@@ -117,6 +117,7 @@ Prefer this monorepo structure:
       api.md
       data_model.md
       error_handling.md
+      traceability.md
 
     04_quality/
       test_strategy.md
@@ -174,8 +175,9 @@ The MVP should focus on:
 - user login
 - protected frontend
 - file upload to MinIO through backend-controlled presigned URL flow
+- pending upload reservation, idempotent confirmation and abandoned-upload cleanup
 - file metadata saved in PostgreSQL
-- listing the user's own files
+- cursor-paginated listing of the user's own files
 - image/video preview
 - file download
 - soft delete
@@ -183,8 +185,17 @@ The MVP should focus on:
 - storage usage display
 - basic sharing link
 - backend validation
+- basic audit events without an audit UI
 - unit tests
 - core documentation
+
+Optional post-core `MVP+` scope:
+
+- AI-assisted metadata suggestions for active images only
+- explicit user trigger and human accept/edit/reject
+- provider adapter and graceful failure independent from core storage
+
+The product AI feature is distinct from AI-assisted development. Do not implement it before the Core MVP is stable and the user explicitly requests the `MVP+` phase. Face recognition, biometric identification and sensitive-attribute inference are prohibited, not later-stage goals.
 
 Keep these as later-stage or stretch goals unless explicitly requested:
 
@@ -212,7 +223,9 @@ The frontend should request backend-controlled operations:
 - receive short-lived presigned upload URL
 - confirm upload
 - request short-lived preview/download URL
-- create/revoke share links
+- create share links
+
+Share-link revocation as a user-facing feature is later scope. Core soft delete permanently invalidates existing links; restore requires a new link.
 
 The backend must enforce authorization and ownership checks.
 
@@ -263,6 +276,7 @@ backend/src/
   storage/
   sharing/
   audit/
+  ai-metadata/  # optional MVP+ only
   health/
 ```
 
@@ -325,6 +339,7 @@ Suggested fields:
 - `passwordHash`
 - `displayName`
 - `usedStorageBytes`
+- `reservedStorageBytes`
 - `storageLimitBytes`
 - `createdAt`
 - `updatedAt`
@@ -343,6 +358,8 @@ Suggested fields:
 - `checksum`
 - `visibility`
 - `status`
+- `uploadUrlExpiresAt`
+- `confirmBy`
 - `deletedAt`
 - `purgeAfter`
 - `createdAt`
@@ -362,6 +379,8 @@ Suggested fields:
 - `revokedAt`
 - `createdAt`
 
+Only token hash, expiry and ownership fields are Core MVP requirements. Revocation, access counts and access limits remain later scope.
+
 ### AuditEvent
 
 Suggested fields:
@@ -374,6 +393,22 @@ Suggested fields:
 - `metadata`
 - `createdAt`
 
+### AiMetadataSuggestion
+
+Optional `MVP+` fields:
+
+- `id`
+- `fileObjectId`
+- `requestedByUserId`
+- `status`
+- `suggestedTags`
+- `suggestedDescription`
+- `providerKey`
+- `modelKey`
+- `decidedAt`
+- `createdAt`
+- `updatedAt`
+
 Keep `docs/03_design/data_model.md` synchronized with the Prisma schema.
 
 ---
@@ -385,13 +420,14 @@ Keep `docs/03_design/data_model.md` synchronized with the Prisma schema.
 Prefer this flow:
 
 1. Frontend sends upload metadata to backend.
-2. Backend validates user, file name, size, MIME type and storage quota.
-3. Backend creates a pending `FileObject`.
-4. Backend generates a short-lived presigned upload URL.
+2. Backend validates user, file name, size, MIME type and `used + reserved + requested` storage quota.
+3. Backend transactionally creates a `PENDING_UPLOAD` `FileObject` and increases `reservedStorageBytes`.
+4. Backend generates a short-lived presigned upload URL, 5 minutes by default.
 5. Frontend uploads file to MinIO/S3.
 6. Frontend calls confirm endpoint.
-7. Backend verifies and finalizes metadata where possible.
-8. Backend updates `usedStorageBytes`.
+7. Backend verifies the object with `HEAD` and a bounded range read for magic-number detection.
+8. Backend idempotently changes `PENDING_UPLOAD` to `ACTIVE`, decreases the reservation and increases `usedStorageBytes` exactly once.
+9. A pending upload expires after 15 minutes by default. Missing or successfully deleted abandoned objects release the reservation; cleanup failures retain it for retry.
 
 ### Download/preview flow
 
@@ -405,6 +441,8 @@ Prefer this flow:
 Prefer backend-controlled share links.
 
 A public share link should not be a long-lived raw S3 URL. The backend should validate the share token and then generate a short-lived read URL.
+
+The Core MVP share token is 32 cryptographically random bytes encoded as base64url. Store only its SHA-256 hash and require an expiry between 1 hour and 7 days. Soft delete removes existing share-link records so restore cannot unexpectedly reactivate old public access.
 
 ---
 
@@ -440,12 +478,16 @@ If implementing purge:
 
 Do not repeatedly calculate dashboard usage with `SUM(sizeBytes)` on every request as the main design.
 
-Use a denormalized `User.usedStorageBytes` field.
+Use denormalized `User.usedStorageBytes` and `User.reservedStorageBytes` fields.
 
 Rules:
 
-- Increase it after successful finalized upload.
-- Do not increase it for failed or abandoned uploads.
+- Increase `usedStorageBytes` only after successful finalized upload.
+- Do not increase `usedStorageBytes` for failed or abandoned uploads.
+- Increase `reservedStorageBytes` during upload init in the same transaction that creates the pending record.
+- Transfer the same size from reserved to used exactly once during successful confirm.
+- Release a reservation only after object absence or successful invalid/abandoned object cleanup is verified.
+- Keep the reservation when cleanup fails, so orphaned objects cannot bypass quota.
 - Soft-deleted files still count as used storage while the binary object still exists.
 - Decrease it only after permanent purge.
 - Unit test this accounting logic.
@@ -568,9 +610,14 @@ Prioritize tests for:
 - file size validation
 - MIME/magic number validation
 - storage quota accounting
+- concurrent quota reservation and idempotent upload confirmation
+- abandoned upload cleanup and retry behavior
+- deterministic cursor pagination
 - soft delete/restore
 - purge selection logic
-- share link expiry/revocation
+- share link token hashing and expiry
+- share-link invalidation on soft delete and non-reactivation on restore
+- optional AI suggestion state/failure isolation only in the approved MVP+ phase
 - error mapping
 
 Do not introduce integration/e2e tests in the early phase unless asked.
@@ -593,7 +640,7 @@ Important docs:
 - `docs/01_product/vision.md`: product vision
 - `docs/01_product/scope_contract.md`: MVP, non-goals, acceptance criteria
 - `docs/01_product/capability_map.md`: value/productization capabilities
-- `docs/01_product/ux_flows.md`: 2-3 key user flows
+- `docs/01_product/ux_flows.md`: 3 core flows and the optional MVP+ AI flow
 - `docs/02_architecture/c4_context.md`: C4 context diagram
 - `docs/02_architecture/c4_container.md`: C4 container diagram
 - `docs/02_architecture/quality_attributes.md`: quality attributes
@@ -601,6 +648,7 @@ Important docs:
 - `docs/03_design/api.md`: API contract
 - `docs/03_design/data_model.md`: data model
 - `docs/03_design/error_handling.md`: error model
+- `docs/03_design/traceability.md`: pillars, stories, interfaces, entities and planned test groups
 - `docs/04_quality/test_strategy.md`: test approach
 - `docs/04_quality/test_report.md`: latest test state
 - `docs/05_security_ops/threat_model.md`: threats and mitigations
@@ -661,10 +709,19 @@ ADR candidates for this project:
 - magic number file validation
 - multipart upload as later phase
 - authentication approach
+- idempotent upload confirmation and pending quota reservation
+- optional human-in-the-loop AI metadata suggestions
 
 ---
 
 ## AI documentation rules
+
+Keep these concepts separate:
+
+- AI-assisted development is documented in `docs/07_ai/`.
+- The optional product AI metadata suggestion is an `MVP+` application capability governed by product, architecture, privacy and test documentation.
+
+No product AI provider, model, dependency or queue is approved by documentation alone. Implementation requires explicit user authorization and provider privacy/licensing review.
 
 For non-trivial AI-assisted work, suggest or update entries in:
 

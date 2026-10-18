@@ -8,6 +8,10 @@ Accepted
 
 2026-06-25
 
+## Implementation status
+
+Tervezett állapot – nincs MinIO service vagy storage adapter implementáció.
+
 ## Context
 
 A projekt lenyege a felhoalapu objektumtarolas bemutatasa. A fejleszteshez olyan lokalis megoldas kell, amely nem igenyel valo cloud credentialt, de a kesobbi AWS S3 vagy OCI Object Storage iranyt nem zarja ki.

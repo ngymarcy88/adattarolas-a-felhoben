@@ -1,6 +1,6 @@
 # Frontend
 
-Ez a mappa a későbbi frontend alkalmazás helye.
+Ez a mappa a későbbi frontend alkalmazás helye. Jelenleg csak dokumentációs placeholder; nincs Vite scaffold, package manifest vagy futtatható kód.
 
 Tervezett stack:
 
@@ -11,4 +11,6 @@ Tervezett stack:
 - Vue Router
 - Vitest unit tesztek
 
-Az alkalmazás scaffoldolása nem az 1. mérföldkő része. A pontos telepítési, fejlesztői és teszt parancsok a frontend inicializálása után kerülnek ide és a root `README.md` Quickstart részébe.
+A tervezett UI a hat Core MVP user storyt szolgálja ki; az opcionális MI-metaadat-javaslat csak külön MVP+ bővítés.
+
+A pontos telepítési, fejlesztői és tesztparancsok csak a frontend későbbi inicializálása és kézi ellenőrzése után kerülhetnek ide és a root `README.md` Quickstart részébe.

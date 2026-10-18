@@ -1,56 +1,76 @@
 # Dokumentációs index
 
-Ez az index a szakdolgozói leadandó csomag Docs-as-Code belépési pontja. A dokumentáció magyar nyelvű, a kódbeli azonosítók, API nevek és konfigurációs kulcsok angolul szerepelnek.
+## Repository státusz
 
-## Aktív dokumentumok
+A repository jelenleg **dokumentáció-only tervezési állapotban** van. Nincs futtatható alkalmazás, Prisma schema, Docker Compose, package manifest, teszt runner vagy CI/CD. A dokumentumok tervezett célállapotot írnak le, nem implementált funkcionalitást igazolnak.
 
-- [High-level szakdolgozati terv](plan.md)
-- [Mérföldkövek](milestones.md)
+## Kanonikus források
+
+| Terület | Source of truth |
+|---|---|
+| High-level szakdolgozati irány | [plan.md](plan.md) |
+| Roadmap, státusz és evidence | [milestones.md](milestones.md) |
+| Core MVP és MVP+ acceptance criteria | [scope_contract.md](01_product/scope_contract.md) |
+| Technikai döntések | [ADR-index](02_architecture/adr/README.md) |
+| API-szerződés | [api.md](03_design/api.md) |
+| Adatmodell és lifecycle | [data_model.md](03_design/data_model.md) |
+| Hibaszerződés | [error_handling.md](03_design/error_handling.md) |
+| Pillér–story–interface–teszt kapcsolat | [traceability.md](03_design/traceability.md) |
+| AI-asszisztált fejlesztés evidence | [AI Manifest](07_ai/ai_manifest.md), [Prompt Log](07_ai/prompt_log.md), [Verification Log](07_ai/verification_log.md) |
+
+## Dokumentumtérkép és állapot
+
+| Terület | Tartalom | Státusz |
+|---|---|---|
+| [01_product](01_product/README.md) | Vision, scope, capability, metrics és UX | Aktív, tervezett szerződés |
+| [02_architecture](02_architecture/README.md) | C4, quality attributes és ADR-001–ADR-012 | Aktív, tervezett architektúra |
+| [03_design](03_design/README.md) | API, adatmodell, lifecycle, error és traceability | Aktív, tervezett interface contract |
+| [04_quality](04_quality/README.md) | Unit-first stratégia és őszinte teszt baseline | Aktív terv; nincs test runner |
+| [05_security_ops](05_security_ops/README.md) | Threat, privacy, planned runbook és observability | Aktív, tervezett kontrollok |
+| [06_release](06_release/README.md) | Demo, release notes és self-assessment | Placeholder a futtatható termékig |
+| [07_ai](07_ai/ai_manifest.md) | AI-eszközök, promptok és verifikáció | Aktív történeti evidence |
+
+## Product dokumentumok
+
 - [Termékvízió](01_product/vision.md)
-- [MVP scope contract](01_product/scope_contract.md)
+- [Core MVP scope contract](01_product/scope_contract.md)
 - [Capability map](01_product/capability_map.md)
 - [Termékmetrikák](01_product/metrics.md)
 - [Fő UX-folyamatok](01_product/ux_flows.md)
+
+A termékdokumentumok három fázist használnak:
+
+- **Core MVP:** a hat kötelező storage user story és keresztmetszeti productization képességeik.
+- **MVP+:** opcionális, kép-only, human-in-the-loop MI-metaadat-javaslat.
+- **Later:** purge worker, multipart, cloud, integration/e2e, CI/CD és további bővítések.
+
+## Architektúra és döntések
+
 - [C4 Context](02_architecture/c4_context.md)
 - [C4 Container](02_architecture/c4_container.md)
 - [C4 Component](02_architecture/c4_component.md)
 - [Quality Attributes](02_architecture/quality_attributes.md)
-- [Architecture Decision Records](02_architecture/adr/README.md)
-- [AI Manifest](07_ai/ai_manifest.md)
-- [Prompt Log](07_ai/prompt_log.md)
-- [Verification Log](07_ai/verification_log.md)
+- [ADR-index](02_architecture/adr/README.md)
 
-## Előkészített dokumentációs területek
+Az alkalmazásba tervezett MI-funkció és az AI-asszisztált fejlesztés külön fogalom. A termék-MI az ADR-012 szerinti opcionális MVP+ képesség; a fejlesztési AI bizonyítékai a `07_ai` területen maradnak.
 
-- [01_product](01_product/README.md): elkészült vision, scope contract, capability map, metrics és UX flow-k.
-- [02_architecture](02_architecture/README.md): C4 diagramok, quality attributes és ADR-ek.
-- [03_design](03_design/README.md): API, adatmodell és hibakezelési szerződés.
-- [04_quality](04_quality/README.md): tesztstratégia, teszt riport és minőségi kapuk.
-- [05_security_ops](05_security_ops/README.md): threat model, privacy/licensing, deploy runbook és observability.
-- [06_release](06_release/README.md): demo script, release notes és később önértékelés.
-- [07_ai](07_ai/ai_manifest.md): AI-használat, promptok és verifikációk nyomon követése.
+## Design, quality és security
 
-## Első mérföldkő definition of done
+- [API contract](03_design/api.md)
+- [Data model és state machine](03_design/data_model.md)
+- [Error handling](03_design/error_handling.md)
+- [Traceability matrix](03_design/traceability.md)
+- [Test strategy](04_quality/test_strategy.md)
+- [Test report baseline](04_quality/test_report.md)
+- [Threat model](05_security_ops/threat_model.md)
+- [Privacy és licensing](05_security_ops/privacy_licensing.md)
+- [Planned runbook](05_security_ops/runbook.md)
+- [Planned observability](05_security_ops/observability.md)
 
-- A repo struktúrája áttekinthető.
-- A `frontend/`, `backend/` és `docs/` alapmappák megvannak.
-- A secret fájlok `.gitignore` által tiltottak.
-- A `.env.example` csak placeholder értékeket tartalmaz.
-- A projekt célja a root `README.md` fájlban röviden le van írva.
-- A Codex számára van projekt-specifikus `AGENTS.md`.
-- Az AI dokumentációs alapfájlok létrejöttek.
+## Státuszszabály
 
-## Második mérföldkő dokumentációs eredménye
-
-- Két célpersona és a termék értékajánlata rögzített.
-- Hat MVP user story rendelkezik elfogadási kritériumokkal.
-- Az MVP és a későbbi funkciók határa dokumentált.
-- A value és productization képességek, a sikermetrikák és három fő UX-folyamat követhető.
-- A leírt termékképességek továbbra is tervezett státuszúak, amíg későbbi mérföldkövek nem igazolják az implementációjukat.
-
-## Harmadik mérföldkő dokumentációs eredménye
-
-- Elkészült a C4 Context, Container és lightweight Component nézet.
-- Rögzítve vannak a fő quality attribute-ok és azok későbbi verifikációs irányai.
-- Kilenc Accepted státuszú ADR dokumentálja a fő technológiai és architekturális döntéseket.
-- A dokumentumok továbbra sem állítanak futtatható alkalmazást; a scaffold, Docker Compose, Prisma schema és runtime API későbbi mérföldkő része.
+- „Accepted” ADR tervezési döntést jelent, nem implementációt.
+- „Planned” API vagy entitás nem állítható futó contractnak.
+- Test report csak ténylegesen futtatott parancsot és eredményt nevezhet PASS-nak.
+- Quickstart csak kipróbált parancsot tartalmazhat.
+- Minden fontos AI-asszisztált változás append-only Prompt Log és Verification Log bejegyzést kap.

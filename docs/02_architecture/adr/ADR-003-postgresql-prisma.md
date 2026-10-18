@@ -6,31 +6,39 @@ Accepted
 
 ## Date
 
-2026-06-25
+2026-06-25; frissítve: 2026-07-12
+
+## Implementation status
+
+Tervezett állapot – nincs Prisma schema, migráció vagy futó adatbázis.
 
 ## Context
 
-A binaris fajlokat object storage tarolja, de az alkalmazasnak strukturalt metaadatokra van szuksege: felhasznalok, fajlok, tulajdonjog, statusz, share linkek, audit es tarhelyhasznalat. Ezek relacios kapcsolatokat es konzisztens tranzakcios frissiteseket igenyelnek.
+A bináris média object storage-ban él, de az alkalmazás relációs és tranzakciós metaadatot igényel: user, ownership, fájlállapot, usage/reservation, share-link, audit és opcionális MI-javaslat. A kvótaelszámolás és az idempotens állapotátmenetek konzisztens tranzakciókat igényelnek.
 
 ## Decision
 
-Az alkalmazasi metadata store PostgreSQL lesz, Prisma ORM-mel. A tervezett fo entitasok: `User`, `FileObject`, `ShareLink` es `AuditEvent`.
+Az alkalmazási metadata store PostgreSQL, Prisma ORM hozzáféréssel. Core entitások: `User`, `FileObject`, `ShareLink`, `AuditEvent`. Az opcionális MVP+ `AiMetadataSuggestion` külön entitás, hogy a javaslat, provenance és emberi döntés ne keveredjen a kanonikus fájlmetaadattal.
+
+A `User` külön `usedStorageBytes` és `reservedStorageBytes` számlálót tartalmaz. A `FileObject` core állapotai `PENDING_UPLOAD`, `ACTIVE` és `SOFT_DELETED`; a későbbi purge `PURGE_FAILED` állapotot és terminális `PURGED` eseményt használhat.
 
 ## Alternatives considered
 
-- MongoDB vagy mas dokumentum-adatbazis: rugalmas, de a kapcsolatok, ownership es usage accounting miatt kevesbe termeszetes.
-- SQLite: egyszeru lokalis fejleszteshez, de a celrendszerhez es szakdolgozati architekturahoz gyengebb illeszkedes.
-- Kizarolag object storage metadata: nem alkalmas auth, share link, audit es tranzakcios usage kezelesre.
+- MongoDB: rugalmas, de ownership, állapotátmenet és számlálótranzakció szempontjából kevésbé természetes.
+- SQLite: egyszerűbb lokális indulás, de eltérne a célkörnyezettől és a concurrency viselkedéstől.
+- Kizárólag object metadata: nem alkalmas auth, share token, audit és tranzakciós kvóta kezelésére.
+- AI-mezők közvetlenül a `FileObject` rekordban: egyszerűbb, de elveszítené a suggestion provenance-t és az emberi döntés elkülönítését.
 
 ## Consequences
 
-- A relacios modell jol dokumentalhato es megfelel a metadata jellegu adatoknak.
-- Prisma tipusos hozzaferest es migracios alapot ad.
-- A `usedStorageBytes` tranzakcios frissitese service retegbeli Prisma transactionben tortenhet.
-- A kesobbi adatmodell dokumentumot es Prisma schemat szinkronban kell tartani.
+- Az állapot- és számlálóváltozások Prisma tranzakcióban kezelhetők.
+- A dokumentált adatmodell és a későbbi Prisma schema kötelezően szinkronban tartandó.
+- A denormalizált számlálókhoz idempotens use case-ek és reconciliation terv szükséges.
+- A ShareLink későbbi revoke/access-limit mezői nem jelentenek Core MVP API-képességet.
+- PostgreSQL és Prisma provider-specifikus migrációs fegyelmet igényel.
 
 ## Verification
 
-- A kesobbi `prisma/schema.prisma` mezoi osszhangban lesznek a `docs/03_design/data_model.md` dokumentummal.
-- Usage accounting valtozasok unit teszttel ellenorizhetok.
-- Direkt, ad hoc SQL hasznalat csak indokolt esetben kerulhet be.
+- A későbbi `schema.prisma` mezőit tételesen össze kell vetni a `docs/03_design/data_model.md` dokumentummal.
+- Unit tesztek fedik a state transition, quota reservation és exactly-once accounting logikát.
+- Az opcionális MI entitás hiánya nem akadályozhat Core MVP migrációt vagy működést.

@@ -8,6 +8,10 @@ Accepted
 
 2026-06-25
 
+## Implementation status
+
+Tervezett állapot – nincs frontend scaffold vagy futtatható UI.
+
 ## Context
 
 Az MVP-hez olyan frontend kell, amely gyorsan fejlesztheto, jol dokumentalhato, es eleg eros egy vedett dashboard, fajllista, upload flow, preview/download es share-link UI megvalositasahoz. A projekt szakdolgozati scope-ja miatt a keretrendszernek nem szabad tul sok boilerplate-et adnia, de tipusbiztonsagot es tesztelhetoseget igen.
