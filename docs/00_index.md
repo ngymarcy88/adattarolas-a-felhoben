@@ -4,13 +4,19 @@
 
 A repository jelenleg **dokumentáció-only tervezési állapotban** van. Nincs futtatható alkalmazás, Prisma schema, Docker Compose, package manifest, teszt runner vagy CI/CD. A dokumentumok tervezett célállapotot írnak le, nem implementált funkcionalitást igazolnak.
 
+## Követelménybaseline és szerződések
+
+A [terv](plan.md), [mérföldkövek](milestones.md) és a gyökérbeli [SKILL.md](../SKILL.md) a 2026. októberi követelménybaseline-t rögzítik: teljes alkalmazás, folytatható kötegelt import, két verziózott képfeldolgozó tartós állapottal és recoveryvel, valamint mérési/UX/dolgozati bizonyíték. A termék-MI opcionális, ezeken kívül áll.
+
+A részletes scope, API, adatmodell, traceability, C4 és ADR-ek egy része még a júliusi storage-baseline-t írja le. A high-level frissítés nem jelenti e szerződések teljes egyeztetését. A single-PUT-only, thumbnail-Later és végleges unit-only feltételeket az októberi cél felülírja; az érintett implementáció előtt célzott szerződésfrissítés szükséges a roadmap SZD2-0 kapuja szerint. Az eredeti biztonsági és elszámolási invariánsokat meg kell őrizni.
+
 ## Kanonikus források
 
 | Terület | Source of truth |
 |---|---|
 | High-level szakdolgozati irány | [plan.md](plan.md) |
 | Roadmap, státusz és evidence | [milestones.md](milestones.md) |
-| Core MVP és MVP+ acceptance criteria | [scope_contract.md](01_product/scope_contract.md) |
+| Korábbi Core MVP és MVP+ acceptance criteria; SZD2-egyeztetés szükséges | [scope_contract.md](01_product/scope_contract.md) |
 | Technikai döntések | [ADR-index](02_architecture/adr/README.md) |
 | API-szerződés | [api.md](03_design/api.md) |
 | Adatmodell és lifecycle | [data_model.md](03_design/data_model.md) |
@@ -22,9 +28,9 @@ A repository jelenleg **dokumentáció-only tervezési állapotban** van. Nincs 
 
 | Terület | Tartalom | Státusz |
 |---|---|---|
-| [01_product](01_product/README.md) | Vision, scope, capability, metrics és UX | Aktív, tervezett szerződés |
-| [02_architecture](02_architecture/README.md) | C4, quality attributes és ADR-001–ADR-012 | Aktív, tervezett architektúra |
-| [03_design](03_design/README.md) | API, adatmodell, lifecycle, error és traceability | Aktív, tervezett interface contract |
+| [01_product](01_product/README.md) | Vision, scope, capability, metrics és UX | Metrics frissítve; a többi részletes szerződés célzottan egyeztetendő |
+| [02_architecture](02_architecture/README.md) | C4, quality attributes és ADR-001–ADR-012 | Korábbi baseline, import/processing/derived-kvóta egyeztetendő |
+| [03_design](03_design/README.md) | API, adatmodell, lifecycle, error és traceability | Korábbi baseline, import/processing szerződésekkel bővítendő |
 | [04_quality](04_quality/README.md) | Unit-first stratégia és őszinte teszt baseline | Aktív terv; nincs test runner |
 | [05_security_ops](05_security_ops/README.md) | Threat, privacy, planned runbook és observability | Aktív, tervezett kontrollok |
 | [06_release](06_release/README.md) | Demo, release notes és self-assessment | Placeholder a futtatható termékig |
@@ -38,11 +44,12 @@ A repository jelenleg **dokumentáció-only tervezési állapotban** van. Nincs 
 - [Termékmetrikák](01_product/metrics.md)
 - [Fő UX-folyamatok](01_product/ux_flows.md)
 
-A termékdokumentumok három fázist használnak:
+A korábbi termékdokumentumok Core MVP/MVP+/Later felosztása célzottan frissítendő:
 
-- **Core MVP:** a hat kötelező storage user story és keresztmetszeti productization képességeik.
+- **Kötelező SZD2 cél:** a hat storage user story mellett folytatható képköteg-import, két képfeldolgozó, restart recovery és reprodukálható bizonyítás.
 - **MVP+:** opcionális, kép-only, human-in-the-loop MI-metaadat-javaslat.
-- **Later:** purge worker, multipart, cloud, integration/e2e, CI/CD és további bővítések.
+- **Későbbi bővítések:** nagyvideós multipart a képimporton túl, cloud, transzkódolás és offline előkészítés.
+- **Külön minőségi fázis:** integration/contract/e2e és CI tervezett, engedélyezési kapuval; a végső rubric alkalmazása egyeztetendő.
 
 ## Architektúra és döntések
 

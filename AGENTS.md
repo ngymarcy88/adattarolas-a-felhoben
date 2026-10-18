@@ -21,7 +21,7 @@ If `docs/plan.md` or `docs/milestones.md` conflicts with a user instruction, fol
 
 The October supervisor feedback adds resumable batch import, thumbnail and image-metadata processors, durable processing state, recovery and comparative measurements to the required target. These are planned requirements, not implemented capabilities or permission to implement them during a documentation task.
 
-The July `docs/plan.md`, `docs/milestones.md`, product/design documents and ADRs have not yet been fully reconciled with this baseline. In particular, single-PUT-only upload and deferred thumbnail generation are outdated scope assumptions. Use this baseline for requirement conflicts and update affected contracts in the next authorized task; do not silently treat the older roadmap as current acceptance criteria. Preserve still-valid security and accounting invariants.
+The current `docs/plan.md` and `docs/milestones.md` reflect this baseline and list the remaining targeted contract updates. Detailed product/design documents, C4 views and ADRs still contain July assumptions until those updates are completed. In particular, single-PUT-only upload and deferred thumbnail generation are outdated scope assumptions. Use the October plan for requirement conflicts and update affected contracts before the relevant implementation; preserve still-valid security and accounting invariants.
 
 ---
 

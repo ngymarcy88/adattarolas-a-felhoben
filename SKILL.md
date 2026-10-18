@@ -32,7 +32,7 @@ Az alábbi utak a repó gyökeréhez képest értendők. A nyers források a rep
 
 Hiányzó nyers forrás esetén az alábbi összefoglalóval lehet dolgozni, de jelezd, ha az eredeti tartalom ellenőrzése szükséges. A TXT-kből ne találj ki levélfejlécet, elküldött választ vagy újabb jóváhagyást. Ne másold személyes levelek teljes tartalmát vagy kapcsolattartási adatait a repóba.
 
-A felhasználó legfrissebb explicit utasítását kövesd. Az októberi célkövetelményeket az AGENTS.md is rögzíti; a júliusi terv single-PUT-only és thumbnail-Later állításaival való ütközést nevezd meg, majd csak az engedélyezett feladatban frissítsd az érintett dokumentumokat. Az új cél nem választ automatikusan átviteli protokollt, queue-t vagy függőséget.
+A felhasználó legfrissebb explicit utasítását kövesd. Az októberi célkövetelményeket az AGENTS.md, a friss terv és a roadmap rögzíti; a részletes szerződésekben megmaradt júliusi single-PUT-only és thumbnail-Later állítások eltérését nevezd meg, majd csak az engedélyezett feladatban frissítsd az érintett dokumentumokat. A terv dokumentációs átvezetési táblája jelzi a nyitott részeket. Az új cél nem választ automatikusan átviteli protokollt, queue-t vagy függőséget.
 
 ## Elvárt termékeredmény
 

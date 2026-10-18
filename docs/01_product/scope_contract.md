@@ -2,6 +2,8 @@
 
 **Tervezett állapot – nem implementált funkcionalitás.**
 
+**2026-10-18-i scope-kiegészítés:** az alábbi hat story a korábbi storage-alapot rögzíti. A teljes kötelező SZD2 célhoz a [friss terv](../plan.md) és [roadmap](../milestones.md) szerinti folytatható kötegelt képimport, két processor, tartós recovery, mérés és UAT is szükséges. Ezek részletes acceptance criteria-ja még célzottan kiegészítendő az érintett implementáció előtt; a lentebbi thumbnail/multipart Later besorolás nem halaszthatja el a kötelező képimportot vagy előnézetkészítőt.
+
 ## Cél és fázishatárok
 
 Ez a dokumentum a termékvízió és a `Core MVP` elfogadási kritériumainak source of truth dokumentuma. A felsorolt működést később kódnak, unit tesztnek és dokumentált manuális verifikációnak kell igazolnia.

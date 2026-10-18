@@ -16,6 +16,8 @@ Ez a napló a projekt szempontjából fontos AI-promptokat és azok eredményét
 
 | P-009 | 2026-10-18 | Root projekt-skill és GitHub PR-ek beolvasztásának előkészítése | A felhasználó a SKILL.md gyökérbe helyezését, saját PR létrehozását és beolvasztását, valamint a másik nyitott PR beolvasztását kérte. | A `SKILL.md` a gyökérbe került, a relatív linkek és az AGENTS.md hivatkozása frissültek. | Felhasználói kézi módosítás még nem történt; az automatikus skill-felderítés korlátját a gyökérfájl jelzi. | V-013 |
 
+| P-010 | 2026-10-18 | Az elavult terv októberi SZD2 frissítése | A felhasználó a korábban azonosított elavult terv frissítését kérte a tanári elvárásokhoz. | Frissült a `docs/plan.md`, `docs/milestones.md`, README/index, metrika- és tesztterv; célzott státuszpontosítást kapott a scope contract, ADR-009, AGENTS.md és SKILL.md. Az új roadmap SZD2-0–SZD2-7; az MI nincs a kötelező lezárás útvonalán. | Felhasználói kézi módosítás még nem történt; feladatonként megosztott AI-dokumentációs munka és független forráshűségi review készült. A részletes import/API/schema szerződések célzott kiegészítése nyitott maradt. | V-014 |
+
 ## Új bejegyzés sablon
 
 | ID | Dátum | Cél | Prompt röviden | Eredmény / artefakt | Kézi módosítás | Verification |

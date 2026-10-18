@@ -15,12 +15,14 @@ Elkészült dokumentációs alapok:
 
 ## Szakmai irány
 
-A terv négy pillérre épül:
+A 2026. októberi témavezetői elvárások alapján a terv négy kötelező pillérre épül:
 
-1. **Core cloud-storage MVP:** auth, privát médiafeltöltés, lista, preview, download, usage, sharing, soft delete és restore.
-2. **Megbízható fájl-életciklus:** pending upload, idempotens confirm, kvótafoglalás, magic-number validáció, cleanup és későbbi purge-stratégia.
-3. **Skálázható és karbantartható architektúra:** stateless backend, cursor pagination, storage adapter, modulhatárok és reprodukálható lokális környezet.
-4. **Opcionális termék-MI:** core MVP utáni, explicit felhasználói indítású kép-címke- és leírásjavaslat emberi jóváhagyással.
+1. **Teljes alapalkalmazás:** auth, privát médiafeltöltés, galéria, preview, download, usage, sharing, soft delete és restore.
+2. **Folytatható kötegelt import:** stabil import- és fájlazonosság, fájlonkénti állapot, a már átvett adatoktól folytatható átvitel és ismétlésbiztos elszámolás.
+3. **Bővíthető háttérfeldolgozás:** közös interfészű, verziózott előnézetkészítő és képadatkinyerő, tartós job-/eredményállapot, külön retry és worker-újraindítás utáni helyreállítás.
+4. **Mérhető, használható és dokumentált eredmény:** összehasonlító mérések, valódi felhasználói próbák, ellenőrzött telepítés és a fejlesztéssel párhuzamos dolgozatírás.
+
+A pending kvótafoglalás, idempotencia, validáció, jogosultság, storage adapter és karbantarthatóság minden pillérben érvényes alap. A folytatható átvitel technológiája még nincs kiválasztva; az Uppy/tus vizsgálati javaslat. A részletes átviteli és feldolgozási szerződéseket az érintett implementáció előtt kell lezárni.
 
 Az alkalmazásba tervezett MI-funkció külön fogalom az AI-asszisztált fejlesztési folyamattól. A fejlesztés AI-használatát és emberi verifikációját a `docs/07_ai/` naplói követik.
 
@@ -36,7 +38,10 @@ Az alkalmazásba tervezett MI-funkció külön fogalom az AI-asszisztált fejles
 - denormalizált tárhelyhasználat;
 - időkorlátos alap share-link;
 - soft delete és egyedi restore 30 napon belül;
-- backend validation, authorization, alap audit és unit tesztek.
+- backend validation, authorization, alap audit és unit tesztek;
+- a teljes SZD2 célhoz folytatható képköteg-import és a két verziózott képfeldolgozó, újraindítás után helyreállítható munkával;
+- eredeti és származtatott objektumokra is következetes kvóta, hozzáférés és életciklus;
+- mérések, tesztbizonyíték, külső felhasználói próbák és kipróbált telepítés.
 
 ### MVP+
 
@@ -47,11 +52,11 @@ Az alkalmazásba tervezett MI-funkció külön fogalom az AI-asszisztált fejles
 ### Later
 
 - automatizált purge worker;
-- multipart upload;
-- cloud deployment;
-- integration, contract és e2e tesztek;
-- CI/CD és fejlett monitoring;
-- thumbnail, transzkódolás, admin és fejlett keresés.
+- nagyvideós multipart-bővítés a kötelező folytatható képimporton túl;
+- cloud deployment és fejlett monitoring;
+- transzkódolás, admin, fejlett keresés és offline előkészítés.
+
+Az integration/contract/e2e ellenőrzések és CI külön, előzetesen engedélyezendő minőségi fázisba kerülnek; a unit-first fejlesztés önmagában nem végső SZD2 elfogadási kapu. A régi tesztmix/CI rubric és az új bizonyítékközpontú útmutató pontos végső alkalmazását egyeztetni kell.
 
 ## Tervezett stack
 
@@ -60,9 +65,11 @@ Az alkalmazásba tervezett MI-funkció külön fogalom az AI-asszisztált fejles
 - Adatbázis: PostgreSQL + Prisma.
 - Lokális object storage: MinIO.
 - Későbbi cloud target: AWS S3 vagy OCI Object Storage S3-kompatibilis API-val.
-- Első tesztelési szint: unit tesztek.
+- Első tesztelési szint: unit tesztek; később tervezett, külön engedélyezett minőségi fázis.
 
 ## Dokumentáció
+
+A high-level terv és mérföldkövek az októberi követelményeket követik. A részletes termék-, API-, adatmodell-, C4- és ADR-dokumentumok korábbi szerződései célzott egyeztetést igényelnek; a single-PUT-only és thumbnail-Later állítások nem érvényes végső célok. A feloldás munkalistáját a terv tartalmazza.
 
 Kanonikus belépési pontok:
 
@@ -92,6 +99,7 @@ Normál lokális fejlesztéshez a későbbiekben sem lesz szükség valós AWS- 
 /
 ├── README.md
 ├── AGENTS.md
+├── SKILL.md              # témavezetői követelmények és munkafolyamat
 ├── frontend/             # jelenleg placeholder
 ├── backend/              # jelenleg placeholder
 └── docs/

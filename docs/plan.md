@@ -1,144 +1,134 @@
-# Szakdolgozati high-level terv
+# Szakdolgozati high-level terv – CloudVault
 
-## Státusz
+## Státusz és források
 
-**Tervezett célállapot – nem implementált funkcionalitás.**
+**2026-10-18-i tervezett célállapot – nem implementált funkcionalitás.**
 
-Ez a dokumentum a szakdolgozat stabil, high-level irányát rögzíti. A részletes termékscope forrása a [scope contract](01_product/scope_contract.md), a technikai döntéseké az [ADR-készlet](02_architecture/adr/README.md), az interfész- és adatmodell-szerződéseké pedig a [design dokumentáció](03_design/README.md). A repository jelenleg nem tartalmaz futtatható frontend- vagy backendalkalmazást.
+A repository dokumentációs állapotban van: nincs futtatható frontend/backend, Prisma schema, Docker Compose vagy alkalmazásteszt. A terv az októberi témavezetői visszajelzés alapján frissíti a júliusi irányt. A források összefoglalója a gyökérbeli [SKILL.md](../SKILL.md), a munkaszabályok az [AGENTS.md](../AGENTS.md) fájlban találhatók. A nyers levelek a repó melletti `emails/02-email.txt`, `emails/03-email.txt`, a kurzuskövetelmények a `coospace/coospace-szakdoga-2.txt` forrásban vannak; önálló klónozáskor ezek hiányozhatnak.
 
-## 1. Cél és szakdolgozati fókusz
+Ez a dokumentum az aktuális cél és scope-változás forrása; a [mérföldkövek](milestones.md) adják a végrehajtási sorrendet és az evidence-kapukat. A [scope contract](01_product/scope_contract.md), [ADR-ek](02_architecture/adr/README.md) és [design dokumentáció](03_design/README.md) meglévő biztonsági és életciklus-szabályai érvényes kiindulópontok, de az új import-/processing-szerződésekkel még kiegészítendők. A single-PUT-only, thumbnail-Later és végleges unit-only scope nem írhatja felül az alábbi új célokat. A tervfrissítés nem jelent protokoll-, dependency- vagy implementációs jóváhagyást.
 
-A projekt célja egy S3-kompatibilis objektumtárolóra épülő személyes médiafájl-kezelő webalkalmazás megtervezése és későbbi megvalósítása. A rendszer képek és rövid videók teljes alapvető életciklusát kezeli: feltöltés, saját fájlok böngészése, preview, letöltés, tárhelyhasználat, időkorlátos megosztás, soft delete és visszaállítás.
+## 1. Cél és saját mérnöki hozzájárulás
 
-A szakdolgozati érték nem pusztán a fájlfeltöltés, hanem annak bemutatása, hogy az object storage, a relációs metaadat-kezelés, a jogosultság, a megbízhatóság, a skálázhatóság és az ellenőrizhető AI-asszisztált fejlesztés hogyan áll össze egy termékszerű rendszertervvé.
+A CloudVault S3-kompatibilis objektumtárolóra épülő, önállóan használható személyes médiafájl-kezelő webalkalmazás. A teljes alapfolyamat: regisztráció, belépés, képek/rövid videók feltöltése, galéria és előnézet, letöltés, tárhelyhasználat, időkorlátos megosztás, soft delete és 30 napon belüli restore.
 
-## 2. Négy szakmai pillér
+A központi szakdolgozati probléma a részben sikeres médiaimport megbízható befejezése. Például ötven kép feltöltésekor megszakadhat a hálózat, lehet köztük sérült kép, illetve hibázhat vagy újraindulhat a feldolgozó. A rendszer tartsa meg az elkészült munkát, folytassa a részleges átvitelt, különítse el a hibákat, és ismétléskor se hozzon létre másolatokat vagy dupla tárhelyterhelést. A dolgozat saját eredménye a választott illesztés, az állapot- és elszámolási szabályok, a bővíthető feldolgozás és az összehasonlító mérés.
 
-### 2.1 Core cloud-storage MVP
+## 2. Négy kötelező szakmai pillér
 
-- Regisztráció, bejelentkezés és védett frontend.
-- Legfeljebb 100 MB-os kép vagy rövid videó feltöltése privát MinIO/S3 bucketbe.
-- Backend által kontrollált, rövid életű presigned URL-ek; tartós storage credential nem kerül a frontendhez.
-- Metaadatok PostgreSQL-ben, bináris tartalom object storage-ban.
-- Saját fájlok cursor-lapozott listázása, biztonságos preview és letöltés.
-- Denormalizált tárhelyhasználat, soft delete, 30 napos egyedi restore és alap időkorlátos megosztás.
-- Backend oldali authorization, egységes hibamodell és unit tesztek a core logikára.
+### 2.1 Teljes médiafájl-kezelő alkalmazás
 
-### 2.2 Megbízható fájl-életciklus
+- Regisztráció, be-/kijelentkezés, védett frontend és backend ownership-ellenőrzés.
+- Legfeljebb 100 MB-os kép vagy rövid videó privát MinIO/S3 tárolóban; a limit a korábbi elfogadott alap marad.
+- PostgreSQL-metaadatok és elkülönített bináris tárolás, storage adapteren keresztül.
+- Cursor-lapozott saját galéria, biztonságos preview/download és érthető betöltési, üres, sikeres és hibaállapotok.
+- Következetes kvótafoglalás és használatkijelzés, időkorlátos hash-elt share token, soft delete és restore.
+- Rövid életű backend-kontrollált tárolóhozzáférés; tartós storage credential nem kerül a frontendhez.
 
-- A feltöltés `PENDING_UPLOAD` állapotból indul és csak ellenőrzött confirm után válhat `ACTIVE` állapotúvá.
-- A deklarált méret ideiglenes kvótafoglalást kap; félbehagyott vagy hibás upload nem növelheti a tartós tárhelyhasználatot.
-- Confirmkor a backend object metadata ellenőrzést és bounded range-read alapú magic-number vizsgálatot végez.
-- A confirm idempotens: egy fájl pontosan egyszer növelheti a `usedStorageBytes` értékét.
-- Soft delete alatt az objektum továbbra is foglal tárhelyet; restore nem változtat az elszámoláson.
-- Soft delete végleg invalidálja a fájl meglévő share-linkjeit; restore után új megosztás szükséges.
-- Az automatizált purge későbbi fázis. Tervezett működése idempotens, retry-képes, és csak sikeres storage-törlés után csökkenti a használatot.
-- A fontos állapotváltozásokról alap audit esemény készül, külön audit UI nélkül.
+### 2.2 Megszakításból folytatható kötegelt import
 
-### 2.3 Skálázhatóság és karbantarthatóság
+- Több fájl egy stabilan azonosított importműveletben, fájlonkénti állapottal és előrehaladással.
+- A kész fájlok megmaradnak; a megszakadt átvitel a már átvett adattól folytatható. A teljes fájl újraküldése önmagában nem teljesíti ezt.
+- Korlátozott párhuzamosság, külön újrapróbálható hibák és részleges siker; egy sérült fájl nem állítja le a teljes köteget.
+- Tartós import-/fájl-/átviteli azonosság és idempotens műveletek; retry nem duplikál fájlt vagy kvótát.
+- Dokumentált session-lejárat, jogosultságmegújítás, megszakítás, megszüntetés és részleges adatok takarítása.
 
-- A backend alkalmazási állapota PostgreSQL-ben és object storage-ban él; az API stateless módon több példányra skálázható.
-- A fájllista determinisztikus, `createdAt + id` alapú cursor paginationt használ.
-- A bináris adatforgalom nem halad át tartósan a backend API-n.
-- A storage adapter elfedi a MinIO, AWS S3 és OCI S3-kompatibilis eltéréseinek releváns részét.
-- A backend modulhatárai elkülönítik az auth, users, files, storage, sharing, audit, health, config és common felelősségeket.
-- A purge és az opcionális MI-feldolgozás később külön workerbe szervezhető; a konkrét queue-technológia nem része a jelenlegi döntésnek.
-- A dokumentáció, ADR-ek és unit tesztek a továbbvihetőség részei, nem utólagos kiegészítések.
+Meglévő átviteli mechanizmust kell illeszteni. Az Uppy/tus a témavezető által javasolt vizsgálati kiindulás, nem kiválasztott függőség. A tus és az S3 multipart eltérő megoldás; a választást rövid PoC és ADR alapozza meg. Saját átviteli protokoll nem cél. A nagy videók későbbi multipart bővítése nem indok a kötelező képimport folytathatóságának elhalasztására.
 
-### 2.4 Opcionális MI-metaadat-javaslat
+### 2.3 Bővíthető képfeldolgozás és tartós helyreállítás
 
-Az alkalmazásba épülő MI-funkció nem azonos az AI-asszisztált fejlesztési folyamattal. A termék-MI külön, core MVP utáni `MVP+` képesség:
+- Két beépített processor: előnézeti kép készítése és elérhető képadatok kinyerése, például képméret és készítési idő.
+- Közös illesztési felület és rögzített processor-verzió; a következő feldolgozó hozzáadása ne igényelje az upload átírását.
+- A hiányzó képadat szabályos, megkülönböztethető eredmény; a feldolgozási hiba ettől külön állapot.
+- Tartós munkák és eredmények; worker-újraindításkor a kész munka megmarad, a félbemaradt munka helyreállítható.
+- Külön processor-retry: a sikeres másik eredmény és az eredeti fájl használható marad.
+- Ismételt munkakézbesítés nem hoz létre újabb előnézetet, eredményt vagy használati terhelést.
+- Az eredeti, részleges és származtatott objektumok jogosultságát, kvótáját, cleanupját, törlését és restore-ját közös szabályrendszer kezeli.
 
-- első körben csak aktív képekhez;
-- explicit felhasználói indítással;
-- javasolt címkékkel és rövid leírással;
-- elfogadható, szerkeszthető vagy elutasítható eredménnyel;
-- provider adapteren keresztül, a core storage működéstől függetlenül;
-- arcfelismerés, biometria és érzékeny tulajdonságok következtetése nélkül.
+Egy alkalmazás, PostgreSQL, objektumtároló és egyszerű háttérfeldolgozó elegendő. A worker megvalósítása és a feladattárolás módja még döntés; külön queue-termék vagy elosztott platform nincs kiválasztva. Felhasználó által feltölthető program vagy pluginpiactér nem része a rendszernek.
 
-MI-provider hiba vagy hiányzó konfiguráció nem akadályozhat feltöltést, böngészést, letöltést, törlést vagy megosztást.
+### 2.4 Mérhető eredmény, használhatóság és dolgozat
 
-## 3. Scope-határok
+- Az újrakezdő és a folytatható upload összehasonlítása azonos képcsomagokon és feltételekkel.
+- Normál futás, kontrollált hálózati megszakítás, feldolgozó-újraindítás és sérült kép vizsgálata.
+- Helyes eredeti-/processor-eredményszám, újraküldött adatmennyiség és teljes befejezési idő mérése; DB/storage és kvóta ellenőrzésével.
+- Egységes, segítség nélkül végigjárható UI; tényleges felhasználói próbákból származó javítások.
+- Párhuzamos dolgozatírás: probléma, alternatívák, saját döntések, működés, tesztek/mérések és korlátok, valós képernyőképekkel.
+- Reprodukálható, ténylegesen kipróbált telepítés és ugyanahhoz a verzióhoz tartozó leadási csomag.
 
-### Core MVP
+## 3. Scope és megőrzendő invariánsok
 
-A kötelező core MVP a [hat user storyból](01_product/scope_contract.md) áll: auth, feltöltés, saját fájlok használata, tárhelyhasználat, alap megosztás, soft delete és restore. Keresztmetszeti követelmény a pending upload kezelése, cursor pagination, stateless API, idempotens confirm, alap audit és az MI-től független működés.
+| Fázis | Tartalom |
+|---|---|
+| Kötelező SZD2 mag | A teljes alapalkalmazás, folytatható képimport, két processor, tartós recovery, kvóta/jogosultság, tesztelés, mérés, UAT és dolgozat |
+| Első bemutatható szelet | Belépés után kis képköteg feltöltése, galéria és első processor; ez még nem a teljes kötelező mag |
+| Opcionális MVP+ | Képek MI-címke/leírás-javaslata, csak stabil mag és külön felhasználói/provider/privacy döntés után |
+| Későbbi bővítés | Automatizált végleges purge, 100 MB feletti nagy videók, cloud deployment, transzkódolás, admin, fejlett keresés/monitoring, share-revoke és hozzáférésszám-limit |
+| Későbbi külön vizsgálat | Offline import-előkészítés; a teljes offline app és nagy videók tartós böngészőtárolása nem jelenlegi cél |
 
-### MVP+
+A CI és integration/contract/e2e ellenőrzések a befejezést megelőző külön minőségi fázisba kerülnek tervezési feladatként, nem opcionális termékextraként. A konkrét végső kapu és a bevezetés felhatalmazása tisztázandó; unit-only fejlesztési szakasz alapján nem nyilvánítható késznek az SZD2.
 
-Az opcionális MI-címke- és leírásjavaslat csak a stabil core MVP után kezdhető el. Nem része a core Definition of Done feltételeinek, és külön go/no-go döntést igényel a provider, adatkezelés és szükséges dependency-k előtt.
+Megőrzendő szabályok:
 
-### Later
+- A backend minden védett műveletnél ellenőriz felhasználót, tulajdonost és állapotot; a workerre és származtatott objektumokra is érvényes az owner-határ.
+- `used + reserved + requested` alapján tranzakciós foglalás; validált confirmkor pontosan egyszeri reserved→used átvezetés.
+- Méret, MIME allowlist és magic-number ellenőrzés; az eredeti fájlnév csak display metadata. A dekódoló processor erőforráskorlátait a részletes tervben rögzíteni kell.
+- Hiányzó vagy sikeresen takarított objektum után oldható foglalás; cleanup-hibánál a foglalás és retry-lehetőség megmarad.
+- Soft delete alatt a létező bináris objektum továbbra is foglal; restore nem dupláz használatot. Korábbi share-link nem éledhet újra.
+- Származtatott előnézet nem lehet elszámolatlan storage-kiskapu; a pontos rezervációs/elszámolási policy még specifikálandó az első processor előtt.
+- Rövid életű read URL és biztonságos Content-Disposition; veszélyes tartalom nem szolgálható ki inline.
+- Titok, token, hozzáférést adó URL, fájltartalom vagy szükségtelen személyes/EXIF-helyadat nem kerül logba.
 
-- Automatizált végleges purge worker.
-- Multipart upload és 100 MB-nál nagyobb videók.
-- AWS- vagy OCI-deployment.
-- Integration, contract és e2e tesztek.
-- CI/CD pipeline és fejlett monitoring dashboard.
-- Thumbnail-generálás, transzkódolás, adminfelület és fejlett keresés.
-- Share-link visszavonás, hozzáférésszám-limit és analitika.
+## 4. Célarchitektúra és nyitott döntések
 
-## 4. Célarchitektúra
+A stack változatlan: Vue 3 + Vite + TypeScript + Tailwind CSS + Vue Router; Node.js + TypeScript + NestJS; PostgreSQL + Prisma; helyben MinIO, később S3-kompatibilis cél. Az auth meglévő ADR-je egyórás JWT-t ír le HttpOnly cookie-ban; ezen a tervfrissítés nem változtat.
 
-```mermaid
-flowchart LR
-    user["Felhasználó"]
-    visitor["Share-link látogató"]
-    spa["Vue 3 SPA"]
-    api["NestJS API\nstateless alkalmazási réteg"]
-    db["PostgreSQL\nmetaadat és audit"]
-    storage["MinIO / S3\nbináris objektumok"]
-    ai["Külső MI-provider\nMVP+ és opcionális"]
+| Elem | Tervezett felelősség |
+|---|---|
+| Vue SPA | Auth, import és fájlonkénti progress/hiba/folytatás, galéria, fájlműveletek és usage |
+| NestJS API | Auth/ownership, importvezérlés, kvóta, validáció, lifecycle, sharing és audit |
+| Átviteli illesztés | Meglévő resumable mechanizmus összekötése az engedélyezett S3-tárolási műveletekkel; elhelyezése a PoC/ADR eredményétől függ |
+| PostgreSQL | Felhasználó, fájl, kvóta és share metaadat mellett tartós import-, munka- és verziózott eredményállapot |
+| Storage adapter + MinIO/S3 | Eredeti, részleges és származtatott adatok hozzáférése és takarítása; providerhívások elkülönítése |
+| Egyszerű worker | Közös interfészű képfeldolgozók, részhibák és újraindítás utáni recovery |
 
-    user --> spa
-    visitor --> api
-    spa -->|"Auth, metadata, jogosultság"| api
-    spa -->|"Rövid életű presigned PUT/GET"| storage
-    api --> db
-    api -->|"Storage adapter"| storage
-    api -.->|"Explicit MI-kérés"| ai
-```
+Az API tartós állapota ne kizárólag folyamatmemóriában legyen. A korábbi közvetlen presigned PUT/GET adatút jó baseline, de az, hogy a resumable adatfolyam mely komponensen halad át, még nem lezárt architektúradöntés. Nem írható elő egyszerre kivétel nélküli közvetlen PUT és egy még nem vizsgált tus-illesztés.
 
-Fő szerződések:
+| Nyitott döntés | Kötelező döntési bizonyíték |
+|---|---|
+| Átviteli mechanizmus és upload-adatút | PoC: részleges folytatás, jogosultság, tényleges S3-eredmény és újraküldött bájt; ADR-005/009/011 felülvizsgálata |
+| Import-/fájl-/job-/eredményazonosság | Állapotgép, egyediségi szabályok és retry/ismételt kézbesítés esetei |
+| Worker-feladatfoglalás és recovery | Hogyan ismerhető fel és folytatható a megszakadt munka konkurens duplázás nélkül; ne legyen elvárt „exactly once delivery” infrastruktúra |
+| Részleges és derived storage policy | Foglalás/finalizálás, limit, retry, sikertelen cleanup, törlés/restore és későbbi purge összhangja |
+| Lejáratok és megújítás | A korábbi 5 perces URL és 15 perces pending alapérték összehangolása a session-, auth- és folytathatósági időkkel |
+| Képdekódolás és metaadatkezelés | Támogatott formátumok, erőforráskorlátok, hiányzó adat és privacy-szabályok; konkrét könyvtár még nem választott |
 
-- A frontend nem hoz authorization-döntést és nem tárol S3/MinIO credentialt.
-- A backend ellenőrzi a felhasználót, ownershipet, kvótát, fájlállapotot és share-linket.
-- A storage adapter kezeli a presign, object metadata, bounded range-read és delete műveleteket.
-- A PostgreSQL a felhasználók, fájlmetaadatok, kvótaszámlálók, share token hash-ek, audit események és opcionális MI-javaslatok forrása.
-- A külső MI-provider nem core rendszerfüggőség.
+## 5. Célzott dokumentációs átvezetés
 
-## 5. Fontos lezárt döntések
+A friss high-level terv nem jelenti a részletes szerződések teljes elkészültét. A következő engedélyezett szelet előtt csak az érintett részeket kell kiegészíteni:
 
-- Vue 3 + Vite + TypeScript + Tailwind CSS frontend.
-- Node.js + TypeScript + NestJS backend.
-- PostgreSQL + Prisma metaadat-kezelés.
-- Privát S3-kompatibilis object storage, lokálisan MinIO.
-- Backend-kontrollált presigned URL flow; a backend proxy nem automatikus fallback.
-- `User.usedStorageBytes` és `User.reservedStorageBytes` külön számláló.
-- 30 napos soft delete retention; usage csak végleges purge után csökken.
-- Magic-number alapú backend validáció.
-- Egyórás JWT `HttpOnly`, `SameSite=Lax` cookie-ban; localStorage és core refresh-token flow nélkül.
-- Multipart upload és automatizált purge tudatosan későbbi fázis.
+| Dokumentumcsoport | Még szükséges átvezetés |
+|---|---|
+| Product scope/capability/UX | Import és processing acceptance criteria, részleges siker és folytatás képernyőállapotai; a hat meglévő storage story megőrzése |
+| C4 és ADR-ek | Import/worker felelősségek, kiválasztott adatút, recovery és derived quota; a thumbnail-Later/single-PUT korlát felülvizsgálata |
+| API és adatmodell | Import/session, fájlonkénti állapot, job és verziózott derived eredmény; resume/retry/cancel/expiry/cleanup szerződés |
+| Error, threat, privacy és runbook | Processor- és átviteli részhibák, jogosultság, dekódolási korlátok, metadata privacy, restart/retry diagnosztika |
+| Traceability és minőség | Új követelmény → use case → API/entitás → unit/folyamat/mérés/UAT evidence; tényleges eredmények később |
 
-A részletes indoklásokat az [ADR-index](02_architecture/adr/README.md) tartalmazza.
+Nem készül most runtime kód, Prisma schema, konkrét új API-specifikáció vagy új tech-választás. Az első szelethez szükséges szerződésfrissítést a működő eredményhez kell méretezni; ne váljon újabb általános dokumentációs projektté.
 
-## 6. Minőségi és biztonsági alapelvek
+## 6. Bizonyítás és dolgozat
 
-- Minden védett erőforrásnál backend oldali authentication és ownership check szükséges.
-- HTML, SVG, JavaScript, XML és ismeretlen bináris tartalom nem jeleníthető meg inline.
-- Jelszó, token, presigned URL, fájltartalom és nyers MI input/output nem kerülhet logba.
-- Az eredeti fájlnév csak display metadata; a storage key rendszer által generált.
-- Share token csak hash formában tárolható, és kötelező lejárattal rendelkezik.
-- Az API hibái stabil kódot, user-friendly üzenetet és request ID-t adnak belső részletek nélkül.
-- A unit tesztelés minden jövőbeli vertikális szelet része; integration/e2e csak később indul.
-- A dokumentáció nem állíthat implementáltként olyan képességet, amelyhez nincs kód és verifikációs evidence.
+A [metrikaterv](01_product/metrics.md) és [tesztstratégia](04_quality/test_strategy.md) alapján 10 és 50 saját, nem érzékeny kép javasolt összehasonlító bemenet. A kísérleti jegyzőkönyv előre rögzítse a fájlokat/méreteket, azonos szoftver- és környezetverziót, hálózati feltételeket, megszakítási pontokat, sérült mintát és ismétléseket. Ne ígérjen előre gyorsulást; az eredményekből következzen az értékelés.
 
-## 7. Sikerkritérium
+A teljes kötegidő magában foglalja az átvitelt és a kijelölt processing befejezését; az API-latency ettől külön mérés. A sikeres UI-állapotot tényleges objektumokkal, adatbázisrekordokkal, egyediséggel és számlálókkal is igazolni kell. A mockolt unit teszt nem helyettesíti a recovery valós próbáját.
 
-A szakdolgozati projekt akkor erős, ha a későbbi core MVP reprodukálhatóan futtatható, a hat user story végigdemonstrálható, a jogosultsági és lifecycle-szabályok teszteltek, az architektúradöntések visszakövethetők, és a dokumentáció egyértelműen elválasztja a megvalósított, tervezett és későbbi képességeket.
+A dolgozat folyamatosan készül: először probléma, követelmények és alternatívák; a működő szeletekkel megvalósítás, valós screenshotok és ellenőrzési eredmények; végül összehasonlítás, UAT, korlátok és saját hozzájárulás. A fejlesztési MI-ről külön fejezet és rövid napló kell, konkrét elfogadott/módosított/elvetett javaslatokkal és hibákkal.
 
-Az opcionális MI-funkció csak akkor növeli a scope-ot, ha a core storage MVP stabil, a privacy-korlátok elfogadottak, és a provider kiesése mellett is teljes értékű marad az alap rendszer.
+## 7. Következő lépés és kockázatok
 
-## 8. Következő végrehajtási sorrend
+A következő implementációs cél az első végigjárható szelet: lokális környezet → auth → kis képköteg → validált tárolás → galéria → első processor. Elsőként az előnézetkészítő javasolt; a tanár csak az első feldolgozó látható eredményét kéri. A teljes folytathatóság és a második processor a következő kapu része; az első verzió nem nevezhető emiatt kész SZD2 alkalmazásnak.
 
-A részletes, evidence-alapú sorrendet a [mérföldkő-dokumentum](milestones.md) tartalmazza. A repository jelenlegi feladata a dokumentációs rebaseline lezárása; alkalmazáskód csak ezt követő, külön kért implementációs feladatban készülhet.
+Az október 23-i első eredmény a jelenlegi dokumentáció-only állapotból öt napon belüli, magas kockázatú cél. Heti tényleges ráfordítás nélkül nem adható hiteles kapacitásígéret. A legnagyobb technikai kockázat a resumable/storage illesztés, a job-recovery és az eredeti/derived kvóta. Ezeket korai, szűk döntéssel és próbával kell csökkenteni.
+
+A tanári és közös belső dátumokat a [roadmap ütemezési táblája](milestones.md) külön kezeli; az október 22/23. és november 13/20. eltérést egyeztetni kell. Ha a novemberi működő mag elmarad, a januári befejezést újra kell ütemezni a témavezetővel. Az MI-MVP+ nem előfeltétele a kötelező lezárásnak.
