@@ -4,7 +4,9 @@
 
 This repository contains a BSc thesis project titled **Adattárolás a felhőben**.
 
-The goal is to build a product-quality, AI-assisted web application where users can upload, view, download, manage, delete, restore and share images/videos stored in cloud object storage.
+The goal is to build CloudVault, a product-quality, AI-assisted web application where users can upload, view, download, manage, delete, restore and share images/videos stored in cloud object storage. Its central SZD2 engineering contribution is resumable batch media import with extensible, restart-safe background processing.
+
+For CloudVault planning, implementation, review and thesis work, read the project skill at [`SKILL.md`](SKILL.md). It records the October supervisor requirements, evidence workflow and unresolved scheduling questions. Keep project-wide engineering rules here; keep the supervisor-specific workflow in the skill.
 
 Before implementing anything, read and respect:
 
@@ -14,6 +16,12 @@ Before implementing anything, read and respect:
 - relevant files under `docs/`
 
 If `docs/plan.md` or `docs/milestones.md` conflicts with a user instruction, follow the user's latest explicit instruction and mention the conflict.
+
+### October 2026 requirements baseline
+
+The October supervisor feedback adds resumable batch import, thumbnail and image-metadata processors, durable processing state, recovery and comparative measurements to the required target. These are planned requirements, not implemented capabilities or permission to implement them during a documentation task.
+
+The July `docs/plan.md`, `docs/milestones.md`, product/design documents and ADRs have not yet been fully reconciled with this baseline. In particular, single-PUT-only upload and deferred thumbnail generation are outdated scope assumptions. Use this baseline for requirement conflicts and update affected contracts in the next authorized task; do not silently treat the older roadmap as current acceptance criteria. Preserve still-valid security and accounting invariants.
 
 ---
 
@@ -70,6 +78,8 @@ Later phases, only when explicitly requested:
 
 Do not introduce CI/CD, integration tests or e2e tests unless the user asks for them or a milestone explicitly says to start that phase.
 
+Unit-first is a development phase, not the final submission standard. SZD2 requires evidence for component cooperation, complete user flows, recovery and user acceptance. Plan an explicit quality phase for appropriate integration/e2e/contract checks and CI; implementation still follows the authorization rule above. The older v1.2 rubric includes test-count/mix and CI criteria, while the newer Coospace guidance emphasizes meaningful results. Keep their final applicability as an explicit clarification item rather than silently dropping them or declaring unit-only completion sufficient.
+
 ---
 
 ## Repository structure
@@ -80,6 +90,7 @@ Prefer this monorepo structure:
 /
   README.md
   AGENTS.md
+  SKILL.md
   docs/plan.md
   docs/milestones.md
   .gitignore
@@ -174,7 +185,7 @@ The MVP should focus on:
 - user registration
 - user login
 - protected frontend
-- file upload to MinIO through backend-controlled presigned URL flow
+- file upload to MinIO through a backend-controlled flow, with presigned storage access and an explicitly designed resumable-transfer extension
 - pending upload reservation, idempotent confirmation and abandoned-upload cleanup
 - file metadata saved in PostgreSQL
 - cursor-paginated listing of the user's own files
@@ -188,6 +199,19 @@ The MVP should focus on:
 - basic audit events without an audit UI
 - unit tests
 - core documentation
+
+Required SZD2 depth alongside the complete application:
+
+- batch import with stable operation identity, per-file progress and isolated failures
+- interrupted transfer resumed from already received data, without re-uploading completed files
+- retry-safe import, confirmation and accounting without duplicate files or charges
+- two built-in image processors: thumbnail generation and image-metadata extraction
+- a shared processor interface, identifiable processor versions and independent retry
+- durable job/results state and recovery after worker restart without duplicate outputs
+- consistent ownership, quota and lifecycle rules for originals and derived objects
+- comparative restart-from-zero versus resumable-upload measurements and documented user trials
+
+The exact transfer mechanism is not selected. The supervisor suggests investigating Uppy/tus; do not mandate it or add a dependency without a concrete decision. Backend authorization remains mandatory for every upload/continuation operation, whether using presigned object-storage requests or an approved resumable-transfer service.
 
 Optional post-core `MVP+` scope:
 
@@ -203,11 +227,14 @@ Keep these as later-stage or stretch goals unless explicitly requested:
 - CI/CD
 - integration tests
 - e2e tests
-- full multipart upload implementation
-- thumbnail generation
+- large-video multipart upload beyond the required resumable image-import scope
 - video transcoding
 - admin interface
 - advanced monitoring dashboard
+- offline import preparation and persistent browser storage of large videos
+- user-supplied plugins or a plugin marketplace
+
+Large-video multipart support remains later scope; a mechanism needed for the required resumable image import must be evaluated separately rather than deferred under that label.
 
 ---
 
@@ -220,7 +247,8 @@ The frontend must not store S3/MinIO credentials.
 The frontend should request backend-controlled operations:
 
 - create upload request
-- receive short-lived presigned upload URL
+- receive short-lived presigned upload access or an authorized resumable session, according to the selected transfer ADR
+- resume, retry or cancel an import/file transfer with backend authorization
 - confirm upload
 - request short-lived preview/download URL
 - create share links
@@ -273,6 +301,8 @@ backend/src/
   auth/
   users/
   files/
+  imports/      # planned batch/session orchestration
+  processing/   # planned built-in processors and durable jobs
   storage/
   sharing/
   audit/
@@ -411,13 +441,15 @@ Optional `MVP+` fields:
 
 Keep `docs/03_design/data_model.md` synchronized with the Prisma schema.
 
+Before implementing resumable import and processing, extend the model contract with durable import/file transfer identity, processing jobs, processor versions and derived results. Define uniqueness and state-transition rules that prevent repeated operations from creating duplicate files, previews or quota changes. These are required concepts; exact entity names and queue technology remain design decisions.
+
 ---
 
 ## Storage behavior rules
 
 ### Upload flow
 
-Prefer this flow:
+The following is the original single-upload baseline for validation and accounting. It is not by itself the final resumable batch contract:
 
 1. Frontend sends upload metadata to backend.
 2. Backend validates user, file name, size, MIME type and `used + reserved + requested` storage quota.
@@ -428,6 +460,19 @@ Prefer this flow:
 7. Backend verifies the object with `HEAD` and a bounded range read for magic-number detection.
 8. Backend idempotently changes `PENDING_UPLOAD` to `ACTIVE`, decreases the reservation and increases `usedStorageBytes` exactly once.
 9. A pending upload expires after 15 minutes by default. Missing or successfully deleted abandoned objects release the reservation; cleanup failures retain it for retry.
+
+For resumable imports, persist progress and operation identity, isolate each file's failure and bound concurrent transfers. Define resume, retry, cancel and cleanup behavior in the API/model and ADR before implementation. The original 5-minute URL and 15-minute pending deadlines are baseline defaults: explicitly reconcile credential renewal, session expiry and reservation retention with resumable sessions. An idempotent confirm alone does not satisfy resumable transfer or import-level idempotency.
+
+### Background processing
+
+- Start processing only after upload completion and content validation.
+- Use a common interface for the thumbnail and image-metadata processors; record which processor version produced each result.
+- Treat unavailable image metadata as a valid result, with an explicit absence representation.
+- Persist jobs and results so restart can recover unfinished work; repeat delivery must not duplicate results or storage charges.
+- Retry failed steps independently. Keep the original and successful sibling results usable.
+- Enforce owner boundaries and define derived-object quota, soft-delete/restore and cleanup behavior.
+- Treat extracted metadata as untrusted and potentially private; do not expose or log unnecessary location or other personal data.
+- Use a simple worker with the existing application, database and object storage. Do not introduce a distributed platform or queue dependency without a justified decision and the applicable approval.
 
 ### Download/preview flow
 
@@ -492,6 +537,8 @@ Rules:
 - Decrease it only after permanent purge.
 - Unit test this accounting logic.
 
+Extend these original-file invariants with a documented quota policy for derived previews, partial transfers and retries before implementing processing. A derived object must not be an unaccounted storage bypass. Define reservation, finalization and cleanup for derived bytes; soft delete and restore must preserve the chosen accounting policy. Failed jobs and duplicate delivery must not create duplicate usage charges.
+
 Document the decision in an ADR.
 
 ---
@@ -530,23 +577,15 @@ Add security-related unit tests when implementing validation or authorization lo
 
 ---
 
-## Multipart upload rule
+## Resumable transfer and multipart upload rule
 
-Multipart upload is an important product-quality consideration for large videos, but it is not part of the first MVP implementation.
+True resumable batch image upload is a required SZD2 target. A file picker, whole-file retry or idempotent confirm does not meet it.
 
-Document it as a later phase or stretch goal.
+Evaluate an existing transfer mechanism, including the supervisor's Uppy/tus suggestion, against the S3-compatible storage adapter, authentication, quotas, restart recovery and measured retransmission. Do not invent a custom transfer protocol. tus and S3 multipart are distinct mechanisms; neither is automatically selected by this requirement.
 
-When documenting multipart upload, cover:
+Record the decision and a focused proof of concept before substantial implementation. If S3 multipart is selected, document initiate, presign-parts, complete, abort, expiry, partial-data cleanup and retry behavior. Revisit ADR-009 explicitly; do not silently preserve its single-PUT-only assumption or replace the storage architecture.
 
-- why single presigned upload is enough for MVP
-- why large videos need multipart upload later
-- initiate multipart upload
-- presign part URLs
-- complete multipart upload
-- abort multipart upload
-- failure and retry behavior
-
-Do not implement multipart upload unless explicitly requested.
+Large-video multipart support remains a later extension. Implementing multipart or adding a major transfer dependency requires the applicable user authorization; this guidance update alone does not provide it.
 
 ---
 
@@ -612,6 +651,9 @@ Prioritize tests for:
 - storage quota accounting
 - concurrent quota reservation and idempotent upload confirmation
 - abandoned upload cleanup and retry behavior
+- import-level idempotency, resumable progress and per-file failure isolation
+- processor version/result identity, independent retry and worker-restart recovery
+- original/derived-object quota accounting and duplicate-job protection
 - deterministic cursor pagination
 - soft delete/restore
 - purge selection logic
@@ -625,6 +667,10 @@ Do not introduce integration/e2e tests in the early phase unless asked.
 When adding logic, prefer pure functions or isolated services that are easy to unit test.
 
 Keep `docs/04_quality/test_strategy.md` and `docs/04_quality/test_report.md` updated when test strategy or results change.
+
+For SZD2 evidence, compare resumable and restart-from-zero transfers under identical inputs and conditions, including controlled network interruptions, worker restart and a corrupt image. Use small and larger non-sensitive image batches (the supervisor suggests 10 and 50 files). Record correct file/result counts, retransmitted bytes and completion time; verify actual database/object-storage outcomes, not only UI success indicators.
+
+Every test or experiment report must identify the version, date, environment, inputs, steps, expected/actual outcome and evidence. Document actual user trials, feedback, fixes and retests; do not call a developer's own manual check external UAT.
 
 ---
 
@@ -660,6 +706,8 @@ Important docs:
 - `docs/07_ai/verification_log.md`: how AI outputs were verified
 
 Do not write documentation that claims functionality exists if it is not implemented. Mark future items as planned or later phase.
+
+Write the thesis alongside development. Use the sample thesis as a content/illustration example, not a mandatory format or substitute for current test/UAT/deployment requirements. Include numbered, titled real screenshots with textual references and explanations; remove sensitive data. Keep the final application, documentation, screenshots, test evidence and reviewed thesis PDF aligned to an identifiable version. A tested local deployment is acceptable; paid cloud infrastructure is not inherently required. Follow KISS/LEAN: maintain useful existing documents instead of creating empty templates for each topic.
 
 ---
 
@@ -707,10 +755,13 @@ ADR candidates for this project:
 - soft delete + delayed purge
 - denormalized storage usage counter
 - magic number file validation
-- multipart upload as later phase
+- large-video multipart as a later phase, distinct from the required resumable image import
 - authentication approach
 - idempotent upload confirmation and pending quota reservation
 - optional human-in-the-loop AI metadata suggestions
+- resumable transfer selection and batch/import idempotency
+- shared processor interface, durable jobs, versioned results and restart recovery
+- derived-object quota and lifecycle policy
 
 ---
 
