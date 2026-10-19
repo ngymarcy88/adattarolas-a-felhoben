@@ -53,7 +53,8 @@ onBeforeUnmount(() => { active = false; controller?.abort(); });
           <p class="mb-5 text-xs font-semibold uppercase tracking-[0.2em] text-indigo-600">Adattárolás a felhőben</p>
           <h1 class="max-w-xl text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">A médiáid helye.<br /><span class="text-slate-400">Lépésről lépésre.</span></h1>
           <p class="mt-6 max-w-lg text-base leading-7 text-slate-600">A CloudVault személyes képek és videók kezelésére készül. Ez a kezdőoldal az alkalmazás technikai alapját és a szerverkapcsolat állapotát mutatja.</p>
-          <p class="mt-4 max-w-lg text-sm leading-6 text-slate-500">A saját fiókodba már bejelentkezhetsz. A fájlkezelés hamarosan érkezik.</p>
+          <p class="mt-4 max-w-lg text-sm leading-6 text-slate-500">Hozz létre fiókot, vagy jelentkezz be. A fájlkezelés hamarosan érkezik.</p>
+          <RouterLink to="/register" class="mt-7 mr-4 inline-block rounded-xl border border-indigo-200 px-5 py-3 font-semibold text-indigo-600 hover:bg-indigo-50">Regisztráció</RouterLink>
           <RouterLink to="/app" class="mt-7 inline-block rounded-xl bg-indigo-600 px-5 py-3 font-semibold text-white hover:bg-indigo-700">Saját fiók</RouterLink>
         </div>
 

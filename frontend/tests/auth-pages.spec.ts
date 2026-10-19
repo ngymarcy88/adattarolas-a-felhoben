@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createSSRApp } from 'vue';
 import { renderToString } from 'vue/server-renderer';
 import { createMemoryHistory } from 'vue-router';
+import * as formModule from '../src/auth/form';
 import App from '../src/App.vue';
 import { authClient, AuthRequestError } from '../src/api/auth';
 import { session } from '../src/auth/session';
@@ -43,5 +44,43 @@ describe('Auth page templates', () => {
     const html = await render(router);
     expect(html).toContain('Újrapróbálás'); expect(html).toContain('href="/app"');
     expect(html).toContain('role="alert"'); expect(html).not.toContain(user.email);
+  });
+});
+
+
+describe('Registration and login form templates', () => {
+  it('renders a reachable public registration form with named and linked password fields', async () => {
+    const router = createAppRouter(createMemoryHistory()); await router.push('/register');
+    const html = await render(router);
+    expect(html).toContain('Megjelenítési név'); expect(html).toContain('Jelszó megerősítése');
+    expect(html).toContain('autocomplete="new-password"'); expect(html).toContain('aria-describedby="password-hint"');
+    expect(html).toContain('Legalább 15 karakter'); expect(html).toContain('href="/login"');
+  });
+  it.each(['login', 'register'] as const)('renders %s loading feedback and disabled controls', async (mode) => {
+    const form = formModule.createAuthForm(mode, authClient, async () => {}); form.state.pending = true;
+    vi.spyOn(formModule, 'createAuthForm').mockReturnValue(form);
+    const router = createAppRouter(createMemoryHistory()); await router.push('/' + mode);
+    const html = await render(router);
+    expect(html).toContain('aria-busy="true"'); expect(html).toContain('role="status"');
+    expect((html.match(/\sdisabled(?=[\s=>])/g) ?? []).length).toBe(mode === 'register' ? 5 : 3);
+  });
+  it('connects registration field errors to inputs and shows a safe form error', async () => {
+    const form = formModule.createAuthForm('register', authClient, async () => {});
+    form.state.fields.passwordConfirmation = 'A két jelszó nem egyezik.';
+    form.state.error = new AuthRequestError('email_exists').message;
+    vi.spyOn(formModule, 'createAuthForm').mockReturnValue(form);
+    const router = createAppRouter(createMemoryHistory()); await router.push('/register');
+    const html = await render(router);
+    expect(html).toContain('aria-invalid="true"'); expect(html).toContain('aria-describedby="confirmation-error"');
+    expect(html).toContain('A két jelszó nem egyezik.'); expect(html).toContain('role="alert"');
+    expect(html).toContain('Ezzel az e-mail-címmel már létezik fiók.');
+  });
+  it('replaces the completed registration form with a login link and success announcement', async () => {
+    const form = formModule.createAuthForm('register', authClient, async () => {}); form.state.registered = true;
+    vi.spyOn(formModule, 'createAuthForm').mockReturnValue(form);
+    const router = createAppRouter(createMemoryHistory()); await router.push('/register');
+    const html = await render(router);
+    expect(html).toContain('Sikeres regisztráció.'); expect(html).toContain('role="status"');
+    expect(html).toContain('href="/login"'); expect(html).not.toContain('<form'); expect(html).not.toContain('type="password"');
   });
 });

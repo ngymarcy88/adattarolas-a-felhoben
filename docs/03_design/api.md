@@ -113,7 +113,7 @@ Request:
 }
 ```
 
-**Implementált:** `201 Created`, `Cache-Control: no-store`, bodyban kizárólag `user: { id, email, displayName, createdAt }`. A jelszó/hash, quota BigInt, token vagy cookie nem kerül a válaszba. Nem jelentkeztet be automatikusan.
+**Implementált:** `201 Created`, `Cache-Control: no-store`, bodyban kizárólag `user: { id, email, displayName, createdAt }`. A jelszó/hash, quota BigInt, token vagy cookie nem kerül a válaszba. Nem jelentkeztet be automatikusan. A frontend `/register` ezt a végpontot hívja: a jelszómegerősítés helyben ellenőrzött és nem API-mező. Sikeres 201 után visszajelzést/login linket mutat, 409 esetén biztonságosan jelzi a foglalt e-mailt; loading és inputhibák frontend unit/template teszteltek.
 
 - Kötelező pontosan három string mező: `email`, `displayName`, `password`; extra mező (például kvóta vagy hash), array/null és hibás típus elutasított. Saját Nest DTO-pipe van; class-validator nincs a meglévő függőségek között, új függőség nem került be.
 - Email: trim + lowercase az egész címre; legfeljebb 254 karakter, ASCII dot-atom local part (legfeljebb 64), ponttal tagolt domain, legfeljebb 63 karakteres címkék. Quoted local part, SMTPUTF8, egycímkés domain nem támogatott. A case-insensitive alkalmazásazonosító tudatos szabály; plus-tag/dot összevonás nincs. A login ugyanezt a közös normalizálást használja. Email-tulajdonlás ellenőrzése nincs.

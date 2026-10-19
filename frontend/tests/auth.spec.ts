@@ -72,3 +72,21 @@ describe('Auth API client', () => {
     expect(fetchMock.mock.calls[0][1].signal.aborted).toBe(true);
   });
 });
+
+describe('Registration API client', () => {
+  it('expects 201 with the strict public user and sends no password confirmation', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ user }), { status: 201 })); vi.stubGlobal('fetch', fetchMock);
+    await expect(client.register(user.email, user.displayName, 'synthetic password')).resolves.toEqual(user);
+    expect(fetchMock).toHaveBeenCalledWith(`${base}/auth/register`, expect.objectContaining({ method: 'POST', credentials: 'include' }));
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ email: user.email, displayName: user.displayName, password: 'synthetic password' });
+  });
+  it('maps duplicate email to an actionable safe error without reading private response fields', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('private query password=secret', { status: 409 })));
+    await expect(client.register(user.email, user.displayName, 'test')).rejects.toMatchObject({ code: 'email_exists' });
+    await expect(client.register(user.email, user.displayName, 'test')).rejects.not.toThrow('secret');
+  });
+  it.each([200, 204])('rejects unexpected successful HTTP %i as unconfirmed registration', async (status) => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(status === 204 ? null : JSON.stringify({ user }), { status })));
+    await expect(client.register(user.email, user.displayName, 'test')).rejects.toMatchObject({ code: 'unavailable' });
+  });
+});
