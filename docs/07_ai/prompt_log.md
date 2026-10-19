@@ -20,6 +20,8 @@ Ez a napló a projekt szempontjából fontos AI-promptokat és azok eredményét
 
 | P-011 | 2026-10-19 | A hiányzó lokális technikai alap implementálása | A felhasználó Vue/NestJS scaffoldot, PostgreSQL–MinIO környezetet, konfigurációt és Prisma-sémát/migrációkat kért; a limit miatt megszakadt munkát folytatni kérte. | `frontend/`, `backend/`, npm workspace/lockfile, Compose, env-init, négy alapmodell és SQL migráció, unit tesztek, README és státusz/ADR/API/data/quality/security dokumentáció. | A munka 2026-10-18-án indult; felhasználói kézi módosítás nincs rögzítve. Feladatonként megosztott AI-implementáció és független review készült; a migrációs npm kapcsolótovábbítás javítva. Auth/import/processor/CI és cloud nem készült. | V-015 |
 
+| P-012 | 2026-10-19 | A technikai alap utólagos felbontása kisebb feladatokra | A felhasználó külön promptokra bontott utólagos implementációs tervet kért, hogy a már megvalósított alapot maga is végigellenőrizhesse. | `docs/04_quality/local_foundation_review_plan.md`: 15 lépés, bemenetekkel, eredeti implementációs szelettel, elfogadási feltételekkel, önálló promptokkal és nyitott szerzői checklisttel; indexlinkek. | Felhasználói kézi módosítás nincs rögzítve. Független AI-témaellenőrzés alapján megmaradási, init-idempotencia és bizonyítékhatár pontosítások készültek. Nincs kódmódosítás vagy a terv végrehajtása. | V-016 |
+
 ## Új bejegyzés sablon
 
 | ID | Dátum | Cél | Prompt röviden | Eredmény / artefakt | Kézi módosítás | Verification |

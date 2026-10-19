@@ -8,6 +8,8 @@ A NestJS/Vue scaffoldhoz Jest és Vitest unit tesztek készültek konfiguráció
 
 ## Dokumentumok
 
+- [Utólagos technikai alap terv](local_foundation_review_plan.md): 15 kisebb ellenőrzési lépés, másolható promptokkal és elfogadási feltételekkel.
+
 - [Test strategy](test_strategy.md): scope, unit tesztmátrix, izolációs elvek és későbbi tesztfázisok.
 - [Test report](test_report.md): aktuális, bizonyíték-alapú tesztállapot; aktuális scaffold-ellenőrzés és történeti baseline.
 

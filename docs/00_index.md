@@ -67,6 +67,7 @@ Az alkalmazásba tervezett MI-funkció és az AI-asszisztált fejlesztés külö
 - [Data model és state machine](03_design/data_model.md)
 - [Error handling](03_design/error_handling.md)
 - [Traceability matrix](03_design/traceability.md)
+- [Technikai alap utólagos implementációs és ellenőrzési terve](04_quality/local_foundation_review_plan.md)
 - [Test strategy](04_quality/test_strategy.md)
 - [Test report baseline](04_quality/test_report.md)
 - [Threat model](05_security_ops/threat_model.md)
