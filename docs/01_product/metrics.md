@@ -2,7 +2,7 @@
 
 **Tervezett állapot – nem implementált funkcionalitás.**
 
-Jelenleg nincs futtatható alkalmazás, test runner vagy mérési baseline. Az alábbi célok ezért elfogadási irányértékek; egyik sem tekinthető teljesítettnek. A későbbi eredményeket dátummal, környezettel és reprodukálható bizonyítékkal kell a test reportban vagy verification logban rögzíteni.
+A technikai scaffold és unit tesztkörnyezet elkészült, de a storage/import/processing termékképességeknek nincs mérési baseline-ja. Az alábbi termékcélok elfogadási irányértékek; a scaffold unit tesztjei önmagukban nem teljesítik őket. A későbbi eredményeket dátummal, környezettel és reprodukálható bizonyítékkal kell a test reportban vagy verification logban rögzíteni.
 
 ## Core MVP sikermetrikák
 

@@ -10,7 +10,7 @@ Accepted
 
 ## Implementation status
 
-Tervezett állapot – nincs MinIO service vagy storage adapter implementáció.
+MinIO Compose-service, verzióhoz kötött forrásból építő Dockerfile és mc-init létrejött: privát bucket és külön, bucketre korlátozott alkalmazásfelhasználó. A 2025-10-15-i security release rögzített forráscommitja `9e49d5e7a648f00e26f2246f4dc28e6b07f8c84a`; a jelenlegi upstream archivált, ezért az alap rögzített forrásból épül, nem frissítetlen bináris image-re támaszkodik. A helyi indítás és policy működésének bizonyítéka a tesztriportban követhető. Backend storage adapter, presign és tényleges médiafeltöltés még nincs.
 
 ## Context
 

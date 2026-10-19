@@ -1,117 +1,93 @@
-# Adattárolás a felhőben
+# Adattárolás a felhőben – CloudVault
 
-S3-kompatibilis objektumtárolóra tervezett személyes médiafájl-kezelő webalkalmazás szakdolgozati repository-ja.
+S3-kompatibilis objektumtárolóra épülő személyes médiafájl-kezelő BSc szakdolgozati projekt.
 
 ## Jelenlegi állapot
 
-A repository **dokumentáció-only tervezési állapotban** van. Nincs futtatható frontend vagy backend, Prisma schema, Docker Compose, package manifest, automata tesztkörnyezet vagy CI/CD pipeline. A dokumentumok célarchitektúrát és jövőbeli viselkedést írnak le; a termékfunkciók még nem implementáltak.
+Elkészült a **lokális technikai alap**: Vue/Vite frontend, NestJS backend, validált konfiguráció, PostgreSQL–MinIO Docker Compose és a négy alapentitás Prisma-sémája/kezdeti migrációja. A kezdőoldal a backend liveness végpontját ellenőrzi. Az auth, fájlfeltöltés, galéria, megosztás, restore, folytatható import és képfeldolgozás még nem implementált. A health válasza nem folyamatos DB/storage readiness-vizsgálat.
 
-Elkészült dokumentációs alapok:
+A kötelező SZD2 cél a teljes alkalmazás, a folytatható kötegelt képimport, két verziózott processor és restart recovery, valamint összehasonlító mérés/UAT és dolgozat. A részletes import-/processing-szerződés és átviteli technológia kiválasztása külön feladat; a termék-MI opcionális.
 
-- projekt- és repo-alapok;
-- termékvízió és hat core MVP user story;
-- C4 architektúranézetek és ADR-k;
-- SZD2 dokumentációs rebaseline a részletes design-, quality- és security-szerződésekkel.
+## Előfeltételek
 
-## Szakmai irány
+- Node.js 22.23.2 (`.nvmrc`) és npm 10 vagy újabb. A `package.json` kompatibilis Node 24 ágat is enged.
+- Docker Engine/Desktop és Docker Compose v2.20+; Linux konténerekkel. Windows/WSL esetén a Docker Desktop fusson, és az adott WSL-disztribúcióhoz legyen Docker-integráció.
+- Szabad lokális 3000, 5173, 5432, 9000 és 9001 port; internet az első dependency/image/source letöltéshez.
 
-A 2026. októberi témavezetői elvárások alapján a terv négy kötelező pillérre épül:
-
-1. **Teljes alapalkalmazás:** auth, privát médiafeltöltés, galéria, preview, download, usage, sharing, soft delete és restore.
-2. **Folytatható kötegelt import:** stabil import- és fájlazonosság, fájlonkénti állapot, a már átvett adatoktól folytatható átvitel és ismétlésbiztos elszámolás.
-3. **Bővíthető háttérfeldolgozás:** közös interfészű, verziózott előnézetkészítő és képadatkinyerő, tartós job-/eredményállapot, külön retry és worker-újraindítás utáni helyreállítás.
-4. **Mérhető, használható és dokumentált eredmény:** összehasonlító mérések, valódi felhasználói próbák, ellenőrzött telepítés és a fejlesztéssel párhuzamos dolgozatírás.
-
-A pending kvótafoglalás, idempotencia, validáció, jogosultság, storage adapter és karbantarthatóság minden pillérben érvényes alap. A folytatható átvitel technológiája még nincs kiválasztva; az Uppy/tus vizsgálati javaslat. A részletes átviteli és feldolgozási szerződéseket az érintett implementáció előtt kell lezárni.
-
-Az alkalmazásba tervezett MI-funkció külön fogalom az AI-asszisztált fejlesztési folyamattól. A fejlesztés AI-használatát és emberi verifikációját a `docs/07_ai/` naplói követik.
-
-## Scope
-
-### Core MVP
-
-- regisztráció, login és védett felület;
-- legfeljebb 100 MB-os kép vagy rövid videó feltöltése privát MinIO/S3 bucketbe;
-- PostgreSQL metaadat-kezelés;
-- saját aktív fájlok cursor-lapozott listája;
-- biztonságos preview és download;
-- denormalizált tárhelyhasználat;
-- időkorlátos alap share-link;
-- soft delete és egyedi restore 30 napon belül;
-- backend validation, authorization, alap audit és unit tesztek;
-- a teljes SZD2 célhoz folytatható képköteg-import és a két verziózott képfeldolgozó, újraindítás után helyreállítható munkával;
-- eredeti és származtatott objektumokra is következetes kvóta, hozzáférés és életciklus;
-- mérések, tesztbizonyíték, külső felhasználói próbák és kipróbált telepítés.
-
-### MVP+
-
-- opcionális, első körben csak képekhez használható MI-metaadat-javaslat;
-- explicit trigger, accept/edit/reject és provider-failure fallback;
-- nem része a Core MVP Definition of Done feltételeinek.
-
-### Later
-
-- automatizált purge worker;
-- nagyvideós multipart-bővítés a kötelező folytatható képimporton túl;
-- cloud deployment és fejlett monitoring;
-- transzkódolás, admin, fejlett keresés és offline előkészítés.
-
-Az integration/contract/e2e ellenőrzések és CI külön, előzetesen engedélyezendő minőségi fázisba kerülnek; a unit-first fejlesztés önmagában nem végső SZD2 elfogadási kapu. A régi tesztmix/CI rubric és az új bizonyítékközpontú útmutató pontos végső alkalmazását egyeztetni kell.
-
-## Tervezett stack
-
-- Frontend: Vue 3, Vite, TypeScript, Tailwind CSS és Vue Router.
-- Backend: Node.js, TypeScript és NestJS.
-- Adatbázis: PostgreSQL + Prisma.
-- Lokális object storage: MinIO.
-- Későbbi cloud target: AWS S3 vagy OCI Object Storage S3-kompatibilis API-val.
-- Első tesztelési szint: unit tesztek; később tervezett, külön engedélyezett minőségi fázis.
-
-## Dokumentáció
-
-A high-level terv és mérföldkövek az októberi követelményeket követik. A részletes termék-, API-, adatmodell-, C4- és ADR-dokumentumok korábbi szerződései célzott egyeztetést igényelnek; a single-PUT-only és thumbnail-Later állítások nem érvényes végső célok. A feloldás munkalistáját a terv tartalmazza.
-
-Kanonikus belépési pontok:
-
-- [Dokumentációs index](docs/00_index.md)
-- [High-level szakdolgozati terv](docs/plan.md)
-- [Mérföldkövek és státusz](docs/milestones.md)
-- [Core MVP scope contract](docs/01_product/scope_contract.md)
-- [Architektúra és ADR-ek](docs/02_architecture/README.md)
-- [API-, adatmodell- és hibaszerződések](docs/03_design/README.md)
-- [Tesztstratégia és teszt baseline](docs/04_quality/README.md)
-- [Security, privacy és operations](docs/05_security_ops/README.md)
-- [AI-használat és verifikáció](docs/07_ai/ai_manifest.md)
+A MinIO a biztonsági javítást tartalmazó, pontos upstream commitból épül, mert ez a kiadás forrásként érhető el. A buildhez nem kell helyi Go-telepítés; Docker végzi. Az első `infra:up` több perc lehet, a későbbi indítás cache-elt. Ez lokális fejlesztői környezet, nem cloud deployment. Részletek: [ADR-013](docs/02_architecture/adr/ADR-013-local-foundation.md).
 
 ## Quickstart
 
-Jelenleg nincs futtatható alkalmazás, ezért nincs hiteles telepítési, indítási, build- vagy tesztparancs. Ezek csak a későbbi scaffold és lokális környezet tényleges elkészülte, majd tiszta környezetben végzett kézi ellenőrzése után kerülhetnek ide.
+A repository gyökerében:
 
-## Konfiguráció és titkok
+```bash
+npm ci
+npm run env:init
+npm run infra:up
+npm run db:generate
+npm run db:migrate
+```
 
-A repository kizárólag placeholder konfigurációt tartalmaz a [.env.example](.env.example) fájlban. Valódi `.env`, jelszó, JWT secret, access key, cloud credential vagy személyes adat nem commitolható.
+Az `env:init` véletlen lokális credentialökkel hozza létre az ignore-olt `.env` fájlt, kiírásuk nélkül. Meglévő `.env`-et nem ír felül; korábbi fájlnál egyeztesd a szükséges mezőket az `.env.example`-lel. A minta placeholder értékei nem futtatási credentialök.
 
-Normál lokális fejlesztéshez a későbbiekben sem lesz szükség valós AWS- vagy OCI-credentialre; a cél a PostgreSQL és MinIO alapú környezet.
+Két külön terminálban:
 
-## Repository szerkezet
+```bash
+npm run dev:backend
+```
+
+```bash
+npm run dev:frontend
+```
+
+Nyisd meg a [frontend kezdőoldalát](http://127.0.0.1:5173). A [health endpoint](http://127.0.0.1:3000/api/v1/health) válasza `{"status":"ok"}`. Azonos hostot használj a frontend és backend URL-ben; `localhost` és `127.0.0.1` keverése CORS/cookie eltérést okoz. Egyedi port esetén az `.env` URL-jeit, portját és a Compose/Vite portbeállítását együtt módosítsd.
+
+A MinIO konzol a [9001-es porton](http://127.0.0.1:9001) érhető el a helyi `.env` `MINIO_ROOT_*` értékeivel. A backend külön `S3_*` alkalmazásazonosságot kap, kizárólag a privát buckethez; a SPA csak `VITE_API_BASE_URL` publikus konfigurációt olvas. Valós AWS/OCI-fiók nem szükséges.
+
+Állapot és leállítás, a tárolt adatok megtartásával:
+
+```bash
+npm run infra:status
+npm run infra:down
+```
+
+A named volume-ok megmaradnak. A `docker compose down -v` adatot töröl, ezért nem része az alap leállításnak. Már inicializált adatbázis mellett a `.env` jelszavának cseréje önmagában nem módosítja a DB-felhasználó jelszavát.
+
+## Build, typecheck és unit tesztek
+
+```bash
+npm run db:validate
+npm run typecheck
+npm test
+npm run build
+```
+
+A build és typecheck először generálja a Prisma Clientet. A tesztek izolált Jest/Vitest unit tesztek, nem igényelnek futó PostgreSQL-t vagy MinIO-t. A beépített konfigurációs értékek validálása és a Prisma-parancsok futtatása a Quickstart szerint létrehozott `.env`-et igényli. Valós legutóbbi eredmények: [tesztriport](docs/04_quality/test_report.md).
+
+Épített backend indítása: `npm run start --workspace backend`. Frontend build megtekintése: `npm run preview --workspace frontend`. Migrációk normál alkalmazása `npm run db:migrate` (Prisma migrate deploy); új fejlesztői migráció generálása később `npm run db:migrate:dev -- --name <name>`. Destruktív reset nem Quickstart lépés.
+
+## Hibaelhárítás
+
+- **Docker daemon nem érhető el:** indítsd el Docker Desktopot; WSL-ben ellenőrizd a disztribúció Docker-integrációját és a `docker version` Server részét.
+- **Konfiguráció hibás:** az üzenet csak változóneveket ír ki. Egyeztesd `.env.example`-lel, ne másolj credentialt hibajegybe vagy naplóba.
+- **Backend nem indul:** `npm run infra:status`, majd `npm run db:migrate` és `npm run db:generate`; ellenőrizd a lokális portokat.
+- **A frontend nem éri el az API-t:** a Vite indításakor érvényes `VITE_API_BASE_URL` és `FRONTEND_PUBLIC_URL` egyezzen a használt hosttal. `.env` változtatás után indítsd újra a dev szervereket.
+- **MinIO-init újrafuttatás:** `docker compose run --build --rm minio-init`; idempotensen biztosítja a privát bucketet és az alkalmazásjogosultságot. A hozzáférési adatok nem kerülnek logba.
+
+## Stack és struktúra
+
+Vue 3 / Vite / TypeScript / Tailwind CSS / Vue Router; NestJS / Prisma / PostgreSQL; helyben MinIO. Egy npm workspace és gyökérbeli lockfile van, almappákban nincs külön install vagy lockfile. Nincs Pinia, CI/CD vagy integration/e2e tesztkörnyezet.
 
 ```text
 /
-├── README.md
-├── AGENTS.md
-├── SKILL.md              # témavezetői követelmények és munkafolyamat
-├── frontend/             # jelenleg placeholder
-├── backend/              # jelenleg placeholder
-└── docs/
-    ├── 01_product/       # termékvízió és kanonikus scope
-    ├── 02_architecture/  # C4 és ADR-ek
-    ├── 03_design/        # tervezett API/adatmodell/error szerződés
-    ├── 04_quality/       # tesztstratégia és baseline
-    ├── 05_security_ops/  # threat, privacy, runbook, observability
-    ├── 06_release/       # placeholder a tényleges release-ig
-    └── 07_ai/            # AI-asszisztált fejlesztés evidence
+├── AGENTS.md, SKILL.md   # munkaszabályok és témavezetői célok
+├── package.json         # npm workspace és gyökérparancsok
+├── compose.yaml         # lokális PostgreSQL, MinIO és bucket-init
+├── scripts/             # credentialt nem kiíró env inicializálás
+├── infra/minio/         # rögzített upstream build és alkalmazáspolicy
+├── backend/             # NestJS, Prisma schema/migrations és Jest unit tesztek
+├── frontend/            # Vue/Vite és API-layer unit tesztek
+└── docs/                # szakdolgozati tervek és ellenőrzési bizonyítékok
 ```
 
-## Dokumentációs alapelv
-
-A repository nem állíthat implementáltként olyan API-t, entitást, funkciót, tesztet vagy üzemeltetési képességet, amelyhez nincs tényleges kód és verifikálható evidence. A tervezett és megvalósított állapot minden mérföldkőben külön kezelendő.
+Belépési pontok: [dokumentációs index](docs/00_index.md), [terv](docs/plan.md), [mérföldkövek](docs/milestones.md), [API](docs/03_design/api.md), [adatmodell](docs/03_design/data_model.md), [AI-naplók](docs/07_ai/ai_manifest.md). A részletes dokumentáció a megvalósított alapot és a tervezett termékfunkciókat külön jelöli.

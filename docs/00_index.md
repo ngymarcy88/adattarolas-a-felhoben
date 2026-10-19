@@ -2,7 +2,7 @@
 
 ## Repository státusz
 
-A repository jelenleg **dokumentáció-only tervezési állapotban** van. Nincs futtatható alkalmazás, Prisma schema, Docker Compose, package manifest, teszt runner vagy CI/CD. A dokumentumok tervezett célállapotot írnak le, nem implementált funkcionalitást igazolnak.
+A repository kezdeti technikai alapot tartalmaz: Vue/NestJS scaffold, npm workspaces és lockfile, központi konfiguráció, publikus health endpoint, Prisma-séma/kezdeti migráció és PostgreSQL–MinIO Docker Compose. Auth, feltöltés, import és feldolgozás még nincs implementálva; CI/CD sincs. A futtatási eredmények és a kézi környezetpróba állapotát a [tesztriport](04_quality/test_report.md) rögzíti; a többi dokumentum célállapotát nem szabad kész funkciónak tekinteni.
 
 ## Követelménybaseline és szerződések
 
@@ -31,8 +31,8 @@ A részletes scope, API, adatmodell, traceability, C4 és ADR-ek egy része még
 | [01_product](01_product/README.md) | Vision, scope, capability, metrics és UX | Metrics frissítve; a többi részletes szerződés célzottan egyeztetendő |
 | [02_architecture](02_architecture/README.md) | C4, quality attributes és ADR-001–ADR-012 | Korábbi baseline, import/processing/derived-kvóta egyeztetendő |
 | [03_design](03_design/README.md) | API, adatmodell, lifecycle, error és traceability | Korábbi baseline, import/processing szerződésekkel bővítendő |
-| [04_quality](04_quality/README.md) | Unit-first stratégia és őszinte teszt baseline | Aktív terv; nincs test runner |
-| [05_security_ops](05_security_ops/README.md) | Threat, privacy, planned runbook és observability | Aktív, tervezett kontrollok |
+| [04_quality](04_quality/README.md) | Unit-first stratégia és őszinte teszt baseline | Jest/Vitest unit runnerek; tényleges eredmények a tesztriportban |
+| [05_security_ops](05_security_ops/README.md) | Threat, privacy, planned runbook és observability | Health/request ID/error alap implementált; további kontrollok tervezettek |
 | [06_release](06_release/README.md) | Demo, release notes és self-assessment | Placeholder a futtatható termékig |
 | [07_ai](07_ai/ai_manifest.md) | AI-eszközök, promptok és verifikáció | Aktív történeti evidence |
 
@@ -72,7 +72,7 @@ Az alkalmazásba tervezett MI-funkció és az AI-asszisztált fejlesztés külö
 - [Threat model](05_security_ops/threat_model.md)
 - [Privacy és licensing](05_security_ops/privacy_licensing.md)
 - [Planned runbook](05_security_ops/runbook.md)
-- [Planned observability](05_security_ops/observability.md)
+- [Observability: implementált alap és terv](05_security_ops/observability.md)
 
 ## Státuszszabály
 

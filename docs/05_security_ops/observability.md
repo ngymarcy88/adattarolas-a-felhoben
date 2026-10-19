@@ -1,6 +1,8 @@
-# Tervezett observability
+# Observability: alap és célállapot
 
-**Tervezett állapot – nem implementált funkcionalitás.**
+**Implementált alap: publikus API-liveness, request ID és minimális biztonságos 5xx-log. A metrikák, auditírás és általános requestlog tervezettek.**
+
+A tényleges build/unit/kézi ellenőrzési eredmények a [tesztriportban](../04_quality/test_report.md) találhatók; az implementált kód önmagában nem telepítési bizonyíték.
 
 ## Cél
 
@@ -9,11 +11,13 @@ A későbbi rendszer legyen diagnosztizálható anélkül, hogy credentialt, cap
 ## Request ID
 
 - Minden API-kérés kap vagy validáltan átvesz request ID-t.
-- Az ID megjelenik a nested hibaválaszban, a strukturált logban és releváns audit eseményben.
+- Implementált: az ID megjelenik a `X-Request-Id` response headerben és nested hibaválaszban; generikus 5xx-logban is. Általános requestlog és audit-eseményírás még nincs.
 - A request ID átlátszatlan, nem tartalmaz user- vagy fájladatot.
 - A kliens user-facing hibánál megjelenítheti támogatási referenciaként.
 
-## Strukturált logmezők
+## Strukturált logmezők célállapota
+
+A scaffold 5xx-logja csak `event`, `requestId`, `status`, `code` mezőt ad át a Nest loggernek; raw kivételt nem naplóz. Biztonságos indulási hibajelzés is van. Az alábbi további logmezők és események még tervezettek.
 
 Engedélyezett minimum:
 
@@ -58,7 +62,7 @@ Konkrét bucketek, thresholdok és alert szabályok csak futtatási baseline ut�
 
 ## Health és readiness
 
-- Publikus `GET /api/v1/health` minimális `{"status":"ok"}` választ ad.
+- Implementált publikus `GET /api/v1/health`: minimális `{"status":"ok"}`. Ez liveness: nem futtat dependency probe-ot. A Prisma induláskor nyit kapcsolatot, de későbbi PostgreSQL-/MinIO-kiesés nem feltétlenül változtatja meg a health választ.
 - Nem ad hostnevet, bucketet, connection stringet vagy részletes dependency hibát.
 - Későbbi belső readiness külön jelezheti PostgreSQL/MinIO elérhetőséget, de nem publikus diagnosztikai dump.
 - MI-provider nem része a Core MVP readiness feltételének.

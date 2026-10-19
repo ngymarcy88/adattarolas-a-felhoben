@@ -2,9 +2,9 @@
 
 ## Státusz és források
 
-**2026-10-18-i tervezett célállapot – nem implementált funkcionalitás.**
+**2026-10-18-i célterv; kezdeti technikai alap implementálva, termékfunkció még nincs.**
 
-A repository dokumentációs állapotban van: nincs futtatható frontend/backend, Prisma schema, Docker Compose vagy alkalmazásteszt. A terv az októberi témavezetői visszajelzés alapján frissíti a júliusi irányt. A források összefoglalója a gyökérbeli [SKILL.md](../SKILL.md), a munkaszabályok az [AGENTS.md](../AGENTS.md) fájlban találhatók. A nyers levelek a repó melletti `emails/02-email.txt`, `emails/03-email.txt`, a kurzuskövetelmények a `coospace/coospace-szakdoga-2.txt` forrásban vannak; önálló klónozáskor ezek hiányozhatnak.
+A repository Vue/NestJS scaffoldot, központilag validált konfigurációt, health endpointot, Prisma-sémát/kezdeti migrációt, npm workspace-scripteket és PostgreSQL–MinIO Compose-környezetet tartalmaz. Jest/Vitest unit runnerek és alaptesztek létrejöttek; a tényleges futtatási eredményeket és a kézi Quickstart-próba státuszát a tesztriport rögzíti. Auth, fájlkezelés, import és processor még nincs. A terv az októberi témavezetői visszajelzés alapján frissíti a júliusi irányt. A források összefoglalója a gyökérbeli [SKILL.md](../SKILL.md), a munkaszabályok az [AGENTS.md](../AGENTS.md) fájlban találhatók. A nyers levelek a repó melletti `emails/02-email.txt`, `emails/03-email.txt`, a kurzuskövetelmények a `coospace/coospace-szakdoga-2.txt` forrásban vannak; önálló klónozáskor ezek hiányozhatnak.
 
 Ez a dokumentum az aktuális cél és scope-változás forrása; a [mérföldkövek](milestones.md) adják a végrehajtási sorrendet és az evidence-kapukat. A [scope contract](01_product/scope_contract.md), [ADR-ek](02_architecture/adr/README.md) és [design dokumentáció](03_design/README.md) meglévő biztonsági és életciklus-szabályai érvényes kiindulópontok, de az új import-/processing-szerződésekkel még kiegészítendők. A single-PUT-only, thumbnail-Later és végleges unit-only scope nem írhatja felül az alábbi új célokat. A tervfrissítés nem jelent protokoll-, dependency- vagy implementációs jóváhagyást.
 
@@ -115,7 +115,7 @@ A friss high-level terv nem jelenti a részletes szerződések teljes elkészül
 | Error, threat, privacy és runbook | Processor- és átviteli részhibák, jogosultság, dekódolási korlátok, metadata privacy, restart/retry diagnosztika |
 | Traceability és minőség | Új követelmény → use case → API/entitás → unit/folyamat/mérés/UAT evidence; tényleges eredmények később |
 
-Nem készül most runtime kód, Prisma schema, konkrét új API-specifikáció vagy új tech-választás. Az első szelethez szükséges szerződésfrissítést a működő eredményhez kell méretezni; ne váljon újabb általános dokumentációs projektté.
+A kezdeti technikai alap runtime kódja és Prisma-sémája már létrejött; ez nem zárja le a későbbi import-/processing-szerződéseket vagy a transfer-választást. Az első szelethez szükséges szerződésfrissítést a működő eredményhez kell méretezni; ne váljon újabb általános dokumentációs projektté.
 
 ## 6. Bizonyítás és dolgozat
 
@@ -127,8 +127,8 @@ A dolgozat folyamatosan készül: először probléma, követelmények és alter
 
 ## 7. Következő lépés és kockázatok
 
-A következő implementációs cél az első végigjárható szelet: lokális környezet → auth → kis képköteg → validált tárolás → galéria → első processor. Elsőként az előnézetkészítő javasolt; a tanár csak az első feldolgozó látható eredményét kéri. A teljes folytathatóság és a második processor a következő kapu része; az első verzió nem nevezhető emiatt kész SZD2 alkalmazásnak.
+A technikai alap ellenőrzését a 2026-10-19-i tesztriport rögzíti. A következő implementációs cél az auth, majd kis képköteg → validált tárolás → galéria → első processor. Elsőként az előnézetkészítő javasolt; a tanár csak az első feldolgozó látható eredményét kéri. A teljes folytathatóság és a második processor a következő kapu része; az első verzió nem nevezhető emiatt kész SZD2 alkalmazásnak.
 
-Az október 23-i első eredmény a jelenlegi dokumentáció-only állapotból öt napon belüli, magas kockázatú cél. Heti tényleges ráfordítás nélkül nem adható hiteles kapacitásígéret. A legnagyobb technikai kockázat a resumable/storage illesztés, a job-recovery és az eredeti/derived kvóta. Ezeket korai, szűk döntéssel és próbával kell csökkenteni.
+Az október 23-i első eredmény a kezdeti technikai alap állapotából öt napon belüli, magas kockázatú cél. Heti tényleges ráfordítás nélkül nem adható hiteles kapacitásígéret. A legnagyobb technikai kockázat a resumable/storage illesztés, a job-recovery és az eredeti/derived kvóta. Ezeket korai, szűk döntéssel és próbával kell csökkenteni.
 
 A tanári és közös belső dátumokat a [roadmap ütemezési táblája](milestones.md) külön kezeli; az október 22/23. és november 13/20. eltérést egyeztetni kell. Ha a novemberi működő mag elmarad, a januári befejezést újra kell ütemezni a témavezetővel. Az MI-MVP+ nem előfeltétele a kötelező lezárásnak.

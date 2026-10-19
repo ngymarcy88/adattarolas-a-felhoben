@@ -18,6 +18,8 @@ Ez a napló a projekt szempontjából fontos AI-promptokat és azok eredményét
 
 | P-010 | 2026-10-18 | Az elavult terv októberi SZD2 frissítése | A felhasználó a korábban azonosított elavult terv frissítését kérte a tanári elvárásokhoz. | Frissült a `docs/plan.md`, `docs/milestones.md`, README/index, metrika- és tesztterv; célzott státuszpontosítást kapott a scope contract, ADR-009, AGENTS.md és SKILL.md. Az új roadmap SZD2-0–SZD2-7; az MI nincs a kötelező lezárás útvonalán. | Felhasználói kézi módosítás még nem történt; feladatonként megosztott AI-dokumentációs munka és független forráshűségi review készült. A részletes import/API/schema szerződések célzott kiegészítése nyitott maradt. | V-014 |
 
+| P-011 | 2026-10-19 | A hiányzó lokális technikai alap implementálása | A felhasználó Vue/NestJS scaffoldot, PostgreSQL–MinIO környezetet, konfigurációt és Prisma-sémát/migrációkat kért; a limit miatt megszakadt munkát folytatni kérte. | `frontend/`, `backend/`, npm workspace/lockfile, Compose, env-init, négy alapmodell és SQL migráció, unit tesztek, README és státusz/ADR/API/data/quality/security dokumentáció. | A munka 2026-10-18-án indult; felhasználói kézi módosítás nincs rögzítve. Feladatonként megosztott AI-implementáció és független review készült; a migrációs npm kapcsolótovábbítás javítva. Auth/import/processor/CI és cloud nem készült. | V-015 |
+
 ## Új bejegyzés sablon
 
 | ID | Dátum | Cél | Prompt röviden | Eredmény / artefakt | Kézi módosítás | Verification |

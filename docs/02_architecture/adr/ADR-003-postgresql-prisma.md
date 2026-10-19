@@ -10,7 +10,7 @@ Accepted
 
 ## Implementation status
 
-Tervezett állapot – nincs Prisma schema, migráció vagy futó adatbázis.
+Prisma 7 schema és kezdeti SQL-migráció implementálva a `User`, `FileObject`, `ShareLink`, `AuditEvent` modellekkel; PostgreSQL 17.9 Compose-konfiguráció és Prisma pg adapter létezik. A CommonJS-kliens generált, nem commitolt kód. A migráció tényleges alkalmazásának és a környezet indításának ellenőrzése a tesztriportban követhető. Import/processing és opcionális MI entitás még nincs.
 
 ## Context
 

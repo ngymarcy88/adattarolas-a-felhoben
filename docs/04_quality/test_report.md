@@ -1,42 +1,62 @@
 # Test report
 
-**Tervezett állapot – nem implementált funkcionalitás.**
+## Lokális technikai alap – 2026-10-19
 
-## Baseline
+Hatókör: scaffold, konfiguráció, health, hibakezelés, kezdeti adatbázisséma és lokális infrastruktúra. Auth, feltöltés, import és processor még nincs; ezek tesztelése nem tekinthető teljesítettnek.
 
-| Mező | Érték |
+Környezet: Windows/WSL2, Node 22.23.2, npm 10.9.8, Docker Engine 26.1.1 és Compose 2.27.0. PostgreSQL 17.9; a MinIO/mc rögzített forráscommitból épül (ADR-013). A gépen a WSL Docker-integráció nincs bekapcsolva: az infrastruktúra-próba a telepített Windows `docker.exe` CLI átmeneti PATH-wrapperével futott. A README normál `docker` parancsához az adott WSL-disztribúció Docker-integrációját engedélyezni kell. Globális Docker-beállítást nem módosítottunk.
+
+## Automatikus unit és fordítási eredmények
+
+| Parancs | Eredmény |
 |---|---|
-| Dátum | 2026-07-12 |
-| Projektállapot | Dokumentáció-only |
-| Backend test runner | Nincs |
-| Frontend test runner | Nincs |
-| Package manifest | Nincs |
-| Alkalmazáskód | Nincs |
-| Unit tesztek száma | 0 |
-| Integration/contract/e2e tesztek száma | 0 |
-| Futtatott alkalmazásteszt-parancs | Nincs |
-| Alkalmazásteszt-eredmény | **NOT RUN – nincs futtatható tesztkörnyezet** |
+| `npm ci --no-audit --no-fund` | PASS: tiszta telepítés a root lockfile-ból, 802 csomag |
+| `npm test` – backend Jest | PASS: 5 suite, 54 teszt; 0 failed/skipped |
+| `npm test` – frontend Vitest | PASS: 1 fájl, 18 teszt; 0 failed/skipped |
+| `npm run typecheck` | PASS: mindkét workspace |
+| `npm run build` | PASS: NestJS és Vite production build |
+| `npm run db:migrate:dev -- --help` | PASS: a Prisma súgóját adja, a kapcsolótovábbítás működik |
 
-## Értelmezés
+Összesen **72 unit teszt PASS**. Backend: konfiguráció, request ID, hibamaszkolás, health és mockolt Prisma-életciklus. Frontend: publikus API URL és health kliens, hibás válaszok és hálózati/abort hiba. A Vue komponens DOM-viselkedése nincs automatizáltan lefedve. Coverage nem lett mérve; integration/contract/e2e tesztkészlet és CI nincs bevezetve.
 
-A `NOT RUN` nem PASS és nem FAIL. A repository jelenlegi mérföldköve dokumentációs szerződéseket készít elő; nem áll rendelkezésre olyan `package.json`, script vagy forráskód, amelyen Jest/Vitest futtatható lenne.
+## Manuális infrastruktúra-ellenőrzés
 
-A Markdown-link, Mermaid, whitespace, secret- és konzisztenciaellenőrzések dokumentációs verifikációk. Ezek eredménye a `docs/07_ai/verification_log.md` fájlba kerül, és nem számít automata alkalmazástesztnek.
+Ezek egyszeri fejlesztői futtatási próbák, nem automatikus integration/e2e tesztkészlet és nem külső UAT.
 
-## Tervezett első frissítés
+| Próba | Eredmény |
+|---|---|
+| `npm run env:init`, majd ismételt futtatás és tartalomhash összevetése | PASS: létrehozás után a meglévő `.env` változatlan, credential nincs kiírva |
+| Compose config validálás és `npm run infra:up` | PASS: PostgreSQL és MinIO healthy, forrásból épített szerver/kliens; privát bucket és app user elkészül |
+| Ismételt MinIO-init | PASS: sikeres, a meglévő bucket megmarad |
+| Anonymous bucket hozzáférés | PASS: HTTP 403 |
+| App identity object PUT/GET/DELETE és tartalom-összevetés | PASS: ideiglenes próbaobjektum létrejött, olvasható volt és törölve lett |
+| App identity admin-hozzáférés | PASS: megtagadva |
+| Frontend origin MinIO CORS preflight | PASS: a konfigurált origin engedélyezett; a majdani upload-adatút külön validálandó |
+| `npm run db:validate`, `npm run db:generate`, `npm run db:migrate` | PASS: schema valid, kliens generálva, egy migráció alkalmazva |
+| Ismételt `npm run db:migrate` | PASS: nincs függő migráció |
+| Prisma migrate diff az élő DB és schema között | PASS: `No difference detected` |
+| Épített backend `npm run start --workspace backend` | PASS: elindult, Prisma PostgreSQL-kapcsolat sikeres |
+| HTTP health, CORS, request ID és hibaválasz | PASS: health 200, engedélyezett credentialed origin; idegen origin 403; biztonságos 404/hibás JSON 400, érvénytelen request ID cseréje |
+| `npm run dev:frontend` és HTML HTTP-próba | PASS: Vite elindult, HTML 200 és Vue entrypoint kiszolgálva; renderelt állapot nincs ellenőrizve |
+| Repository Markdown-link, whitespace, ignore és secret ellenőrzés | PASS: minden vizsgált helyi link feloldódik, nincs diff whitespace-hiba; `.env`, generált kliens és build ignore-olt; valós helyi credential nincs repository-fájlban vagy frontend JS-bundle-ben |
+| Nyolc negatív SQL-próba, rollbackelt tranzakcióban | PASS: negatív usage, kvótatúllépés, túlméretes fájl, ACTIVE detected MIME nélkül, hibás soft-delete dátumok, más owner megosztása, túl rövid expiry, hibás token hash mind elutasítva |
 
-A riport az első backend/frontend scaffold után frissíthető, ha már létezik:
+Az SQL-próba szintetikus adatot használt és rollbackelt; nincs valós személyes adat. A DB-constraint nem helyettesíti a későbbi szolgáltatásszintű authorizationt, tranzakciós kvótakezelést vagy lifecycle-teszteket.
 
-- tényleges teszt runner és package script;
-- legalább egy megvalósított, unit tesztelhető use case;
-- rögzített Node/npm és dependency verzió;
-- reprodukálható parancs és teljes parancskimenet;
-- dátum, környezet, PASS/FAIL darabszám és ismert korlát.
+## Böngészős ellenőrzés korlátja
 
-## Kötelező jövőbeli formátum
+A beépített böngésző Node REPL-je `sandboxCwd is not a local file URI` környezeti hibával nem indult. A külön Playwright böngésző sem indult, mert a hoston hiányzik a Chrome binary (`/opt/google/chrome/chrome`). Ezért vizuális/renderelt UI-ellenőrzés nem igazolt; a frontend API-kliensét unit tesztek és a futó Vite HTTP-próba ellenőrzi. Emberi teendő: a README frontend URL-jén a sikeres kapcsolat, az API leállításakor a hiba és az újraellenőrzés megtekintése.
 
-| Dátum | Környezet | Parancs | Passed | Failed | Skipped | Következtetés |
-|---|---|---|---:|---:|---:|---|
-| YYYY-MM-DD |  |  | 0 | 0 | 0 |  |
+## Függőségek és korlátok
 
-Hibás vagy skipped tesztet nem szabad elhallgatni. Coverage csak tényleges reportból, a használt konfigurációval együtt rögzíthető.
+A 2026-10-19-i `npm audit --omit=dev --json` eredménye **0 ismert sérülékenység**. A teljes audit **20 moderate, 0 high, 0 critical** érintettséget jelez egyetlen gyökérokból: a Jest/ts-jest fejlesztői lánc tranzitív `sprintf-js <=1.1.3` függőségének [DoS advisory-ja](https://github.com/advisories/GHSA-hp3w-g68c-fv3c). Nincs javított upstream sprintf-js verzió az ellenőrzött registry-metaadat szerint; az audit major downgrade javaslata nem került alkalmazásra. A tesztek nem fogadnak külső formátumsztringet. Új függőségfrissítéskor újra ellenőrizendő; a teljes audit nem tiszta.
+
+A közvetlen dependency-verziók és npm-források lockfile-ban rögzítettek; a MinIO base image tagek nem digestre rögzítettek, a build nem bitazonos reprodukció. Container-image CVE- és teljes tranzitív licencaudit nem történt. Másik gépes telepítés és külső UAT továbbra is nyitott. A health csak liveness; a backend induláskor kapcsolódik PostgreSQL-hez, folyamatos readiness vagy storage adapter még nincs.
+
+## A próba során javított hibák
+
+- Az eredeti NestJS 12 ESM-függőségei nem futottak a választott CJS/Jest transzformációval. NestJS 11.2.7, Config 4.0.4 és CLI 11.0.24 mellett történik a végső ellenőrzés.
+- Független review során javítva lett a gyökér `db:migrate:dev` script kapcsolótovábbítása; `--help` már a Prisma migrate dev súgóját adja.
+- Két TypeScript-hiba (CORS callback paraméterek és teszt request cast) javítva lett.
+- A kezdeti npm proxykapcsolat megszakadt; a projekt `.npmrc`-je és a lockfile publikus npm-registryt használ.
+- A MinIO kliens image-e nem volt hozzáférhető; rögzített upstream forrásból épül a Docker multi-stage buildben.

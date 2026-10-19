@@ -1,21 +1,23 @@
 # API-szerződés
 
-**Tervezett állapot – nem implementált funkcionalitás.**
+**Részben implementált szerződés: csak a health endpoint létezik.**
+
+A scaffold `GET /api/v1/health` végpontja, CORS-konfigurációja, request ID-ja és generikus hibakerete implementált. Az összes auth-, file-, storage-, share- és MI-endpoint továbbra is terv; import-/processing-kiegészítésük későbbi szerződésfeladat. Futási ellenőrzés: [tesztriport](../04_quality/test_report.md).
 
 ## Hatókör és alapelvek
 
-- Tervezett base URL: `/api/v1`.
+- Implementált API prefix: `/api/v1`; helyi alapcím: `http://127.0.0.1:3000/api/v1`.
 - A kliens és az API JSON-t használ, kivéve a böngésző és az object storage közötti presigned bináris adatforgalmat.
 - Minden időpont UTC ISO 8601 formátumú, minden azonosító átlátszatlan UUID.
 - A bájtértékek nem negatív egész számok.
 - A frontend `credentials: include` módban hívja a cookie-auth endpointokat.
-- A dokumentált endpointok jelenleg nem léteznek; megvalósításkor a controller-, DTO- és OpenAPI-szerződést e dokumentummal együtt kell frissíteni.
+- Az alábbi táblában kizárólag a health sor implementált; a többi endpoint tervezett. Megvalósításkor a controller- és DTO-szerződést e dokumentummal együtt kell frissíteni. OpenAPI-generálás még nincs.
 
 ## Hitelesítés, Origin és CORS
 
 A `Core MVP` alapértelmezetten egyórás JWT access tokent tervez `HttpOnly`, `SameSite=Lax` cookie-ban. Productionben a cookie `Secure`; a JWT nem kerül response bodyba vagy `localStorage`-ba. Refresh-token flow nincs.
 
-Minden unsafe, cookie-auth műveletnél a backend ellenőrzi az `Origin` headert az explicit frontend-origin allowlisthez. Hiányzó vagy nem engedélyezett Origin elutasítandó. A CORS-konfiguráció:
+A következő auth-fázisban minden unsafe, cookie-auth műveletnél a backend ellenőrzi az `Origin` headert az explicit frontend-origin allowlisthez. Hiányzó vagy nem engedélyezett Origin elutasítandó. A CORS-konfiguráció:
 
 - csak explicit frontend origint enged;
 - engedélyezi a credential küldést;
@@ -24,7 +26,9 @@ Minden unsafe, cookie-auth műveletnél a backend ellenőrzi az `Origin` headert
 
 Az ADR-010 szerinti `SameSite=Lax` és a szigorú Origin-ellenőrzés együtt adja a Core MVP CSRF-védelmét; külön CSRF-token nincs. Ha későbbi deployment topológia további CSRF-token mechanizmust vagy eltérő cookie-policyt igényel, azt implementáció előtt ADR-módosítással kell jóváhagyni.
 
-## Tervezett endpoint-összefoglaló
+A jelenlegi scaffold a konfigurált `FRONTEND_PUBLIC_URL` origint credentiallel engedi, az eltérő Origint `403 ORIGIN_NOT_ALLOWED` hibával utasítja el. Origin nélküli kérést a publikus health eléréséhez enged. Ez még nem a későbbi unsafe auth-műveletek teljes CSRF-védelme. A válaszok `X-Request-Id` headere CORS-on keresztül is olvasható. Rate limiter és DTO-validation pipeline még nincs.
+
+## Endpoint-összefoglaló: health implementált, minden más tervezett
 
 | Metódus és útvonal | Fázis | Auth | Cél |
 |---|---|---|---|
@@ -44,7 +48,7 @@ Az ADR-010 szerinti `SameSite=Lax` és a szigorú Origin-ellenőrzés együtt ad
 | `GET /storage/usage` | Core MVP | cookie | Used, reserved, limit és elérhető kvóta |
 | `POST /files/{fileId}/share-links` | Core MVP | owner cookie + Origin | Lejáró publikus share token létrehozása |
 | `GET /shares/{token}` | Core MVP | publikus | Share token validálása és rövid read URL |
-| `GET /health` | Core MVP | publikus | Minimális API health válasz |
+| `GET /health` | **Implementált scaffold** | publikus | Minimális API-liveness válasz |
 | `POST /files/{fileId}/ai-metadata-suggestions` | MVP+ | owner cookie + Origin | Explicit kép-javaslat indítása |
 | `GET /ai-metadata-suggestions/{suggestionId}` | MVP+ | owner cookie | Saját javaslat állapotának lekérése |
 | `POST /ai-metadata-suggestions/{suggestionId}/accept` | MVP+ | owner cookie + Origin | Javaslat elfogadása vagy szerkesztett elfogadása |
@@ -313,7 +317,7 @@ Provider timeout vagy hiba `FAILED` suggestiont vagy `AI_UNAVAILABLE` hibát ere
 
 ## Health
 
-`GET /health` tervezett publikus válasza minimális:
+`GET /health` (`GET /api/v1/health`) implementált publikus válasza `200 OK`:
 
 ```json
 {
@@ -321,7 +325,7 @@ Provider timeout vagy hiba `FAILED` suggestiont vagy `AI_UNAVAILABLE` hibát ere
 }
 ```
 
-Publikus válasz nem nevez meg dependency hostot, credentialt, bucketet, adatbázist vagy belső hibát. Részletes readiness/diagnosztika csak későbbi, védett operációs felületen tervezhető.
+A health liveness jelzés: a futó API válaszol. Induláskor a Prisma kapcsolatot nyit, de a health hívás nem ellenőrzi újra a PostgreSQL vagy MinIO aktuális elérhetőségét. Publikus válasz nem nevez meg dependency hostot, credentialt, bucketet, adatbázist vagy belső hibát. Részletes readiness/diagnosztika csak későbbi, védett operációs felületen tervezhető.
 
 ## Authorization és existence-hiding
 

@@ -1,8 +1,19 @@
 # Adatmodell
 
-**Tervezett állapot – nem implementált funkcionalitás.**
+**Részben implementált adatbázis-alap – termékfunkciók még nincsenek implementálva.**
 
-Jelenleg nincs `schema.prisma`, migráció vagy futó PostgreSQL-adatbázis. Ez a dokumentum a későbbi séma kanonikus tervezési szerződése; implementációkor a Prisma schema és e leírás eltérése nem maradhat jelöletlen.
+A kezdeti [Prisma-séma](../../backend/prisma/schema.prisma) és [SQL migráció](../../backend/prisma/migrations/20261018000100_initial_core/migration.sql) létrehozza a `User`, `FileObject`, `ShareLink`, `AuditEvent` modelleket. A schema nem jelent működő auth/upload/sharing/lifecycle API-t. Az alábbi táblák az alapmezők mellett későbbi mezőket és opcionális MI-t is terveznek; az implementált határ az alábbi külön szakaszban szerepel. A migráció tényleges futtatási eredménye a [tesztriport](../04_quality/test_report.md) része.
+
+## A kezdeti migráció implementált határa
+
+- `User`: a Core mezők, unique email és explicit `storageLimitBytes`; nincs előre beégetett felhasználói tárhelycsomag. Az auth később ad kvótát és normalizál emailt.
+- `FileObject`: a Core mezők és cleanup retry mezők; `FileStatus = PENDING_UPLOAD | ACTIVE | SOFT_DELETED`, `FileVisibility = PRIVATE`. A későbbi checksum, MI-tags/description és purge-állapotok nincsenek a sémában.
+- `ShareLink`: id, file/creator, SHA-256 `tokenHash`, expiresAt, createdAt; revoke/access limit/analytics nincs implementálva. A fájl `(id, ownerId)` unique kulcsára mutató `(fileObjectId, createdByUserId)` FK tiltja az eltérő tulajdonosú létrehozót; a share API később ellenőriz aktív állapotot is.
+- `AuditEvent`: Core mezők, nullable actor, JSONB metadata és indexek; az auditírás és metadata-allowlist service még nem implementált.
+- Időmezők `timestamptz(3)`, bájtszámlálók PostgreSQL BIGINT. A 100 MB-ként hivatkozott korlát itt pontosan 104857600 bájt (100 MiB).
+- A migráció SQL CHECK-jei a Prisma deklaráción túl védik a kvótát/számlálókat, fájlméretet, cleanup-számlálót, alap állapot/idő konzisztenciát és a share hash/lejárat alakját. Ezeket új migráció készítésekor meg kell őrizni; a Prisma nem írja le őket a schema DSL-ben.
+- User→file/share törlés `Restrict`; file→share törlés `Cascade`; audit actor törlés `SetNull`. Ez FK-védelem, nem megvalósított account-delete vagy purge termékfunkció.
+- `AiMetadataSuggestion`, import/session, processing job és derived result táblák nincsenek ebben a migrációban. A folytatható importhoz a [terv](../plan.md) szerint még külön szerződésfrissítés kell.
 
 ## Modellezési határ
 

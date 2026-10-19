@@ -1,12 +1,12 @@
 # Hibakezelési szerződés
 
-**Tervezett állapot – nem implementált funkcionalitás.**
+**Részben implementált: generikus HTTP hibakeret és request ID. A domainhibák tervezettek.**
 
-Jelenleg nincs globális exception filter, request-ID middleware vagy futtatható API. Ez a dokumentum a későbbi backend és frontend közös, kanonikus hibaszerződése.
+A scaffold globális exception filtert és request-ID middleware-t tartalmaz. A filter biztonságos, magyar generikus HTTP-üzeneteket és az alábbi nested wrappert adja; ismeretlen kivétel `500 INTERNAL_ERROR`. Hibás JSON `400 INVALID_REQUEST`, túl nagy request `413 REQUEST_TOO_LARGE`; explicit CORS-elutasítás `403 ORIGIN_NOT_ALLOWED`. A domainkatalógus, DTO-validáció, auth, rate limit és provider-specifikus mapping még nincs implementálva. A tényleges ellenőrzési eredményt a [tesztriport](../04_quality/test_report.md) tartalmazza.
 
 ## Kanonikus error wrapper
 
-Minden API-hiba – a DTO-validációt, authenticationt, Origin-elutasítást, rate limitet és váratlan providerhibát is beleértve – ugyanazt a nested alakot használja:
+Az implementált generikus hibák és a később megvalósítandó domainhibák közös célalakja a következő. Az alábbi upload-hiba jelenleg tervezett példa:
 
 ```json
 {
@@ -31,11 +31,15 @@ A sikeres válaszoknak nincs kötelező közös wrapperük.
 ## Request ID
 
 - A backend minden kéréshez szerver által megbízhatónak tekintett request ID-t biztosít.
-- Kliens által küldött `X-Request-Id` csak szigorú formátum- és hosszellenőrzés után vehető át; egyébként új érték készül.
-- Ugyanaz az ID szerepel a hibabodyban, response headerben, strukturált alkalmazáslogban és kapcsolódó audit eseményben.
+- Implementált szabály: a kliens `X-Request-Id` értéke csak 1–64 ASCII betű, szám, `_` vagy `-` esetén vehető át; egyébként szerveroldali véletlen UUID készül.
+- Implementált: ugyanaz az ID szerepel a hibabodyban és a response headerben; 5xx esetén a generikus hibalogban is. Auditírás és általános requestlog még nincs.
 - Request ID nem kódolhat user-, file-, token- vagy storage-adatot.
 
-## HTTP- és hibakód-katalógus
+## Implementált generikus mapping
+
+A filter 400/401/403/404/405/409/413/415/429/503 HTTP-státuszhoz rendre `INVALID_REQUEST`, `AUTH_REQUIRED`, `FORBIDDEN`, `RESOURCE_NOT_FOUND`, `METHOD_NOT_ALLOWED`, `RESOURCE_STATE_CONFLICT`, `REQUEST_TOO_LARGE`, `UNSUPPORTED_MEDIA_TYPE`, `RATE_LIMITED`, `SERVICE_UNAVAILABLE` kódot használ; az explicit Origin-hiba `ORIGIN_NOT_ALLOWED`. Más kivétel generikus `INTERNAL_ERROR`. Ezek HTTP-leképezések: önmagukban nem jelentenek auth-, rate-limit- vagy domainfunkciót. A `details` jelenleg mindig `{}`; a framework/provider eredeti message/body/stack mezői nem kerülnek a válaszba.
+
+## Tervezett HTTP- és domainhibakód-katalógus
 
 ### Közös, auth és request hibák
 
@@ -172,7 +176,9 @@ A provider konkrét státusza, request ID-ja, hostja és response bodyja nem ker
 - Minden state-changing hibaág megőrzi az adatmodell tranzakciós invariánsait.
 - Auditírás hibája nem írhatja felül az eredeti üzleti hibát és nem okozhat secret leaket; külön operációs jelzést igényel.
 
-## Frontend felelősségek
+## Tervezett frontend felelősségek
+
+A jelenlegi health kliens csak a státusz és válaszforma ellenőrzését végzi, hiba esetén generikus üzenetet mutat. Az alábbi domainkód-alapú frontend viselkedések még nincsenek implementálva.
 
 - A frontend a `code` alapján választ user-facing állapotot; nem parse-olja a `message` szöveget.
 - `AUTH_REQUIRED` loginra irányíthat, de megőrzi a secret nélküli navigációs szándékot.
