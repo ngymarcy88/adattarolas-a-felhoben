@@ -111,11 +111,12 @@ A történeti MVP-0–MVP-7 helyett az alábbi **SZD2-0–SZD2-7** az aktuális 
 - [x] Kezdeti Prisma schema és migráció: `User`, `FileObject`, `ShareLink`, `AuditEvent`.
 - [x] PostgreSQL–MinIO indítás, privát bucket, elkülönített bucket-szintű app user és ismételt init ellenőrzése; a tényleges eredmények a tesztriportban.
 - [ ] Az első import/processor tartós állapotigényének külön, szerződésalapú migrációja; ez nincs benne a kezdeti négy modellben.
+- [x] Külön jelszóhash/check service és izolált unit tesztjei; endpoint és DB-írás nélkül (ADR-014).
 - [ ] Regisztráció, login, logout és aktuális user; az elfogadott HttpOnly cookie-auth és Origin-védelem megtartása.
 - [ ] Védett frontend és auth loading/error állapotok.
 - [ ] Teljes, authot is tartalmazó Quickstart; a technikai scaffold indítási próbája a tesztriportban külön szerepel.
 
-**Státusz:** SZD2-1 részben implementált; a technikai scaffold futtatási próbája elkészült, az auth és az azt tartalmazó teljes Quickstart-kapu még nyitott. **Unit evidence:** configuration/health/request-ID/error alaptesztek létrejöttek, futtatási eredményük a tesztriportban; hash/check, authvalidáció, generic login hiba és auth/owner boundary még későbbi feladat. **Manuális evidence:** tiszta indulás, health és belépés. **Dolgozat:** problémafelvetés, célfelhasználók, követelmények és fő tervezési döntések érdemi szövege.
+**Státusz:** SZD2-1 részben implementált; a technikai scaffold futtatási próbája elkészült, az auth és az azt tartalmazó teljes Quickstart-kapu még nyitott. **Unit evidence:** configuration/health/request-ID/error alaptesztek létrejöttek, futtatási eredményük a tesztriportban; a jelszóhash/check külön unit tesztelt; authvalidáció, generic login hiba és auth/owner boundary még későbbi feladat. **Manuális evidence:** tiszta indulás, health és belépés. **Dolgozat:** problémafelvetés, célfelhasználók, követelmények és fő tervezési döntések érdemi szövege.
 
 ### SZD2-2: Első használható képköteg, galéria és processor
 

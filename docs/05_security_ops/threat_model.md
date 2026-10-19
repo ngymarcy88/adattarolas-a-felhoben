@@ -1,6 +1,6 @@
 # Threat model
 
-**Tervezett állapot – nem implementált funkcionalitás.**
+**A termékkontrollok tervezettek; a külön jelszóhash/check primitív implementált (ADR-014), auth-végpont még nincs.**
 
 ## Hatókör
 
@@ -61,7 +61,7 @@ A modell a tervezett Browser SPA, stateless NestJS API, PostgreSQL, privát MinI
 
 ## Nyitott go/no-go kapuk
 
-- Jelszóhash és token dependency konkrét kiválasztása/licence.
+- Jelszóhash-primitív: ADR-014 szerint beépített scrypt, új dependency nélkül; unit tesztelt. Regisztrációs jelszópolicy, login enumeration-védelem, terhelési/párhuzamossági védelem és tokenfüggőség még nyitott.
 - Rate-limit számértékek futtatási baseline alapján.
 - Production domain/topológia változása esetén cookie/CSRF ADR felülvizsgálata.
 - MI-provider régió, retention, tréningfelhasználás, DPA/licenc és költség.

@@ -108,7 +108,7 @@ Az ERD az olvashatóság kedvéért nem mutat minden nullable, cleanup- és `Lat
 |---|---|---|---|
 | `id` | UUID, PK | Core MVP | Átlátszatlan felhasználó-azonosító |
 | `email` | normalizált string, unique | Core MVP | Bejelentkezési azonosító; válaszokban csak a saját user kapja |
-| `passwordHash` | string | Core MVP | Jelszóhash; soha nem kerül API-ba, logba vagy audit metadata-ba |
+| `passwordHash` | string | Core MVP | [ADR-014](../02_architecture/adr/ADR-014-password-hashing.md) szerinti verziózott scrypt rekord (182 karakter, varchar(255)); soha nem kerül API-ba, logba vagy audit metadata-ba. A hash service nem ír még DB-be. |
 | `displayName` | validált string | Core MVP | Megjelenítési név |
 | `usedStorageBytes` | BigInt, default 0, `>= 0` | Core MVP | Aktivált és fizikailag még létező objektumok denormalizált mérete |
 | `reservedStorageBytes` | BigInt, default 0, `>= 0` | Core MVP | Pending uploadok deklarált, ideiglenesen foglalt mérete |

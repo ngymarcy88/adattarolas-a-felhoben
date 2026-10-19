@@ -24,6 +24,8 @@ Ez a napló a projekt szempontjából fontos AI-promptokat és azok eredményét
 
 | P-013 | 2026-10-19 | Copilot PR-review ellenőrzése és indokolt javítása | A felhasználó a PR Copilot-észrevételeinek átnézését, szükség szerinti javítását és beolvasztását kérte. | A PR #10 egyetlen észrevétele alapján a filter két body-parser hibát 415-re képez; két regressziós eset és a 4xx logolási tiltás ellenőrzése készült; hibaszerződés és tesztriport frissült. | Felhasználói kézi módosítás nincs rögzítve; a javaslatot az installált body-parser forrása, előbb elbukó unit tesztek és újrafuttatás alapján ellenőriztük. Új funkció vagy függőség nincs. | V-017 |
 
+| P-014 | 2026-10-19 | Jelszóhash-elés és ellenőrzés külön auth-szeletként | A felhasználó csak jelszóhash/check implementációt és unit teszteket kért, az endpointok előtti első lépésként. | `PasswordService` és 35 unit eset; ADR-014, kapcsolódó backend/adatmodell/security/quality/milestone státusz és AI-napló frissítés. | Felhasználói kézi módosítás nincs rögzítve. A Node beépített scryptje új dependency nélkül, OWASP-profillal készült; független Python fixture-rel ellenőrizve. Nincs DTO, regisztráció/login, cookie, DB-írás vagy AuthModule-wiring. | V-018 |
+
 ## Új bejegyzés sablon
 
 | ID | Dátum | Cél | Prompt röviden | Eredmény / artefakt | Kézi módosítás | Verification |

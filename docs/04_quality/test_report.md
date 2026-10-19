@@ -1,5 +1,20 @@
 # Test report
 
+## Jelszóhash/check szelet – 2026-10-19
+
+Vizsgált változat: `feature/password-hashing`, a `63e1469` main baseline utáni PasswordService-iteráció. Környezet: Windows/WSL2, Node 22.23.2, npm 10.9.8. Szintetikus unit-jelszavak, valós scrypt `N=131072/r=8/p=1` profillal; a költség tesztben sem csökkentett. Nincs DB-/HTTP-művelet vagy új függőség.
+
+| Ellenőrzés | Tényleges eredmény |
+|---|---|
+| Új password unit suite a teljes futtatásban | PASS: **35 teszt** |
+| `npm test` | PASS: 6 backend suite / **91 backend + 18 frontend = 109 teszt**, 0 failed/skipped |
+| `npm run typecheck --workspace backend` | PASS |
+| `npm run build --workspace backend` | PASS |
+
+A tesztek ellenőrzik a hash alakját/DB-mezőbe férését, a különböző saltokat, helyes/hibás jelszót, független Python `hashlib.scrypt` fixture elfogadását, whitespace és Unicode megőrzését, 72 bájton túli eltérést, ASCII/multibyte UTF-8 határokat, nem párosított surrogate és nem-string bemenet elutasítását. Malformed/unknown/eltérő költségű rekord nem indít KDF-et; a helyes alakú módosított digest elutasított. A randomforrás és scrypt hibái mockoltak, biztonságos kivételt adnak.
+
+A végleges 35 esetet a teljes kör futtatta; a salt/digest végére tett sortörésre külön negatív esetek is vannak. A service nem logol, nem ír adatbázisba, nincs auth-végpontba kötve. A jelszóerősségi policy, dummy verify/enumeration-védelem, rate limit és párhuzamos terhelési mérés későbbi auth-feladat. Timing-benchmark, coverage, új integration/e2e vagy CI nem készült. Döntés és korlátok: [ADR-014](../02_architecture/adr/ADR-014-password-hashing.md).
+
 ## PR #10 review-javítás – 2026-10-19
 
 Vizsgált változat: CloudVault 0.1.0, a `131e3cd` baseline utáni 415-hibamapping javítási iteráció. Környezet: Windows/WSL2, Node 22.23.2, npm 10.9.8. A korábbi scaffold baseline eredményei alább megmaradnak.

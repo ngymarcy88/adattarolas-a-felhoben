@@ -41,3 +41,7 @@ Az ADR-ek elfogadott **tervezési döntéseket** rögzítenek. Elfogadott státu
 ## Lokális technikai alap
 
 - [ADR-013: Reproducible local foundation and initial schema](ADR-013-local-foundation.md) – workspace, lokális környezet, Prisma-alap és source-built MinIO; a termékfunkciók ettől még tervezettek.
+
+## Jelszóhash-elési alap
+
+- [ADR-014: Asynchronous scrypt password hashing](ADR-014-password-hashing.md) – külön hash/check service, auth endpointok nélkül.
