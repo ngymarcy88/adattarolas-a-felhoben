@@ -22,6 +22,8 @@ Ez a napló a projekt szempontjából fontos AI-promptokat és azok eredményét
 
 | P-012 | 2026-10-19 | A technikai alap utólagos felbontása kisebb feladatokra | A felhasználó külön promptokra bontott utólagos implementációs tervet kért, hogy a már megvalósított alapot maga is végigellenőrizhesse. | `docs/04_quality/local_foundation_review_plan.md`: 15 lépés, bemenetekkel, eredeti implementációs szelettel, elfogadási feltételekkel, önálló promptokkal és nyitott szerzői checklisttel; indexlinkek. | Felhasználói kézi módosítás nincs rögzítve. Független AI-témaellenőrzés alapján megmaradási, init-idempotencia és bizonyítékhatár pontosítások készültek. Nincs kódmódosítás vagy a terv végrehajtása. | V-016 |
 
+| P-013 | 2026-10-19 | Copilot PR-review ellenőrzése és indokolt javítása | A felhasználó a PR Copilot-észrevételeinek átnézését, szükség szerinti javítását és beolvasztását kérte. | A PR #10 egyetlen észrevétele alapján a filter két body-parser hibát 415-re képez; két regressziós eset és a 4xx logolási tiltás ellenőrzése készült; hibaszerződés és tesztriport frissült. | Felhasználói kézi módosítás nincs rögzítve; a javaslatot az installált body-parser forrása, előbb elbukó unit tesztek és újrafuttatás alapján ellenőriztük. Új funkció vagy függőség nincs. | V-017 |
+
 ## Új bejegyzés sablon
 
 | ID | Dátum | Cél | Prompt röviden | Eredmény / artefakt | Kézi módosítás | Verification |

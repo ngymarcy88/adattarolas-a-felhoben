@@ -2,7 +2,7 @@
 
 **Részben implementált: generikus HTTP hibakeret és request ID. A domainhibák tervezettek.**
 
-A scaffold globális exception filtert és request-ID middleware-t tartalmaz. A filter biztonságos, magyar generikus HTTP-üzeneteket és az alábbi nested wrappert adja; ismeretlen kivétel `500 INTERNAL_ERROR`. Hibás JSON `400 INVALID_REQUEST`, túl nagy request `413 REQUEST_TOO_LARGE`; explicit CORS-elutasítás `403 ORIGIN_NOT_ALLOWED`. A domainkatalógus, DTO-validáció, auth, rate limit és provider-specifikus mapping még nincs implementálva. A tényleges ellenőrzési eredményt a [tesztriport](../04_quality/test_report.md) tartalmazza.
+A scaffold globális exception filtert és request-ID middleware-t tartalmaz. A filter biztonságos, magyar generikus HTTP-üzeneteket és az alábbi nested wrappert adja; ismeretlen kivétel `500 INTERNAL_ERROR`. Hibás JSON `400 INVALID_REQUEST`, túl nagy request `413 REQUEST_TOO_LARGE`, nem támogatott JSON-karakterkészlet vagy Content-Encoding `415 UNSUPPORTED_MEDIA_TYPE`; explicit CORS-elutasítás `403 ORIGIN_NOT_ALLOWED`. A domainkatalógus, DTO-validáció, auth, rate limit és provider-specifikus mapping még nincs implementálva. A tényleges ellenőrzési eredményt a [tesztriport](../04_quality/test_report.md) tartalmazza.
 
 ## Kanonikus error wrapper
 

@@ -1,5 +1,23 @@
 # Test report
 
+## PR #10 review-javítás – 2026-10-19
+
+Vizsgált változat: CloudVault 0.1.0, a `131e3cd` baseline utáni 415-hibamapping javítási iteráció. Környezet: Windows/WSL2, Node 22.23.2, npm 10.9.8. A korábbi scaffold baseline eredményei alább megmaradnak.
+
+A Copilot-észrevétel helyes volt: a body-parser `charset.unsupported` és `encoding.unsupported` hibái nem Nest `HttpException` példányok; a filter korábban `500 INTERNAL_ERROR` választ adott. A javítás mindkettőt `415 UNSUPPORTED_MEDIA_TYPE` válaszra képezi, üres details és request ID mellett. A klienshibák nem kerülnek 5xx hibaként a loggerbe.
+
+| Ellenőrzés | Tényleges eredmény |
+|---|---|
+| Két új regressziós eset a javítás előtt | 2 FAIL, 8 PASS: az elvárt 415 helyett 500; a hiba reprodukálva |
+| `npm test` a javítás után | PASS: 56 backend és 18 frontend, összesen **74 unit teszt**, 0 failed/skipped |
+| `npm run typecheck --workspace backend` | PASS |
+| `npm run build --workspace backend` | PASS |
+| Elkülönített NestJS HTTP-próba a buildelt filterrel | PASS: két nem támogatott charset/encoding kérés 415, biztonságos wrapper és egyező request ID; health 200 és hibás JSON 400 változatlan |
+
+A HTTP-próba ideiglenes, adatbázis nélküli Nest-modult használt a tényleges HealthControllerrel, request-ID middleware-rel, filterrel és alapértelmezett body-parserrel; a próbaszerver utána leállt. A teljes lokális stack nem futott e review-javítás próbájánál: a Docker daemon nem volt elérhető.
+
+Az új esetek a státuszkód mellett a hibakódot, a titokmentes választ, az üres details-t, a request ID-t és a 4xx logolásának hiányát ellenőrzik. A frontend forrása nem változott; új frontend build nem futott. Coverage-mérés, új integration/e2e suite vagy CI nem készült.
+
 ## Lokális technikai alap – 2026-10-19
 
 Hatókör: scaffold, konfiguráció, health, hibakezelés, kezdeti adatbázisséma és lokális infrastruktúra. Auth, feltöltés, import és processor még nincs; ezek tesztelése nem tekinthető teljesítettnek.

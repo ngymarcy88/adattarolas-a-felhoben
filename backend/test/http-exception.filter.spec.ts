@@ -29,6 +29,8 @@ describe('HttpExceptionFilter', () => {
     [new ApiError('ORIGIN_NOT_ALLOWED'), 403, 'ORIGIN_NOT_ALLOWED'],
     [Object.assign(new SyntaxError('secret malformed body'), { type: 'entity.parse.failed' }), 400, 'INVALID_REQUEST'],
     [Object.assign(new Error('secret oversized body'), { type: 'entity.too.large' }), 413, 'REQUEST_TOO_LARGE'],
+    [Object.assign(new Error('secret unsupported charset'), { type: 'charset.unsupported', status: 415 }), 415, 'UNSUPPORTED_MEDIA_TYPE'],
+    [Object.assign(new Error('secret unsupported encoding'), { type: 'encoding.unsupported', status: 415 }), 415, 'UNSUPPORTED_MEDIA_TYPE'],
   ])('maps known HTTP errors with safe code %#', (exception, status, code) => {
     const log = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
     const { response, host } = context('test_123');
@@ -37,6 +39,7 @@ describe('HttpExceptionFilter', () => {
     expect(response.json).toHaveBeenCalledWith({ error: expect.objectContaining({ code, details: {}, requestId: 'test_123' }) });
     expect(JSON.stringify(response.json.mock.calls)).not.toContain('secret');
     expect(response.setHeader).toHaveBeenCalledWith('X-Request-Id', 'test_123');
+    if (status < 500) expect(log).not.toHaveBeenCalled();
     log.mockRestore();
   });
 

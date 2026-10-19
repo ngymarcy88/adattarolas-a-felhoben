@@ -31,6 +31,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const status = exception instanceof HttpException ? exception.getStatus()
       : bodyParserError === 'entity.parse.failed' ? 400
       : bodyParserError === 'entity.too.large' ? 413
+      : bodyParserError === 'charset.unsupported' || bodyParserError === 'encoding.unsupported' ? 415
       : 500;
     const fallback = { code: 'INTERNAL_ERROR', message: 'Váratlan hiba történt. Próbáld újra később.' };
     const safe = exception instanceof ApiError
