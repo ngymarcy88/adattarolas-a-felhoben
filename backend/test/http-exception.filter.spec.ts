@@ -27,6 +27,8 @@ describe('HttpExceptionFilter', () => {
     [new NotFoundException('private/path?token=secret'), 404, 'RESOURCE_NOT_FOUND'],
     [new HttpException('provider=secret', 503), 503, 'SERVICE_UNAVAILABLE'],
     [new ApiError('ORIGIN_NOT_ALLOWED'), 403, 'ORIGIN_NOT_ALLOWED'],
+    [new ApiError('AUTH_REQUIRED'), 401, 'AUTH_REQUIRED'],
+    [new ApiError('INVALID_CREDENTIALS'), 401, 'INVALID_CREDENTIALS'],
     [new ApiError('VALIDATION_ERROR'), 400, 'VALIDATION_ERROR'],
     [new ApiError('EMAIL_ALREADY_EXISTS'), 409, 'EMAIL_ALREADY_EXISTS'],
     [new ApiError('RATE_LIMITED'), 429, 'RATE_LIMITED'],

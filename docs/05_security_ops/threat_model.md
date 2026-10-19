@@ -1,6 +1,6 @@
 # Threat model
 
-**Részben implementált: scrypt (ADR-014) és backend regisztráció; a további termékkontrollok tervezettek.**
+**Részben implementált: scrypt (ADR-014), register/login/logout/me és HttpOnly JWT-cookie (ADR-010); a további termékkontrollok tervezettek.**
 
 ## Hatókör
 
@@ -61,7 +61,7 @@ A modell a tervezett Browser SPA, stateless NestJS API, PostgreSQL, privát MinI
 
 ## Nyitott go/no-go kapuk
 
-- Jelszóhash-primitív: ADR-014 szerint beépített scrypt, új dependency nélkül; unit tesztelt. Regisztráció: 15 kódpontos minimum, 1024 bájtos maximum, szigorú DTO/Origin, közvetlen peer 5/60s (legfeljebb 1024 állapot), egy drága regisztráció/folyamat, nincs várósor. Konzervatív lokális korlátok, nem terhelési bizonyíték. A 409 felfedheti a fiók létezését (API-tradeoff). Kompromittáltjelszó-blokklista, email-verifikáció, login enumeration-védelem, többprocesszes limiter/proxy-policy, terhelésmérés, audit és tokenfüggőség még nyitott; nincs teljes auth-készültségállítás.
+- Jelszóhash-primitív: ADR-014 szerint beépített scrypt, új dependency nélkül; unit tesztelt. Regisztráció: 15 kódpontos minimum, 1024 bájtos maximum, szigorú DTO/Origin, közvetlen peer 5/60s (legfeljebb 1024 állapot), egy közös drága register/login művelet/folyamat, nincs várósor. Konzervatív lokális korlátok, nem terhelési bizonyíték. A 409 felfedheti a fiók létezését (API-tradeoff). Kompromittáltjelszó-blokklista, email-verifikáció, többprocesszes limiter/proxy-policy, terhelésmérés, audit, valós DB- és browser-elfogadás még nyitott. Login generikus hibája és hiányzó user dummy scryptje implementált; nincs teljes requestidő-azonossági állítás. JWT HS256 fix issuer/audience, UUID subject, iat/exp/TTL és public DB-user ellenőrzés implementált; cookie HttpOnly/Lax és production Secure, same-site HTTPS topológiát feltételez. Nincs refresh vagy logout utáni korábban másolt token-revokáció; ADR-010 elfogadott korlát.
 - Rate-limit számértékek futtatási baseline alapján.
 - Production domain/topológia változása esetén cookie/CSRF ADR felülvizsgálata.
 - MI-provider régió, retention, tréningfelhasználás, DPA/licenc és költség.

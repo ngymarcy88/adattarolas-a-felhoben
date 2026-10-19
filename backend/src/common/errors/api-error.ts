@@ -1,7 +1,9 @@
 import { HttpException } from '@nestjs/common';
 
 const apiErrors = {
-  VALIDATION_ERROR: { status: 400, message: 'A megadott regisztrációs adatok érvénytelenek.' },
+  INVALID_CREDENTIALS: { status: 401, message: 'Hibás e-mail-cím vagy jelszó.' },
+  AUTH_REQUIRED: { status: 401, message: 'A művelethez bejelentkezés szükséges.' },
+  VALIDATION_ERROR: { status: 400, message: 'A megadott adatok érvénytelenek.' },
   EMAIL_ALREADY_EXISTS: { status: 409, message: 'Ezzel az e-mail-címmel már létezik fiók.' },
   RATE_LIMITED: { status: 429, message: 'Túl sok kérés érkezett. Próbáld újra később.' },
   SERVICE_UNAVAILABLE: { status: 503, message: 'A szolgáltatás átmenetileg nem érhető el.' },

@@ -1,20 +1,18 @@
-import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+import { ExecutionContext, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Request } from 'express';
-import type { AppConfig } from '../config/app-config';
+import { OriginGuard } from './origin.guard';
 import { ApiError } from '../common/errors/api-error';
 
 @Injectable()
-export class RegistrationGuard implements CanActivate {
+export class RegistrationGuard extends OriginGuard {
   private readonly attempts = new Map<string, { count: number; expiresAt: number }>();
 
-  constructor(private readonly config: ConfigService) {}
+  constructor(config: ConfigService) { super(config); }
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<Request>();
-    if (request.headers.origin !== this.config.getOrThrow<AppConfig>('app').frontendPublicUrl) {
-      throw new ApiError('ORIGIN_NOT_ALLOWED');
-    }
+    super.canActivate(context);
     // Trust the direct peer, never client-supplied X-Forwarded-For. The local
     // backend does not enable Express trust proxy. Limits are process-local.
     const peer = request.socket.remoteAddress ?? 'unknown';

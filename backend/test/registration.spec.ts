@@ -5,6 +5,7 @@ import { Prisma } from '../src/generated/prisma/client';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { AuthController } from '../src/auth/auth.controller';
 import { AuthService } from '../src/auth/auth.service';
+import { SessionService } from '../src/auth/session.service';
 import { PasswordService } from '../src/auth/password.service';
 import { RegisterDto, RegisterValidationPipe } from '../src/auth/register.dto';
 import { RegistrationGuard } from '../src/auth/registration.guard';
@@ -162,7 +163,7 @@ describe('AuthService registration', () => {
 
   it('controller delegates validated registration without creating a token', async () => {
     const input = pipe.transform(valid());
-    const controller = new AuthController(service);
+    const controller = new AuthController(service, {} as SessionService);
     expect(await controller.register(input)).toEqual({ user: { ...user, createdAt: user.createdAt.toISOString() } });
   });
 });

@@ -54,7 +54,10 @@ export function validateEnvironment(env: Record<string, unknown>): AppConfig {
     invalid.add('DATABASE_URL');
   }
   const jwtExpiresIn = text('JWT_EXPIRES_IN', '1h');
-  if (!/^[1-9]\d*[smhd]$/.test(jwtExpiresIn)) invalid.add('JWT_EXPIRES_IN');
+  const ttlMatch = /^([1-9]\d{0,5})([smhd])$/.exec(jwtExpiresIn);
+  const units: Record<string, number> = { s: 1, m: 60, h: 3600, d: 86400 };
+  const jwtTtlSeconds = ttlMatch ? Number(ttlMatch[1]) * units[ttlMatch[2]] : NaN;
+  if (!Number.isSafeInteger(jwtTtlSeconds) || jwtTtlSeconds < 1 || jwtTtlSeconds > 86400) invalid.add('JWT_EXPIRES_IN');
   const forcePathStyle = text('S3_FORCE_PATH_STYLE', 'true');
   if (!['true', 'false'].includes(forcePathStyle)) invalid.add('S3_FORCE_PATH_STYLE');
   const region = required('S3_REGION');
@@ -77,6 +80,7 @@ export function validateEnvironment(env: Record<string, unknown>): AppConfig {
     databaseUrl,
     jwtSecret: secret('JWT_SECRET', 32),
     jwtExpiresIn,
+    jwtTtlSeconds,
     defaultUserStorageLimitBytes: integer('DEFAULT_USER_STORAGE_LIMIT_BYTES', 1073741824, 1, Number.MAX_SAFE_INTEGER),
     storage: {
       endpoint: url('S3_ENDPOINT', ['http:', 'https:'], true),

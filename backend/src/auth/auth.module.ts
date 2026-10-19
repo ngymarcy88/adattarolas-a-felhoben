@@ -1,3 +1,7 @@
+import { SessionService } from './session.service';
+import { SessionGuard } from './session.guard';
+import { OriginGuard } from './origin.guard';
+import { LoginValidationPipe } from './login.dto';
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthController } from './auth.controller';
@@ -9,6 +13,6 @@ import { RegistrationGuard } from './registration.guard';
 @Module({
   imports: [PrismaModule],
   controllers: [AuthController],
-  providers: [AuthService, PasswordService, RegisterValidationPipe, RegistrationGuard],
+  providers: [AuthService, PasswordService, RegisterValidationPipe, RegistrationGuard, SessionService, SessionGuard, OriginGuard, LoginValidationPipe],
 })
 export class AuthModule {}

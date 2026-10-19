@@ -1,8 +1,8 @@
 # Hibakezelési szerződés
 
-**Részben implementált: generikus HTTP hibakeret és request ID. A regisztráció hibái is implementáltak; a többi domainhiba tervezett.**
+**Részben implementált: generikus HTTP hibakeret és request ID. A regisztráció és login/logout/me hibái is implementáltak; a többi domainhiba tervezett.**
 
-A scaffold globális exception filtert és request-ID middleware-t tartalmaz. A filter biztonságos, magyar generikus HTTP-üzeneteket és az alábbi nested wrappert adja; ismeretlen kivétel `500 INTERNAL_ERROR`. Hibás JSON `400 INVALID_REQUEST`, túl nagy request `413 REQUEST_TOO_LARGE`, nem támogatott JSON-karakterkészlet vagy Content-Encoding `415 UNSUPPORTED_MEDIA_TYPE`; explicit CORS-elutasítás `403 ORIGIN_NOT_ALLOWED`. A regisztráció DTO-pipe-ja `400 VALIDATION_ERROR`, unique-email hibája `409 EMAIL_ALREADY_EXISTS`, guardja `429 RATE_LIMITED`, foglaltság/hash/DB hibája `503 SERVICE_UNAVAILABLE`; üres details és biztonságos üzenet. A többi domainkatalógus/auth/provider-mapping tervezett. A tényleges ellenőrzési eredményt a [tesztriport](../04_quality/test_report.md) tartalmazza.
+A scaffold globális exception filtert és request-ID middleware-t tartalmaz. A filter biztonságos, magyar generikus HTTP-üzeneteket és az alábbi nested wrappert adja; ismeretlen kivétel `500 INTERNAL_ERROR`. Hibás JSON `400 INVALID_REQUEST`, túl nagy request `413 REQUEST_TOO_LARGE`, nem támogatott JSON-karakterkészlet vagy Content-Encoding `415 UNSUPPORTED_MEDIA_TYPE`; explicit CORS-elutasítás `403 ORIGIN_NOT_ALLOWED`. A regisztráció DTO-pipe-ja `400 VALIDATION_ERROR`, unique-email hibája `409 EMAIL_ALREADY_EXISTS`, guardja `429 RATE_LIMITED`, foglaltság/hash/DB hibája `503 SERVICE_UNAVAILABLE`; üres details és biztonságos üzenet. Login: `401 INVALID_CREDENTIALS`; cookie/token/DB-user hiány a `/me` guardban `401 AUTH_REQUIRED`; auth DB/KDF/sign vagy kapacitáshiba `503 SERVICE_UNAVAILABLE`. Login/logout Origin és login DTO/rate-limit implementált. A többi domain/provider-mapping tervezett. A tényleges ellenőrzési eredményt a [tesztriport](../04_quality/test_report.md) tartalmazza.
 
 ## Kanonikus error wrapper
 
@@ -39,7 +39,7 @@ A sikeres válaszoknak nincs kötelező közös wrapperük.
 
 A filter 400/401/403/404/405/409/413/415/429/503 HTTP-státuszhoz rendre `INVALID_REQUEST`, `AUTH_REQUIRED`, `FORBIDDEN`, `RESOURCE_NOT_FOUND`, `METHOD_NOT_ALLOWED`, `RESOURCE_STATE_CONFLICT`, `REQUEST_TOO_LARGE`, `UNSUPPORTED_MEDIA_TYPE`, `RATE_LIMITED`, `SERVICE_UNAVAILABLE` kódot használ; az explicit Origin-hiba `ORIGIN_NOT_ALLOWED`. Más kivétel generikus `INTERNAL_ERROR`. Ezek HTTP-leképezések: önmagukban nem jelentenek auth-, rate-limit- vagy domainfunkciót. A `details` jelenleg mindig `{}`; a framework/provider eredeti message/body/stack mezői nem kerülnek a válaszba.
 
-## HTTP- és domainhibakód-katalógus (a regisztráció fenti kódjai implementáltak, a többi tervezett)
+## HTTP- és domainhibakód-katalógus (a fenti auth kódok implementáltak, a többi tervezett)
 
 ### Közös, auth és request hibák
 
