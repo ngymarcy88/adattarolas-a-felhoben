@@ -1,10 +1,10 @@
 # Test strategy
 
-**Tervezett állapot – nem implementált funkcionalitás.**
+**Unit-first stratégia – a technikai alap tesztjei implementáltak, a termékmátrix tervezett.**
 
 ## Cél és hatókör
 
-Az első implementációs fázis unit tesztekkel védi a Core MVP üzleti szabályait. A jelen dokumentációs kör nem hoz létre test runnert vagy tesztkódot. Backendhez később Jest, frontendhez csak nem triviális izolált logika esetén Vitest használható.
+Az első implementációs fázis unit tesztekkel védi a Core MVP üzleti szabályait. A technikai alaphoz Jest és Vitest runner, konfigurációs/hiba/request-ID/health/API-kliens és mockolt Prisma-életciklus unit tesztek készültek. A további auth/upload/import/processing tesztek tervezettek; a futtatott suite és eredménye a test reportban található.
 
 A unit-first fejlesztés nem a végső SZD2 elfogadási kapu. Az októberi célhoz komponensek együttműködését, teljes folyamatokat, recoveryt és használhatóságot is bizonyítani kell. A roadmap SZD2-6 minőségi fázisában az alábbiak tervezettek, bevezetésük előtt az AGENTS.md szerinti külön engedélyezéssel:
 
@@ -110,7 +110,7 @@ A jelenlegi baseline nélkül nincs hiteles százalékos coverage-küszöb. A k�
 
 ## SZD2 minőségi és átadási fázis
 
-Az SZD2-6 fázisban a teljes alkalmazás bizonyításához az alábbi ellenőrzési terv tartozik; jelen módosítás nem hoz létre runnert, függőséget, tesztet vagy CI-t. Az integration/e2e/contract és CI indulásához külön felhatalmazás szükséges. Bevezetéskor rögzíteni kell a környezetet, fixture cleanupot, MinIO/PostgreSQL izolációt, CI-erőforrást és flake-kezelést.
+Az SZD2-6 fázisban a teljes alkalmazás bizonyításához az alábbi ellenőrzési terv tartozik; a jelenlegi scaffold nem hoz létre nagyobb tesztszintet vagy CI-t. Az integration/e2e/contract és CI indulásához külön felhatalmazás szükséges. Bevezetéskor rögzíteni kell a környezetet, fixture cleanupot, MinIO/PostgreSQL izolációt, CI-erőforrást és flake-kezelést.
 
 | Szint | Bizonyítandó viselkedés |
 |---|---|

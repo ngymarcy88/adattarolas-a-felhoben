@@ -4,7 +4,7 @@
 
 ## Jelenlegi állapot
 
-A repository nem tartalmaz production adatot, feltöltött felhasználói fájlt, package manifestet vagy telepített alkalmazásdependency-listát. Ez a dokumentum tervezett adatkezelési és licencellenőrzési kapukat ír le; nem jogi tanács és nem kész adatkezelési tájékoztató.
+A repository technikai scaffoldot, package manifesteket és verziózott kezdeti sémát tartalmaz. Production adatot és valódi felhasználói médiát nem tartalmaz; az indítási próba szintetikus adatot használ. A root lockfile a dependency-verziók forrása. Az alábbi termék-adatkezelési kapuk továbbra is tervezettek, nem kész adatkezelési tájékoztató.
 
 ## Tervezett adatleltár
 
@@ -54,7 +54,23 @@ E kapu hiányában az MVP+ funkció nem implementálható és valós képet nem 
 
 ## Dependency licensing baseline
 
-Jelenleg nincs `package.json`, ezért nincs ellenőrizhető third-party dependency vagy lockfile. A stack és a dokumentumokban említett lehetséges könyvtárak nem jelentenek telepítést vagy elfogadott licencleltárt.
+A telepített közvetlen npm-függőségek verzióit a root lockfile és a két workspace package manifestje rögzíti. A 2026-10-19-i lockfile-metaadat ellenőrzés közvetlen függőségei az alábbiak; az audit eredménye a [tesztriportban](../04_quality/test_report.md) található; a teljes tranzitív licencek és egy későbbi kiadás feltételeinek review-ja nem zárul le pusztán a scaffold elkészültével.
+
+| Közvetlen npm-csomagcsoport | Licenc a lockfile szerint | Szerep |
+|---|---|---|
+| NestJS 11.2.7, Config 4.0.4 | MIT | Backend runtime |
+| Prisma Client/adapter/CLI 7.10.1 | Apache-2.0 | ORM és adatbázis tooling |
+| reflect-metadata 0.2.2, RxJS 7.8.2 | Apache-2.0 | Backend runtime |
+| dotenv 17.3.1 | BSD-2-Clause | Lokális konfiguráció |
+| Vue 3.5.44, Router 4.6.4 | MIT | Frontend runtime |
+| Vite 8.3.4, plugin-vue 6.0.10, Tailwind/plugin 4.3.3 | MIT | Frontend build |
+| Jest 30.5.2, ts-jest 29.4.6, Vitest 5.0.5 | MIT | Unit tooling |
+| Nest CLI 11.0.24, vue-tsc 3.3.13, közvetlen @types csomagok | MIT | Fejlesztői tooling |
+| TypeScript 5.9.3 | Apache-2.0 | Fordító |
+
+A pontos csomagneveket, eltérő `@types/node` verziókat és forrás-URL-eket a két manifest és a lockfile tartalmazza. Ez metaadatleltár, nem teljes tranzitív licencaudit.
+
+A MinIO szerver és inicializáló kliens AGPL-3.0 licencű upstream forrásból Dockerben épül; pontos commitjuk az `infra/minio/Dockerfile` fájlban rögzített. Upstream források: [MinIO](https://github.com/minio/minio), [mc](https://github.com/minio/mc). Ezek lokális szolgáltatások, nem böngészőbe csomagolt könyvtárak. Publikálás/terjesztés és cloud üzemeltetés előtt a licencek, forráselérhetőség és karbantartottság külön felülvizsgálandó. A saját repository licence még nincs kijelölve. A scaffold nem küld alkalmazásadatot külső MI-providerhez.
 
 Dependency hozzáadásakor rögzítendő:
 

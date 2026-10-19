@@ -850,31 +850,58 @@ The README should eventually allow a reviewer to start the app within a reasonab
 
 ---
 
-## Commands
+## Execution environment
 
-Before running commands, inspect the relevant `package.json` files.
-
-Do not invent commands if scripts do not exist.
-
-Common expected commands after scaffolding may include:
+- On the thesis author's current machine, the repository is on the Windows filesystem, mounted in WSL at `/mnt/c/Users/ngy-m/Desktop/szakdolgozat/adattarolas-a-felhoben`. Codex executes commands in **WSL Bash**. This is a local-machine example, not a required checkout path; use the actual working directory or `git rev-parse --show-toplevel` for other checkouts/worktrees.
+- Use Linux `node` and `npm` inside WSL (currently `/usr/bin/node` and `/usr/bin/npm`), not Windows `node.exe`/`npm.cmd`. Follow `.nvmrc` and the package engines; verified baseline: Node 22.23.2 and npm 10.9.8. If tool resolution changes, inspect `command -v node` and `command -v npm` before installing anything.
+- Run workspace commands from the repository root. Use the single root `package-lock.json`; do not install separately in `backend/` or `frontend/`, mix Windows and Linux `node_modules`, or reinstall dependencies on every task.
+- Installation, module loading, tests and builds on `/mnt/c` can take several minutes. Keep running commands in their existing sessions and inspect their output; silence alone is not a failure or a reason to start a duplicate install/test/build. Do not move the checkout or change global WSL/Docker settings without a user request.
+- Docker Desktop must be running with Linux containers. Check `docker version` for a reachable Server, not just `command -v docker`: on this machine the WSL `docker` shim existed but Docker integration was unavailable during the foundation verification.
+- If normal WSL Docker integration works, use the root `infra:*` scripts. Otherwise the verified Windows CLI fallback is `/mnt/c/Program Files/Docker/Docker/resources/bin/docker.exe`; quote the path and run it from the repository root. Check that it exists on the current machine before using it. Equivalent commands are below; they read the same root `.env` and Compose file:
 
 ```bash
-# backend
-cd backend
-npm install
-npm run start:dev
-npm run test
-npm run build
-
-# frontend
-cd frontend
-npm install
-npm run dev
-npm run test
-npm run build
+docker_cli='/mnt/c/Program Files/Docker/Docker/resources/bin/docker.exe'
+"$docker_cli" compose up -d --build --wait postgres minio
+"$docker_cli" compose run --build --rm minio-init
+"$docker_cli" compose ps -a
+# Stop only when needed; named volumes are preserved.
+"$docker_cli" compose down
 ```
 
-If these scripts do not exist, either add them as part of the setup or report what is missing.
+Do not assume an earlier session's temporary `/tmp` Docker wrapper still exists. If the Windows CLI is also unavailable, report the concrete prerequisite instead of repeatedly searching or reinstalling Docker. Never print the fully resolved Compose configuration or `.env`, since they contain credentials; use `compose config --quiet` for validation.
+
+---
+
+## Commands
+
+Before running commands, inspect the relevant `package.json` files. These root scripts exist in the technical foundation; keep this list synchronized when scripts change. The Quickstart and prerequisites are in [README.md](README.md).
+
+```bash
+# First setup, or reinstall only when justified by dependency/lockfile changes.
+npm ci
+npm run env:init
+npm run infra:up
+npm run db:generate
+npm run db:migrate
+
+# Separate terminals, both started from the repository root.
+npm run dev:backend
+npm run dev:frontend
+
+# Verification; unit tests do not require PostgreSQL or MinIO.
+npm run db:validate
+npm run typecheck
+npm test
+npm run build
+
+# Local infrastructure status / non-destructive shutdown, when needed.
+npm run infra:status
+npm run infra:down
+```
+
+The command groups above are alternatives for the task at hand, not a script to run unconditionally in full. Use the Docker fallback above for `infra:*` operations if WSL integration is unavailable. Build/typecheck generate Prisma Client automatically; Prisma CLI commands need the local `.env`. `env:init` preserves existing credentials. Never reset database volumes to fix a routine setup problem.
+
+For targeted checks, use `npm run test --workspace backend` or `npm run test --workspace frontend`. For a new development migration use `npm run db:migrate:dev -- --name <name>`; normal setup applies committed migrations with `npm run db:migrate`. Do not invent scripts that do not exist.
 
 ---
 

@@ -37,3 +37,7 @@ Az ADR-ek elfogadott **tervezési döntéseket** rögzítenek. Elfogadott státu
 - verification.
 
 Új ADR vagy státuszfrissítés szükséges, ha a stack, auth, storage flow, adatmodell, purge/worker technológia vagy MI-provider stratégia érdemben változik.
+
+## Lokális technikai alap
+
+- [ADR-013: Reproducible local foundation and initial schema](ADR-013-local-foundation.md) – workspace, lokális környezet, Prisma-alap és source-built MinIO; a termékfunkciók ettől még tervezettek.

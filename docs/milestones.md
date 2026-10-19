@@ -2,11 +2,11 @@
 
 ## Státusz és használat
 
-**2026-10-18-i tervezett végrehajtási roadmap – termékfunkció még nincs implementálva.**
+**2026-10-18-i végrehajtási roadmap – kezdeti technikai scaffold létezik, termékfunkció még nincs implementálva.**
 
 Az aktuális célt a [high-level terv](plan.md), az októberi források összefoglalóját a [SKILL.md](../SKILL.md) rögzíti. Ez a dokumentum a végrehajtási sorrend, a státusz és az evidence-kapuk forrása. A részletes product/API/adatmodell/ADR szerződések még célzott kiegészítésre várnak; az alábbi követelmények elsőbbséget élveznek a korábbi thumbnail-Later/single-PUT-only scope-pal szemben.
 
-- `[x]`: fájlokkal és ellenőrzéssel igazolt történeti dokumentációs eredmény; nem működő termék.
+- `[x]`: fájlokkal és ellenőrzéssel igazolt eredmény; a történeti dokumentációs kapuk önmagukban nem működő termékek.
 - `[ ]`: még nem igazolt vagy nem implementált feladat.
 - **Kötelező SZD2 mag:** teljes alapalkalmazás + folytatható képimport + két processor/recovery + bizonyítás és dolgozat.
 - **MVP+:** opcionális MI, a kötelező lezárás függőségi útvonalán kívül.
@@ -105,13 +105,17 @@ A történeti MVP-0–MVP-7 helyett az alábbi **SZD2-0–SZD2-7** az aktuális 
 
 **Függőség:** SZD2-0 első szelethez szükséges szerződései.
 
-- [ ] PostgreSQL és MinIO Docker Compose, privát bucket és a választott adatúthoz szükséges CORS-konfiguráció.
-- [ ] Vue/NestJS scaffold, centralizált és validált config, placeholder `.env.example`, health endpoint.
-- [ ] Kezdeti Prisma schema és migráció, user/fájl/kvóta/audit alapokkal és az első import/processor állapotigényével.
+- [x] PostgreSQL és MinIO Docker Compose és privát bucketet létrehozó init-konfiguráció. A futtatási próba külön kapu.
+- [ ] A majd kiválasztott upload-adatúthoz szükséges storage CORS-konfiguráció; ez nem azonos a scaffold API-CORS-beállításával.
+- [x] Vue/NestJS scaffold, centralizált és validált config, `.env.example`, publikus health endpoint kódja és npm workspace-scriptek. A tényleges futtatási ellenőrzést a tesztriport rögzíti.
+- [x] Kezdeti Prisma schema és migráció: `User`, `FileObject`, `ShareLink`, `AuditEvent`.
+- [x] PostgreSQL–MinIO indítás, privát bucket, elkülönített bucket-szintű app user és ismételt init ellenőrzése; a tényleges eredmények a tesztriportban.
+- [ ] Az első import/processor tartós állapotigényének külön, szerződésalapú migrációja; ez nincs benne a kezdeti négy modellben.
 - [ ] Regisztráció, login, logout és aktuális user; az elfogadott HttpOnly cookie-auth és Origin-védelem megtartása.
-- [ ] Védett frontend, auth loading/error állapotok és kipróbált Quickstart.
+- [ ] Védett frontend és auth loading/error állapotok.
+- [ ] Teljes, authot is tartalmazó Quickstart; a technikai scaffold indítási próbája a tesztriportban külön szerepel.
 
-**Unit evidence:** hash/check, validáció, generic login hiba, auth/owner boundary és configuration hibák. **Manuális evidence:** tiszta indulás, health és belépés. **Dolgozat:** problémafelvetés, célfelhasználók, követelmények és fő tervezési döntések érdemi szövege.
+**Státusz:** SZD2-1 részben implementált; a technikai scaffold futtatási próbája elkészült, az auth és az azt tartalmazó teljes Quickstart-kapu még nyitott. **Unit evidence:** configuration/health/request-ID/error alaptesztek létrejöttek, futtatási eredményük a tesztriportban; hash/check, authvalidáció, generic login hiba és auth/owner boundary még későbbi feladat. **Manuális evidence:** tiszta indulás, health és belépés. **Dolgozat:** problémafelvetés, célfelhasználók, követelmények és fő tervezési döntések érdemi szövege.
 
 ### SZD2-2: Első használható képköteg, galéria és processor
 

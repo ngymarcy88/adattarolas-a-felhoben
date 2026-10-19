@@ -10,7 +10,7 @@ Accepted
 
 ## Implementation status
 
-Tervezett állapot – nincs NestJS scaffold vagy futtatható API.
+Kezdeti NestJS/TypeScript scaffold implementálva: config, health, Prisma service, request ID és globális hibafilter. Az egyetlen endpoint `GET /api/v1/health`; auth, files, storage adapter, sharing és auditírás még nincs. Futtatási evidence: tesztriport.
 
 ## Context
 

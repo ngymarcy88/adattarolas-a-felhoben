@@ -46,3 +46,6 @@ minio-data/
 postgres-data/
 *.sqlite
 *.sqlite3
+
+# Prisma generated client (recreated by npm run db:generate)
+backend/src/generated/

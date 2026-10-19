@@ -10,7 +10,7 @@ Accepted
 
 ## Implementation status
 
-Tervezett állapot – nincs frontend scaffold vagy futtatható UI.
+Kezdeti Vue/Vite/TypeScript/Tailwind/Vue Router scaffold implementálva, egy magyar kezdőoldallal és health API-klienssel. Auth, védett route, galéria és upload UI még nincs. Nincs Pinia. A build/teszt/kézi ellenőrzés tényleges eredménye a tesztriportban szerepel.
 
 ## Context
 

@@ -1,0 +1,28 @@
+{
+  "name": "cloudvault",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "engines": {
+    "node": "^22.23.2 || ^24.15.0",
+    "npm": ">=10"
+  },
+  "scripts": {
+    "env:init": "node scripts/init-env.mjs",
+    "infra:up": "docker compose up -d --build --wait postgres minio && docker compose run --build --rm minio-init",
+    "infra:down": "docker compose down",
+    "infra:status": "docker compose ps -a",
+    "db:generate": "npm run prisma:generate --workspace backend",
+    "db:validate": "npm run prisma:validate --workspace backend",
+    "db:migrate": "npm run prisma:deploy --workspace backend",
+    "db:migrate:dev": "npm run prisma:migrate --workspace backend --",
+    "dev:backend": "npm run start:dev --workspace backend",
+    "dev:frontend": "npm run dev --workspace frontend",
+    "build": "npm run db:generate && npm run build --workspaces",
+    "typecheck": "npm run db:generate && npm run typecheck --workspaces",
+    "test": "npm run test --workspaces"
+  }
+}

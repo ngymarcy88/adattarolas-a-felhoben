@@ -1,0 +1,90 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum FileStatus {
+  PENDING_UPLOAD
+  ACTIVE
+  SOFT_DELETED
+}
+
+enum FileVisibility {
+  PRIVATE
+}
+
+model User {
+  id                   String       @id @default(uuid()) @db.Uuid
+  email                String       @unique @db.VarChar(254)
+  passwordHash         String       @db.VarChar(255)
+  displayName          String       @db.VarChar(100)
+  usedStorageBytes     BigInt       @default(0)
+  reservedStorageBytes BigInt       @default(0)
+  storageLimitBytes    BigInt
+  createdAt            DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime     @updatedAt @db.Timestamptz(3)
+  files                FileObject[]
+  shareLinks           ShareLink[]
+  auditEvents          AuditEvent[]
+}
+
+model FileObject {
+  id                   String         @id @default(uuid()) @db.Uuid
+  ownerId              String         @db.Uuid
+  originalName         String         @db.VarChar(255)
+  storageKey           String         @unique @db.VarChar(1024)
+  mimeType             String         @db.VarChar(100)
+  detectedMimeType     String?        @db.VarChar(100)
+  sizeBytes            BigInt
+  visibility           FileVisibility @default(PRIVATE)
+  status               FileStatus     @default(PENDING_UPLOAD)
+  uploadUrlExpiresAt   DateTime       @db.Timestamptz(3)
+  confirmBy            DateTime       @db.Timestamptz(3)
+  cleanupRetryAfter    DateTime?      @db.Timestamptz(3)
+  cleanupAttemptCount  Int            @default(0)
+  cleanupLastErrorCode String?        @db.VarChar(100)
+  deletedAt            DateTime?      @db.Timestamptz(3)
+  purgeAfter           DateTime?      @db.Timestamptz(3)
+  createdAt            DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime       @updatedAt @db.Timestamptz(3)
+  owner                User           @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  shareLinks           ShareLink[]
+
+  @@unique([id, ownerId])
+  @@index([ownerId, status, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([status, confirmBy])
+  @@index([status, purgeAfter])
+}
+
+model ShareLink {
+  id              String     @id @default(uuid()) @db.Uuid
+  fileObjectId    String     @db.Uuid
+  createdByUserId String     @db.Uuid
+  tokenHash       String     @unique @db.Char(64)
+  expiresAt       DateTime   @db.Timestamptz(3)
+  createdAt       DateTime   @default(now()) @db.Timestamptz(3)
+  fileObject      FileObject @relation(fields: [fileObjectId, createdByUserId], references: [id, ownerId], onDelete: Cascade)
+  createdBy       User       @relation(fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  @@index([expiresAt])
+}
+
+model AuditEvent {
+  id           String   @id @default(uuid()) @db.Uuid
+  actorUserId  String?  @db.Uuid
+  action       String   @db.VarChar(100)
+  resourceType String   @db.VarChar(100)
+  resourceId   String?  @db.Uuid
+  requestId    String   @db.VarChar(64)
+  metadata     Json     @default("{}") @db.JsonB
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  actor        User?    @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([resourceType, resourceId])
+}
