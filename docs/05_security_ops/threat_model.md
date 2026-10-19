@@ -1,6 +1,6 @@
 # Threat model
 
-**Részben implementált: scrypt (ADR-014), register/login/logout/me és HttpOnly JWT-cookie (ADR-010); a további termékkontrollok tervezettek.**
+**Részben implementált: scrypt (ADR-014), register/login/logout/me, HttpOnly JWT-cookie (ADR-010), szerveresen ellenőrzött frontend fiókútvonal; a további termékkontrollok tervezettek.**
 
 ## Hatókör
 
@@ -70,3 +70,10 @@ A modell a tervezett Browser SPA, stateless NestJS API, PostgreSQL, privát MinI
 ## Review ütemezés
 
 A threat model minden auth-, storage-, sharing-, lifecycle-, AI- vagy deployment döntésnél frissítendő. Runtime nélkül a mitigációk nem jelölhetők teljesítettnek.
+
+
+## Frontend útvonalvédelmi szelet – 2026-10-19
+
+A `/app` belépését minden védett navigációkor backend `/auth/me` igazolja; a SessionGuard változatlanul JWT- és DB-user ellenőrzést végez. A frontend csak UX-határ, nem API-jogosultság. Nincs tárolt token/login flag; a memóriabeli publikus profil navigációkor ürül, késői válasz nem írhatja felül az újabbat. Ellenőrzés alatt nincs profil-render, a név/email Vue szöveginterpolációval jelenik meg. 401 és átmeneti kiesés külön állapot. Nincs tetszőleges return URL vagy redirect-követés az API-kliensben; login mindig belső account route-ra vezet. Logout csak sikeres szerverválasz után állít UI-sikert.
+
+A tétlen oldal profilja nincs folyamatosan újraellenőrizve; a backend következő kérését továbbra is saját guard védi. Valós böngészős cookie-kezelés, history/back és sessionlejárati UI-próba még nyitott; a unit/template bizonyíték nem helyettesíti. Regisztrációs UI, MFA, cross-tab auth-sync, login audit és token-revokáció nem került be.

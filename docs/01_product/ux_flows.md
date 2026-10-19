@@ -1,6 +1,6 @@
 # Fő UX-folyamatok
 
-**Tervezett állapot – nem implementált funkcionalitás.**
+**Részben implementált: login/logout, védett fiókoldal és backend auth; a regisztrációs UI, upload és többi termékfolyamat tervezett.**
 
 ## Közös UX-szabályok
 
@@ -10,6 +10,12 @@
 - Oldalfrissítés vagy másik backendpéldány nem szakíthatja meg a perzisztált többlépéses folyamatot; a tervezett backend stateless.
 - A fontos auth-, upload-, lifecycle-, sharing- és security eseményekhez alap audit esemény készül, külön audit UI nélkül.
 - A három core folyamat MI-szolgáltatás nélkül is teljes értékűen használható.
+
+## Megvalósított auth-szelet
+
+A publikus kezdőlap „Saját fiók” linkje `/app`-ra vezet. Az alkalmazás munkamenet-ellenőrzési állapotot mutat, fiókadat nélkül, és `GET /auth/me`-t kér. 401 esetén `/login`; a belépés hibáját az űrlap jelzi, jelszóürítéssel és újrapróbálással. Siker után új `/me` ellenőrzés igazolja a szerveroldali állapotot, majd megjelenik a saját név/email és logout. A név szövegként renderelt, nem HTML. Regisztrációs UI még nincs.
+
+Hálózati/szerverhiba esetén `/auth-unavailable` oldal jelenik meg „Újrapróbálás” linkkel; ez nem hitelesítési elutasítás. Logout sikertelen kérése hibát hagy a fiókoldalon; csak 204 után navigálunk loginra és ürül a publikus profil memóriája. Minden védett navigáció új szerveres ellenőrzés; nincs tartós kliensoldali login flag vagy token. A tétlen oldal nem pollol/cross-tab szinkronizál, a backend minden kérésnél önállóan véd. E szelet nem galéria, usage vagy teljes UX-01 upload.
 
 ## UX-01 – Regisztráció, bejelentkezés és megbízható feltöltés
 

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { RouterLink } from 'vue-router';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { fetchHealth, parseApiBaseUrl } from '../api/health';
 
@@ -52,7 +53,8 @@ onBeforeUnmount(() => { active = false; controller?.abort(); });
           <p class="mb-5 text-xs font-semibold uppercase tracking-[0.2em] text-indigo-600">Adattárolás a felhőben</p>
           <h1 class="max-w-xl text-4xl font-semibold leading-tight tracking-tight sm:text-5xl">A médiáid helye.<br /><span class="text-slate-400">Lépésről lépésre.</span></h1>
           <p class="mt-6 max-w-lg text-base leading-7 text-slate-600">A CloudVault személyes képek és videók kezelésére készül. Ez a kezdőoldal az alkalmazás technikai alapját és a szerverkapcsolat állapotát mutatja.</p>
-          <p class="mt-4 max-w-lg text-sm leading-6 text-slate-500">A regisztráció, belépés és fájlkezelés a következő fejlesztési lépésekben válik elérhetővé.</p>
+          <p class="mt-4 max-w-lg text-sm leading-6 text-slate-500">A saját fiókodba már bejelentkezhetsz. A fájlkezelés hamarosan érkezik.</p>
+          <RouterLink to="/app" class="mt-7 inline-block rounded-xl bg-indigo-600 px-5 py-3 font-semibold text-white hover:bg-indigo-700">Saját fiók</RouterLink>
         </div>
 
         <section class="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm sm:p-9" aria-labelledby="connection-title" :aria-busy="state === 'loading'">
