@@ -31,3 +31,5 @@ Ez a napló a projekt szempontjából fontos AI-promptokat és azok eredményét
 | ID | Dátum | Cél | Prompt röviden | Eredmény / artefakt | Kézi módosítás | Verification |
 |---|---|---|---|---|---|---|
 | P-XXX | YYYY-MM-DD |  |  |  |  |  |
+
+| P-015 | 2026-10-19 | Backend regisztrációs végpont | A felhasználó külön auth-szeletként regisztrációs backend végpontot kért. | AuthModule/controller/service, saját DTO-pipe, Origin/peer guard, scrypt-beillesztés, explicit szerverkvóta-konfiguráció, safe response és adapter-specifikus unique mapping; unit tesztek, API/adatmodell/státusz/security/tesztdokumentáció. Új dependency/migráció/login/UI nincs. | Felhasználói kézi módosítás nincs rögzítve; független AI-review alapján a Prisma 7 pg constraint meta kezelését és negatív tesztjeit javítottuk, a kezdeti lokális limiter hatókörét pontosítottuk. | V-019 |

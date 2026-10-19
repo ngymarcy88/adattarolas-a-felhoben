@@ -77,6 +77,7 @@ export function validateEnvironment(env: Record<string, unknown>): AppConfig {
     databaseUrl,
     jwtSecret: secret('JWT_SECRET', 32),
     jwtExpiresIn,
+    defaultUserStorageLimitBytes: integer('DEFAULT_USER_STORAGE_LIMIT_BYTES', 1073741824, 1, Number.MAX_SAFE_INTEGER),
     storage: {
       endpoint: url('S3_ENDPOINT', ['http:', 'https:'], true),
       region,

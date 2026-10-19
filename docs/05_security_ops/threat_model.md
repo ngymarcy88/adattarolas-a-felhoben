@@ -1,6 +1,6 @@
 # Threat model
 
-**A termékkontrollok tervezettek; a külön jelszóhash/check primitív implementált (ADR-014), auth-végpont még nincs.**
+**Részben implementált: scrypt (ADR-014) és backend regisztráció; a további termékkontrollok tervezettek.**
 
 ## Hatókör
 
@@ -61,7 +61,7 @@ A modell a tervezett Browser SPA, stateless NestJS API, PostgreSQL, privát MinI
 
 ## Nyitott go/no-go kapuk
 
-- Jelszóhash-primitív: ADR-014 szerint beépített scrypt, új dependency nélkül; unit tesztelt. Regisztrációs jelszópolicy, login enumeration-védelem, terhelési/párhuzamossági védelem és tokenfüggőség még nyitott.
+- Jelszóhash-primitív: ADR-014 szerint beépített scrypt, új dependency nélkül; unit tesztelt. Regisztráció: 15 kódpontos minimum, 1024 bájtos maximum, szigorú DTO/Origin, közvetlen peer 5/60s (legfeljebb 1024 állapot), egy drága regisztráció/folyamat, nincs várósor. Konzervatív lokális korlátok, nem terhelési bizonyíték. A 409 felfedheti a fiók létezését (API-tradeoff). Kompromittáltjelszó-blokklista, email-verifikáció, login enumeration-védelem, többprocesszes limiter/proxy-policy, terhelésmérés, audit és tokenfüggőség még nyitott; nincs teljes auth-készültségállítás.
 - Rate-limit számértékek futtatási baseline alapján.
 - Production domain/topológia változása esetén cookie/CSRF ADR felülvizsgálata.
 - MI-provider régió, retention, tréningfelhasználás, DPA/licenc és költség.
