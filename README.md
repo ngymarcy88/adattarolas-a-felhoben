@@ -4,7 +4,7 @@ S3-kompatibilis objektumtárolóra épülő személyes médiafájl-kezelő BSc s
 
 ## Jelenlegi állapot
 
-Elkészült a **lokális technikai alap**: Vue/Vite frontend, NestJS backend, validált konfiguráció, PostgreSQL–MinIO Docker Compose és a négy alapentitás Prisma-sémája/kezdeti migrációja. A kezdőoldal a backend liveness végpontját ellenőrzi. Az auth, fájlfeltöltés, galéria, megosztás, restore, folytatható import és képfeldolgozás még nem implementált. A health válasza nem folyamatos DB/storage readiness-vizsgálat.
+Elkészült a **lokális technikai alap**: Vue/Vite frontend, NestJS backend, validált konfiguráció, PostgreSQL–MinIO Docker Compose és a négy alapentitás Prisma-sémája/kezdeti migrációja. A kezdőoldal a backend liveness végpontját ellenőrzi. A backend regisztráció (`POST /api/v1/auth/register`) elkészült: validált adatok, scrypt hash, szerveroldali kezdőkvóta, Origin- és kezdeti terhelésvédelem; JWT/cookie kiadása nélkül. A login/logout, védett frontend, fájlfeltöltés, galéria, megosztás, restore, folytatható import és képfeldolgozás még nem implementált. A health válasza nem folyamatos DB/storage readiness-vizsgálat. A regisztráció pontos request/response és hibaszerződése az [API-ban](docs/03_design/api.md#post-authregister) található; valós adatbázisos regisztrációs próba még szükséges.
 
 A kötelező SZD2 cél a teljes alkalmazás, a folytatható kötegelt képimport, két verziózott processor és restart recovery, valamint összehasonlító mérés/UAT és dolgozat. A részletes import-/processing-szerződés és átviteli technológia kiválasztása külön feladat; a termék-MI opcionális.
 

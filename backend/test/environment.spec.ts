@@ -16,7 +16,7 @@ describe('validateEnvironment', () => {
   it('parses central typed config and documented defaults', () => {
     const config = validateEnvironment(validEnvironment());
     expect(config).toMatchObject({
-      environment: 'local', port: 3000, jwtExpiresIn: '1h',
+      environment: 'local', port: 3000, jwtExpiresIn: '1h', defaultUserStorageLimitBytes: 1073741824,
       maxUploadBytes: 104857600, presignedUrlTtlSeconds: 300,
       storage: { forcePathStyle: true },
       allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'video/mp4', 'video/webm'],
@@ -25,9 +25,9 @@ describe('validateEnvironment', () => {
 
   it('accepts explicit valid values', () => {
     expect(validateEnvironment({ ...validEnvironment(), APP_ENV: 'test', BACKEND_PORT: '3001',
-      S3_FORCE_PATH_STYLE: 'false', MAX_UPLOAD_BYTES: '1000', JWT_EXPIRES_IN: '30m' }))
+      S3_FORCE_PATH_STYLE: 'false', MAX_UPLOAD_BYTES: '1000', JWT_EXPIRES_IN: '30m', DEFAULT_USER_STORAGE_LIMIT_BYTES: '2048' }))
       .toMatchObject({ environment: 'test', port: 3001, maxUploadBytes: 1000,
-        jwtExpiresIn: '30m', storage: { forcePathStyle: false } });
+        jwtExpiresIn: '30m', defaultUserStorageLimitBytes: 2048, storage: { forcePathStyle: false } });
   });
 
   it('allows a configured safe subset and trims separator whitespace', () => {
@@ -42,6 +42,8 @@ describe('validateEnvironment', () => {
     });
 
   it.each([
+    ['DEFAULT_USER_STORAGE_LIMIT_BYTES', '0'], ['DEFAULT_USER_STORAGE_LIMIT_BYTES', '1.5'],
+    ['DEFAULT_USER_STORAGE_LIMIT_BYTES', '9007199254740992'], ['DEFAULT_USER_STORAGE_LIMIT_BYTES', ''],
     ['APP_ENV', 'development'], ['BACKEND_PORT', '0'], ['BACKEND_PORT', '65536'],
     ['BACKEND_PORT', '3000.5'], ['BACKEND_PORT', '3e3'], ['MAX_UPLOAD_BYTES', '104857601'],
     ['MAX_UPLOAD_BYTES', '-1'], ['PRESIGNED_URL_TTL_SECONDS', '301'],

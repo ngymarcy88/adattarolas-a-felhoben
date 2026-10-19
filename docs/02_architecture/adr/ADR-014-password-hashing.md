@@ -10,7 +10,7 @@ Accepted
 
 ## Implementation status
 
-A `backend/src/auth/password.service.ts` külön, injektálható `PasswordService` szolgáltatást ad. HTTP-végpont, AuthModule-ba kötés, user létrehozás és adatbázisírás még nincs. Az ADR-010 JWT/cookie stratégiája változatlan.
+A `backend/src/auth/password.service.ts` külön, injektálható `PasswordService` szolgáltatást ad. A későbbi regisztrációs szelet az AuthModule-ba kötötte: `POST /auth/register` hash-t ment PostgreSQL-be. Maga a primitív továbbra sem tárol és nem logol. A regisztrációs policy és kezdeti rate/concurrency-védelem az [API-szerződésben](../../03_design/api.md#post-authregister) szerepel; a login még nincs. Az ADR-010 JWT/cookie stratégiája változatlan.
 
 ## Context
 

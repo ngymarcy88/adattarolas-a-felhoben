@@ -6,7 +6,7 @@ A kezdeti [Prisma-séma](../../backend/prisma/schema.prisma) és [SQL migráció
 
 ## A kezdeti migráció implementált határa
 
-- `User`: a Core mezők, unique email és explicit `storageLimitBytes`; nincs előre beégetett felhasználói tárhelycsomag. Az auth később ad kvótát és normalizál emailt.
+- `User`: a Core mezők, unique email és explicit `storageLimitBytes`; nincs előre beégetett felhasználói tárhelycsomag. A regisztráció trim+lowercase ASCII emailt ment és a validált `DEFAULT_USER_STORAGE_LIMIT_BYTES` szerverkonfigurációból ad kezdőkvótát (default 1073741824 bájt); used/reserved nulla a DB defaultokkal. Ez nem csomagkezelés. A séma/migráció nem változott.
 - `FileObject`: a Core mezők és cleanup retry mezők; `FileStatus = PENDING_UPLOAD | ACTIVE | SOFT_DELETED`, `FileVisibility = PRIVATE`. A későbbi checksum, MI-tags/description és purge-állapotok nincsenek a sémában.
 - `ShareLink`: id, file/creator, SHA-256 `tokenHash`, expiresAt, createdAt; revoke/access limit/analytics nincs implementálva. A fájl `(id, ownerId)` unique kulcsára mutató `(fileObjectId, createdByUserId)` FK tiltja az eltérő tulajdonosú létrehozót; a share API később ellenőriz aktív állapotot is.
 - `AuditEvent`: Core mezők, nullable actor, JSONB metadata és indexek; az auditírás és metadata-allowlist service még nem implementált.
@@ -108,7 +108,7 @@ Az ERD az olvashatóság kedvéért nem mutat minden nullable, cleanup- és `Lat
 |---|---|---|---|
 | `id` | UUID, PK | Core MVP | Átlátszatlan felhasználó-azonosító |
 | `email` | normalizált string, unique | Core MVP | Bejelentkezési azonosító; válaszokban csak a saját user kapja |
-| `passwordHash` | string | Core MVP | [ADR-014](../02_architecture/adr/ADR-014-password-hashing.md) szerinti verziózott scrypt rekord (182 karakter, varchar(255)); soha nem kerül API-ba, logba vagy audit metadata-ba. A hash service nem ír még DB-be. |
+| `passwordHash` | string | Core MVP | [ADR-014](../02_architecture/adr/ADR-014-password-hashing.md) szerinti verziózott scrypt rekord (182 karakter, varchar(255)); soha nem kerül API-ba, logba vagy audit metadata-ba. A hash service nem tárol; a regisztrációs AuthService menti a hash-t, és explicit select/projekcióval kizárja az API-ból. |
 | `displayName` | validált string | Core MVP | Megjelenítési név |
 | `usedStorageBytes` | BigInt, default 0, `>= 0` | Core MVP | Aktivált és fizikailag még létező objektumok denormalizált mérete |
 | `reservedStorageBytes` | BigInt, default 0, `>= 0` | Core MVP | Pending uploadok deklarált, ideiglenesen foglalt mérete |

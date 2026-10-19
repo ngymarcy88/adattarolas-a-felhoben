@@ -1,5 +1,24 @@
 # Test report
 
+## Backend regisztráció – 2026-10-19
+
+Vizsgált változat: `feature/backend-registration`, a `43f1827` main baseline utáni regisztrációs iteráció. Környezet: Windows/WSL2, Linux Node 22.23.2, npm 10.9.8. Szintetikus adatok, valós scrypt a korábbi password suite-ban; a regisztrációs unit suite Prisma/hash mockot használ. Nincs új npm-függőség, migráció vagy integration/e2e/CI suite.
+
+| Ellenőrzés | Elvárt / tényleges eredmény |
+|---|---|
+| `npm test` | PASS: 7 backend suite / **153 backend + 18 frontend = 171 teszt**, 0 failed/skipped; az előző 109-hez képest 62 új eset |
+| `npm run typecheck --workspace backend` | PASS |
+| `npm run build --workspace backend` | PASS |
+| Független backend/security review | A Prisma 7 adapter-specifikus unique meta kezelése javítva és unit tesztelve; ismételt review szerint nincs további blokkoló észrevétel |
+| Kézi HTTP smoke, buildelt tényleges AppModule | PASS: loopback/ephemeral port, tényleges route/guard/DTO/scrypt; **mockolt Prisma-adattárolás**, startup DB-connect kihagyva. HTTP 201/400/403/409/429/503, safe usermezők, no-store, request ID, nincs Set-Cookie; hash visszaellenőrizve, 503 után új kérés sikeres. Ez nem valós DB-/CORS-/telepítési bizonyíték |
+| Link- és secret-ellenőrzés; `git diff --check` | PASS: 135 helyi Markdown-link; helyi credentialérték nem került repóba/frontend bundle-be; whitespace check sikeres |
+| Valós PostgreSQL-es regisztráció | **NEM FUTOTT:** a Windows Docker CLI Server nem érhető el (`docker_engine` named pipe hiányzik). Nincs állítás tényleges DB-írásról vagy DB-concurrency bizonyításáról |
+
+Unit bemenetek/lépések: DTO-normalizálás, extra mezők/null/array/rossz típus, email/name/password határok, Unicode/vezérlőkarakter; Origin-hiány/eltérés; öt peer-próba után hatodik elutasítás, időablak lejárta és 1024 peerállapot telítése/felszabadítása; szerverkvóta és csak hash-t tartalmazó Prisma create; publikus response allowlist és ISO dátum; ismételt email P2002 (legacy és tényleges pg-adapter shape); egyidejű drága kérés elutasítása és minden hiba utáni kapacitás-felszabadítás; biztonságos HTTP-mapping és új config-határok. Elvárt eredmény minden pozitív/negatív ág szerint teljesült; tesztkód: `backend/test/registration.spec.ts`, `environment.spec.ts`, `http-exception.filter.spec.ts`.
+
+Még kézzel ellenőrzendő: Docker/Quickstart után az [API](../03_design/api.md#post-authregister) curl példájával 201 és valós `User` rekord (normalizált email, scrypt hash, nulla used/reserved, szerverkvóta); ismétlés és párhuzamos azonos email nem készít második rekordot, 409 megfelelő; Origin nélkül 403; rossz input 400. Ne kerüljön valódi jelszó/hash vagy személyes adat screenshotba/logba. Nem készült terhelési benchmark, külső UAT, login/cookie, UI, audit vagy email-verifikáció.
+
+
 ## Jelszóhash/check szelet – 2026-10-19
 
 Vizsgált változat: `feature/password-hashing`, a `63e1469` main baseline utáni PasswordService-iteráció. Környezet: Windows/WSL2, Node 22.23.2, npm 10.9.8. Szintetikus unit-jelszavak, valós scrypt `N=131072/r=8/p=1` profillal; a költség tesztben sem csökkentett. Nincs DB-/HTTP-művelet vagy új függőség.
