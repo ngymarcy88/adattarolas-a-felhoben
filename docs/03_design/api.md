@@ -1,8 +1,8 @@
 # API-szerződés
 
-**Részben implementált szerződés: health és backend regisztráció létezik; a többi végpont tervezett.**
+**Részben implementált szerződés: health és backend register/login/logout/me létezik; a többi végpont tervezett.**
 
-A scaffold `GET /api/v1/health` végpontja, CORS-konfigurációja, request ID-ja és generikus hibakerete implementált. A regisztráció is implementált; login/logout/me, file-, storage-, share- és MI-endpoint továbbra is terv; import-/processing-kiegészítésük későbbi szerződésfeladat. Futási ellenőrzés: [tesztriport](../04_quality/test_report.md).
+A scaffold `GET /api/v1/health` végpontja, CORS-konfigurációja, request ID-ja és generikus hibakerete implementált. A regisztráció, login/logout/me is implementált; file-, storage-, share- és MI-endpoint továbbra is terv; import-/processing-kiegészítésük későbbi szerződésfeladat. Futási ellenőrzés: [tesztriport](../04_quality/test_report.md).
 
 ## Hatókör és alapelvek
 
@@ -11,13 +11,13 @@ A scaffold `GET /api/v1/health` végpontja, CORS-konfigurációja, request ID-ja
 - Minden időpont UTC ISO 8601 formátumú, minden azonosító átlátszatlan UUID.
 - A bájtértékek nem negatív egész számok.
 - A frontend `credentials: include` módban hívja a cookie-auth endpointokat.
-- Az alábbi táblában a health és register sor implementált; a többi endpoint tervezett. Megvalósításkor a controller- és DTO-szerződést e dokumentummal együtt kell frissíteni. OpenAPI-generálás még nincs.
+- Az alábbi táblában a health és a négy auth sor implementált; a többi endpoint tervezett. Megvalósításkor a controller- és DTO-szerződést e dokumentummal együtt kell frissíteni. OpenAPI-generálás még nincs.
 
 ## Hitelesítés, Origin és CORS
 
-A `Core MVP` alapértelmezetten egyórás JWT access tokent tervez `HttpOnly`, `SameSite=Lax` cookie-ban. Productionben a cookie `Secure`; a JWT nem kerül response bodyba vagy `localStorage`-ba. Refresh-token flow nincs.
+A `Core MVP` alapértelmezetten egyórás JWT access tokent használ `HttpOnly`, `SameSite=Lax` cookie-ban. Productionben a cookie `Secure`; a JWT nem kerül response bodyba vagy `localStorage`-ba. Refresh-token flow nincs.
 
-A következő auth-fázisban minden unsafe, cookie-auth műveletnél a backend ellenőrzi az `Origin` headert az explicit frontend-origin allowlisthez. Hiányzó vagy nem engedélyezett Origin elutasítandó. A CORS-konfiguráció:
+A register/login/logout végpontokon a backend ellenőrzi az `Origin` headert az explicit frontend-origin allowlisthez. Hiányzó vagy nem engedélyezett Origin elutasítandó. A CORS-konfiguráció:
 
 - csak explicit frontend origint enged;
 - engedélyezi a credential küldést;
@@ -26,16 +26,16 @@ A következő auth-fázisban minden unsafe, cookie-auth műveletnél a backend e
 
 Az ADR-010 szerinti `SameSite=Lax` és a szigorú Origin-ellenőrzés együtt adja a Core MVP CSRF-védelmét; külön CSRF-token nincs. Ha későbbi deployment topológia további CSRF-token mechanizmust vagy eltérő cookie-policyt igényel, azt implementáció előtt ADR-módosítással kell jóváhagyni.
 
-A jelenlegi scaffold a konfigurált `FRONTEND_PUBLIC_URL` origint credentiallel engedi, az eltérő Origint `403 ORIGIN_NOT_ALLOWED` hibával utasítja el. Origin nélküli kérést a publikus health eléréséhez enged. Ez még nem a későbbi unsafe auth-műveletek teljes CSRF-védelme. A válaszok `X-Request-Id` headere CORS-on keresztül is olvasható. A regisztráció külön guarddal a hiányzó Origint is elutasítja, peer-korlátot és explicit DTO-pipe-ot használ. Más végpontokon még nincs auth/rate/DTO pipeline.
+A jelenlegi scaffold a konfigurált `FRONTEND_PUBLIC_URL` origint credentiallel engedi, az eltérő Origint `403 ORIGIN_NOT_ALLOWED` hibával utasítja el. Origin nélküli kérést a publikus health eléréséhez enged. A register/login/logout külön Origin-guardja a hiányzó Origint is tiltja; a tervezett fájlműveleteknél ezt később szintén alkalmazni kell. A válaszok `X-Request-Id` headere CORS-on keresztül is olvasható. Register és login közös peer-guardot és külön explicit DTO-pipe-ot használ; logout Origin-guardot, `/me` JWT+DB-user guardot kapott. A többi termékvégpont még nincs.
 
-## Endpoint-összefoglaló: health és register implementált, a többi tervezett
+## Endpoint-összefoglaló: health és auth implementált, a többi tervezett
 
 | Metódus és útvonal | Fázis | Auth | Cél |
 |---|---|---|---|
 | `POST /auth/register` | **Implementált Core-szelet** | publikus + Origin | Fiók létrehozása |
-| `POST /auth/login` | Core MVP | publikus + Origin | JWT-cookie kiadása |
-| `POST /auth/logout` | Core MVP | cookie + Origin | Auth-cookie törlése |
-| `GET /auth/me` | Core MVP | cookie | Aktuális felhasználó |
+| `POST /auth/login` | **Implementált Core-szelet** | publikus + Origin | JWT-cookie kiadása |
+| `POST /auth/logout` | **Implementált Core-szelet** | Origin; cookie törölhető hiányzó/lejárt állapotban is | Auth-cookie törlése |
+| `GET /auth/me` | **Implementált Core-szelet** | cookie | Aktuális felhasználó |
 | `POST /files/uploads/init` | Core MVP | owner cookie + Origin | Pending rekord, kvótafoglalás és presigned PUT |
 | `POST /files/{fileId}/confirm` | Core MVP | owner cookie + Origin | Idempotens storage-validáció és aktiválás |
 | `GET /files` | Core MVP | owner cookie | Aktív saját fájlok cursor-lapozott listája |
@@ -116,15 +116,15 @@ Request:
 **Implementált:** `201 Created`, `Cache-Control: no-store`, bodyban kizárólag `user: { id, email, displayName, createdAt }`. A jelszó/hash, quota BigInt, token vagy cookie nem kerül a válaszba. Nem jelentkeztet be automatikusan.
 
 - Kötelező pontosan három string mező: `email`, `displayName`, `password`; extra mező (például kvóta vagy hash), array/null és hibás típus elutasított. Saját Nest DTO-pipe van; class-validator nincs a meglévő függőségek között, új függőség nem került be.
-- Email: trim + lowercase az egész címre; legfeljebb 254 karakter, ASCII dot-atom local part (legfeljebb 64), ponttal tagolt domain, legfeljebb 63 karakteres címkék. Quoted local part, SMTPUTF8, egycímkés domain nem támogatott. A case-insensitive alkalmazásazonosító tudatos szabály; plus-tag/dot összevonás nincs. A login ugyanezt a normalizálást használja majd. Email-tulajdonlás ellenőrzése nincs.
+- Email: trim + lowercase az egész címre; legfeljebb 254 karakter, ASCII dot-atom local part (legfeljebb 64), ponttal tagolt domain, legfeljebb 63 karakteres címkék. Quoted local part, SMTPUTF8, egycímkés domain nem támogatott. A case-insensitive alkalmazásazonosító tudatos szabály; plus-tag/dot összevonás nincs. A login ugyanezt a közös normalizálást használja. Email-tulajdonlás ellenőrzése nincs.
 - Display name: trim, 1–100 Unicode-kódpont; vezérlőkarakter és nem párosított surrogate elutasított. Nem HTML; megjelenítéskor a frontendnek szövegként kell kezelnie.
 - Jelszó: legalább 15 Unicode-kódpont, legfeljebb 1024 UTF-8 bájt; a 15 karakteres minimum MFA nélküli alkalmazáshoz az [OWASP útmutatóra](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html) támaszkodik. Whitespace/Unicode engedélyezett, nincs trim, normalizálás, csonkolás vagy kötelező karakterösszetétel. Kompromittáltjelszó-blokklista még nincs; ez nem teljes jelszóbiztonsági megfelelőségi állítás.
 - Hash: ADR-014 scrypt. A Prisma egyetlen `user.create` művelete, a unique email index és a DB defaultok adják a létrehozás atomikusságát. Nincs read-then-write duplikációellenőrzés. A Prisma 7 pg adapter strukturált constraint hibája és a korábbi `meta.target` alak is kezelt. Ugyanaz a normalizált email nem írható be kétszer.
 - Kezdőkvóta: `DEFAULT_USER_STORAGE_LIMIT_BYTES`, default 1073741824 (1 GiB), pozitív JS safe integer; a szerver BigIntté alakítja. Meglévő `.env` mellett is működik a default; nincs credentialcsere vagy sémamódosítás. A kliens nem választhat kvótát; used/reserved a DB defaultja szerint nulla.
 - Kötelező `Origin`: pontosan a konfigurált `FRONTEND_PUBLIC_URL`; hiányzó, `null`, eltérő host/séma/port `403 ORIGIN_NOT_ALLOWED`. Health továbbra is publikus Origin nélkül. Ez böngészős forrásvédelem, nem klienshitelesítés.
-- Kezdeti lokális abuse-védelem: közvetlen socket-peer szerint 5 próbálkozás/60 másodperces ablak (a validációs és sikertelen kérések is számítanak), legfeljebb 1024 peerrekord; telített táblán új peer `429`, lejárt állapot újrahasznosítható. `X-Forwarded-For` nem megbízható, proxytrust nincs. Egyszerre egy regisztrációs hash/DB-művelet futhat folyamatonként, várósor nincs; foglaltság `503 SERVICE_UNAVAILABLE`. Minden kimeneti ág felszabadítja a kapacitást.
+- Kezdeti lokális abuse-védelem: közvetlen socket-peer szerint 5 próbálkozás/60 másodperces ablak (a validációs és sikertelen kérések is számítanak), legfeljebb 1024 peerrekord; telített táblán új peer `429`, lejárt állapot újrahasznosítható. `X-Forwarded-For` nem megbízható, proxytrust nincs. Register és login közös ötpróbás peer-ablakot használ. Egyszerre egy regisztrációs vagy login hash/DB-művelet futhat folyamatonként, várósor nincs; foglaltság `503 SERVICE_UNAVAILABLE`. Minden kimeneti ág felszabadítja a kapacitást.
 
-Hibák a közös wrapperben, `details: {}`: `400 VALIDATION_ERROR`, `403 ORIGIN_NOT_ALLOWED`, `409 EMAIL_ALREADY_EXISTS`, `429 RATE_LIMITED`, `503 SERVICE_UNAVAILABLE` (foglalt hash-kapacitás, hash- vagy DB-hiba); a parser hibái külön 400/413/415. A 409 létező fiókot jelezhet: ez a meglévő regisztrációs szerződés vállalt tradeoffja; a login majd egységes hibát ad. Nincs nyers input/query/stack/logolt jelszó. Auditírás, UI és teljes auth még nincs.
+Hibák a közös wrapperben, `details: {}`: `400 VALIDATION_ERROR`, `403 ORIGIN_NOT_ALLOWED`, `409 EMAIL_ALREADY_EXISTS`, `429 RATE_LIMITED`, `503 SERVICE_UNAVAILABLE` (foglalt hash-kapacitás, hash- vagy DB-hiba); a parser hibái külön 400/413/415. A 409 létező fiókot jelezhet: ez a meglévő regisztrációs szerződés vállalt tradeoffja; a login egységes hibát ad. Nincs nyers input/query/stack/logolt jelszó. Auditírás, UI és valós DB-/browser-elfogadás még nincs.
 
 Szintetikus request a Quickstart után (a példa body nem valódi credential):
 
@@ -148,15 +148,38 @@ Request:
 }
 ```
 
-Tervezett siker: `200 OK`, bodyban `user`, headerben biztonságos `Set-Cookie`. Hibás email és hibás jelszó ugyanazt a külső `INVALID_CREDENTIALS` hibát adja.
+**Implementált siker:** `200 OK`, `Cache-Control: no-store`, bodyban kizárólag `user: { id, email, displayName, createdAt }`. A `cloudvault_access` JWT csak `Set-Cookie`-ban kerül ki: HttpOnly, SameSite=Lax, Path=/api/v1, Domain nélkül; productionben Secure, maxAge a TTL-lel egyezik. `JWT_EXPIRES_IN` 1s–24h, default 1h; a konfiguráció egész s/m/h/d jelölést fogad el, a könyvtár numerikus másodpercet kap.
+
+Pontosan két string mező kötelező, extra mező elutasított. Email a regisztrációval azonos shared trim+lowercase/ASCII szabály. Jelszó 1–1024 UTF-8 bájt, jól formált Unicode; nincs trim/normalizálás/csonkolás, és login nem alkalmazza az új regisztráció 15 kódpontos erősségi küszöbét. Rossz input `400 VALIDATION_ERROR`; helyes alakú ismeretlen email és hibás jelszó ugyanaz a `401 INVALID_CREDENTIALS`, üres details-szel. Ismeretlen usernél is valódi scrypt verify fut dummy rekorddal; teljes requestidő-azonosság nincs állítva. Siker előtt nincs Set-Cookie. Origin kötelező, hiánya/eltérése 403; közös register/login peer-korlát 429, foglaltság vagy DB/KDF/sign hiba 503, belső részletek nélkül.
+
+Frontend/backend same-site topológiát igényel; productionben HTTPS szükséges. Cookie-s kérésnél `credentials: include`. Token nem kerül JSON-ba vagy localStorage-ba. Nincs refresh, automatikus hosszabbítás vagy minden eszközről kijelentkeztetés.
 
 ### `POST /auth/logout`
 
-Tervezett siker: `204 No Content`. A cookie a kiadáskor használt path/domain/security attribútumokkal törlendő.
+**Implementált siker:** `204 No Content`, üres body, `Cache-Control: no-store`. Cookie törlése ugyanazzal a Path/host-only/HttpOnly/SameSite/Secure opcióval, lejárati törlő headerrel. Origin kötelező, hiányzó/tiltott Origin 403; hiányzó, lejárt vagy hibás cookie mellett is 204, így a kliens el tudja takarítani. Nincs DB-hívás vagy drága KDF. Ez pontosítja a korábbi cookie+Origin tervet: a törléshez nem kell érvényes token.
+
+Stateless korlát: a korábban másolt JWT a saját lejáratáig továbbra is érvényes; a logout a böngésző cookie-ját törli, nem ad szerveroldali revokációt (ADR-010).
 
 ### `GET /auth/me`
 
-Tervezett siker: `200 OK`, bodyban `user`. Lejárt vagy hiányzó cookie `AUTH_REQUIRED`.
+**Implementált siker:** `200 OK`, `Cache-Control: no-store`, bodyban a közös publikus `user`. Nem újítja meg a tokent. A SessionGuard csak az egyértelmű `cloudvault_access` cookie-t olvassa; Authorization bearer nem támogatott. JWT: kizárólag HS256 + helyes aláírás, fix `iss=cloudvault`, `aud=cloudvault-api`, UUID `sub`, kötelező egész `iat`/`exp`, nem jövőbeli iat, még élő exp és legfeljebb konfigurált élettartam. Üres/dupla/hibás/túl hosszú auth-cookie, érvénytelen aláírás/algoritmus/claim és lejárat `401 AUTH_REQUIRED`.
+
+A guard ezután DB-ből public selecttel újra lekéri a usert: megszűnt user 401, DB-hiba 503. Így a JWT nem egy elavult profil-cache; hash, kvóta és más belső adat nem kerül válaszba. GET-ként nem követel Origint; a globális CORS az explicit eltérő Origint továbbra is tiltja, same-site cookie és DB/token-ellenőrzés kötelező.
+
+Kézi auth-próba a regisztráció után (szintetikus adatokkal, a cookie-jar hozzáférést adó token, ne commitold/ne publikáld):
+
+```bash
+curl -i -c /tmp/cloudvault-auth.cookies http://127.0.0.1:3000/api/v1/auth/login \
+  -H 'Origin: http://127.0.0.1:5173' -H 'Content-Type: application/json' \
+  --data '{"email":"user@example.test","password":"example-only-not-a-real-password"}'
+curl -i -b /tmp/cloudvault-auth.cookies http://127.0.0.1:3000/api/v1/auth/me
+curl -i -b /tmp/cloudvault-auth.cookies -c /tmp/cloudvault-auth.cookies \
+  -H 'Origin: http://127.0.0.1:5173' -X POST http://127.0.0.1:3000/api/v1/auth/logout
+curl -i -b /tmp/cloudvault-auth.cookies http://127.0.0.1:3000/api/v1/auth/me
+rm -f /tmp/cloudvault-auth.cookies
+```
+
+Elvárt sorrend: 200 + cookie, 200 + user, 204 + törlés, 401. A terminál kimenete Set-Cookie-t tartalmazhat, ezért ne másold screenshotba/logba. A futtatási bizonyíték és korlátok a tesztriportban.
 
 ## Upload
 
@@ -374,4 +397,4 @@ Minden hiba a [hibakezelési szerződés](error_handling.md) nested wrapperét h
 
 ## Abuse prevention
 
-Különösen a register, login, upload init, share-validáció és opcionális MI-request igényel rate limitet és visszaélés-figyelést. A regisztráció fenti fix korlátai konzervatív, kód- és unit-review-val ellenőrzött lokális védőkorlátok, nem mért kapacitásértékek; ez felváltja a korábbi, minden számértéket méréshez kötő tervet. Terhelési baseline és többprocesszes/proxy-s környezethez közös rate-limit store, topológiai review és mért konfiguráció később szükséges. A processz újraindítása nullázza a számlálókat; több processz szorozza a korlátot. A limiter nem általános hálózati DoS-védelem. A többi endpoint korlátja továbbra is tervezett. A rate limit nem használhat raw emailt, tokent vagy presigned URL-t metrikacímkeként.
+Különösen a register, login, upload init, share-validáció és opcionális MI-request igényel rate limitet és visszaélés-figyelést. A regisztráció fenti fix korlátai konzervatív, kód- és unit-review-val ellenőrzött lokális védőkorlátok, nem mért kapacitásértékek; ez felváltja a korábbi, minden számértéket méréshez kötő tervet. Terhelési baseline és többprocesszes/proxy-s környezethez közös rate-limit store, topológiai review és mért konfiguráció később szükséges. A processz újraindítása nullázza a számlálókat; több processz szorozza a korlátot. A limiter nem általános hálózati DoS-védelem. A register/login limit közös. Logout csak Origin-checket használ és nem fogyaszt KDF-kapacitást. A többi endpoint korlátja továbbra is tervezett. A rate limit nem használhat raw emailt, tokent vagy presigned URL-t metrikacímkeként.

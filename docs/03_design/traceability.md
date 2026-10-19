@@ -1,10 +1,10 @@
 # Követhetőségi mátrix
 
-**Részben implementált: az US-01 regisztrációs backend-szelete; a többi termékfolyamat tervezett.**
+**Részben implementált: az US-01 regisztráció/login/logout/me backend-szelete; a többi termékfolyamat tervezett.**
 
 ## Cél
 
-A mátrix összeköti a szakdolgozat négy szakmai pillérét a tervezett capabilitykkel, user storykkal, API-csoportokkal, entitásokkal és unit tesztcsoportokkal. US-01 részleges bizonyíték: `AuthController` → `RegisterValidationPipe`/`RegistrationGuard` → `AuthService`/`PasswordService` → Prisma `User`; `registration.spec.ts`, password-, error- és config-unit tesztek. A valós DB-próba és a login/logout/me/UI még nyitott; a többi terméksorhoz nincs működési bizonyíték.
+A mátrix összeköti a szakdolgozat négy szakmai pillérét a tervezett capabilitykkel, user storykkal, API-csoportokkal, entitásokkal és unit tesztcsoportokkal. US-01 részleges bizonyíték: `AuthController` → `RegisterValidationPipe`/`RegistrationGuard` → `AuthService`/`PasswordService` → Prisma `User`; `registration.spec.ts`, password-, error- és config-unit tesztek. Login/logout/me: `SessionService` + `SessionGuard` + Origin-guard + `cookie-auth.spec.ts`; a valós DB-/browser-próba és UI még nyitott; a többi terméksorhoz nincs működési bizonyíték.
 
 ## Pillérek
 

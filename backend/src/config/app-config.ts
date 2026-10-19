@@ -12,6 +12,7 @@ export interface AppConfig {
   databaseUrl: string;
   jwtSecret: string;
   jwtExpiresIn: string;
+  jwtTtlSeconds: number;
   defaultUserStorageLimitBytes: number;
   storage: {
     endpoint: string;

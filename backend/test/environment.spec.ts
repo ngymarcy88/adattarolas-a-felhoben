@@ -16,7 +16,7 @@ describe('validateEnvironment', () => {
   it('parses central typed config and documented defaults', () => {
     const config = validateEnvironment(validEnvironment());
     expect(config).toMatchObject({
-      environment: 'local', port: 3000, jwtExpiresIn: '1h', defaultUserStorageLimitBytes: 1073741824,
+      environment: 'local', port: 3000, jwtExpiresIn: '1h', jwtTtlSeconds: 3600, defaultUserStorageLimitBytes: 1073741824,
       maxUploadBytes: 104857600, presignedUrlTtlSeconds: 300,
       storage: { forcePathStyle: true },
       allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'video/mp4', 'video/webm'],
@@ -27,7 +27,7 @@ describe('validateEnvironment', () => {
     expect(validateEnvironment({ ...validEnvironment(), APP_ENV: 'test', BACKEND_PORT: '3001',
       S3_FORCE_PATH_STYLE: 'false', MAX_UPLOAD_BYTES: '1000', JWT_EXPIRES_IN: '30m', DEFAULT_USER_STORAGE_LIMIT_BYTES: '2048' }))
       .toMatchObject({ environment: 'test', port: 3001, maxUploadBytes: 1000,
-        jwtExpiresIn: '30m', defaultUserStorageLimitBytes: 2048, storage: { forcePathStyle: false } });
+        jwtExpiresIn: '30m', jwtTtlSeconds: 1800, defaultUserStorageLimitBytes: 2048, storage: { forcePathStyle: false } });
   });
 
   it('allows a configured safe subset and trims separator whitespace', () => {
@@ -49,7 +49,8 @@ describe('validateEnvironment', () => {
     ['MAX_UPLOAD_BYTES', '-1'], ['PRESIGNED_URL_TTL_SECONDS', '301'],
     ['S3_FORCE_PATH_STYLE', 'yes'], ['JWT_SECRET', 'short'],
     ['JWT_SECRET', 'replace-with-a-very-long-and-unique-secret'],
-    ['JWT_EXPIRES_IN', 'forever'], ['DATABASE_URL', 'mysql://user:pass@localhost/db'],
+    ['JWT_EXPIRES_IN', 'forever'], ['JWT_EXPIRES_IN', '25h'], ['JWT_EXPIRES_IN', '999999999999999999d'],
+    ['JWT_EXPIRES_IN', '0s'], ['DATABASE_URL', 'mysql://user:pass@localhost/db'],
     ['DATABASE_URL', 'postgresql://localhost/db'], ['DATABASE_URL', 'invalid'],
     ['S3_ENDPOINT', 'ftp://localhost'], ['S3_ENDPOINT', 'http://user:pass@localhost:9000'],
     ['FRONTEND_PUBLIC_URL', 'https://localhost/app'], ['FRONTEND_PUBLIC_URL', 'https://localhost?x=1'],

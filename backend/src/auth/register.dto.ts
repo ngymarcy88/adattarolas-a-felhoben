@@ -8,7 +8,18 @@ export class RegisterDto {
 
 const localPart = /^[a-z0-9!#$%&'*+\/=?^_`{|}~.-]+$/;
 const domainLabel = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
-const validUnicode = (value: string): boolean => Buffer.from(value, 'utf8').toString('utf8') === value;
+export const validUnicode = (value: string): boolean => Buffer.from(value, 'utf8').toString('utf8') === value;
+
+export function normalizeEmail(email: unknown): string {
+  const fail = (): never => { throw new ApiError('VALIDATION_ERROR'); };
+  if (typeof email !== 'string' || email.length > 320) return fail();
+  const normalized = email.trim().toLowerCase();
+  const [local, domain, extra] = normalized.split('@');
+  if (!local || !domain || extra !== undefined || normalized.length > 254 || local.length > 64 ||
+      !localPart.test(local) || local.startsWith('.') || local.endsWith('.') || local.includes('..') ||
+      domain.split('.').length < 2 || domain.split('.').some((label) => !domainLabel.test(label))) return fail();
+  return normalized;
+}
 
 @Injectable()
 export class RegisterValidationPipe implements PipeTransform<unknown, RegisterDto> {
@@ -22,11 +33,7 @@ export class RegisterValidationPipe implements PipeTransform<unknown, RegisterDt
     // Bound raw input before normalization; never normalize or trim passwords.
     const { email, displayName, password } = body as Record<string, string>;
     if (email.length > 320 || displayName.length > 200 || password.length > MAX_PASSWORD_BYTES) return fail();
-    const normalizedEmail = email.trim().toLowerCase();
-    const [local, domain, extra] = normalizedEmail.split('@');
-    if (!local || !domain || extra !== undefined || normalizedEmail.length > 254 || local.length > 64 ||
-        !localPart.test(local) || local.startsWith('.') || local.endsWith('.') || local.includes('..') ||
-        domain.split('.').length < 2 || domain.split('.').some((label) => !domainLabel.test(label))) return fail();
+    const normalizedEmail = normalizeEmail(email);
     const normalizedName = displayName.trim();
     if (!normalizedName || [...normalizedName].length > 100 || !validUnicode(normalizedName) ||
         /[\u0000-\u001f\u007f-\u009f]/.test(normalizedName)) return fail();

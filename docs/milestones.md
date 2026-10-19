@@ -113,11 +113,11 @@ A történeti MVP-0–MVP-7 helyett az alábbi **SZD2-0–SZD2-7** az aktuális 
 - [ ] Az első import/processor tartós állapotigényének külön, szerződésalapú migrációja; ez nincs benne a kezdeti négy modellben.
 - [x] Külön jelszóhash/check service és izolált unit tesztjei; endpoint és DB-írás nélkül (ADR-014).
 - [x] Backend regisztráció: DTO-validáció, scrypt, email unique conflict, szerverkvóta és biztonságos válasz; unit tesztelt, valós DB-próba még nyitott.
-- [ ] Login, logout és aktuális user; az elfogadott HttpOnly cookie-auth és Origin-védelem megtartása.
+- [x] Backend login, logout és aktuális user; HttpOnly JWT-cookie, Origin-védelem, egységes login hiba, unit tesztek. Valós PostgreSQL- és browser-próba még nyitott.
 - [ ] Védett frontend és auth loading/error állapotok.
 - [ ] Teljes, authot is tartalmazó Quickstart; a technikai scaffold indítási próbája a tesztriportban külön szerepel.
 
-**Státusz:** SZD2-1 részben implementált; a technikai scaffold futtatási próbája elkészült, az auth és az azt tartalmazó teljes Quickstart-kapu még nyitott. **Unit evidence:** configuration/health/request-ID/error alaptesztek létrejöttek, futtatási eredményük a tesztriportban; a jelszóhash/check külön unit tesztelt; a regisztráció validációja, Origin-, kezdeti rate/concurrency-védelme és mockolt DB-írása unit tesztelt; generic login hiba és auth/owner boundary még későbbi feladat. **Manuális evidence:** tiszta indulás, health és belépés. **Dolgozat:** problémafelvetés, célfelhasználók, követelmények és fő tervezési döntések érdemi szövege.
+**Státusz:** SZD2-1 részben implementált; a technikai scaffold futtatási próbája elkészült, az auth és az azt tartalmazó teljes Quickstart-kapu még nyitott. **Unit evidence:** configuration/health/request-ID/error alaptesztek létrejöttek, futtatási eredményük a tesztriportban; a jelszóhash/check külön unit tesztelt; a regisztráció validációja, Origin-, kezdeti rate/concurrency-védelme és mockolt DB-írása unit tesztelt; generic login hiba, token/cookie és aktuális user guard unit tesztelt; fájl-ownership és valós auth-próba még későbbi feladat. **Manuális evidence:** tiszta indulás, health és belépés. **Dolgozat:** problémafelvetés, célfelhasználók, követelmények és fő tervezési döntések érdemi szövege.
 
 ### SZD2-2: Első használható képköteg, galéria és processor
 

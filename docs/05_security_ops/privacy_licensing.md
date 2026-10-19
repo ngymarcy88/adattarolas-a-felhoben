@@ -62,6 +62,7 @@ A telepített közvetlen npm-függőségek verzióit a root lockfile és a két 
 | Prisma Client/adapter/CLI 7.10.1 | Apache-2.0 | ORM és adatbázis tooling |
 | reflect-metadata 0.2.2, RxJS 7.8.2 | Apache-2.0 | Backend runtime |
 | dotenv 17.3.1 | BSD-2-Clause | Lokális konfiguráció |
+| jsonwebtoken 9.0.3, @types/jsonwebtoken 9.0.10 | MIT | Helyi HS256 JWT-aláírás/verifikáció; típus dev-only, nincs külső auth-provider vagy adatküldés |
 | Vue 3.5.44, Router 4.6.4 | MIT | Frontend runtime |
 | Vite 8.3.4, plugin-vue 6.0.10, Tailwind/plugin 4.3.3 | MIT | Frontend build |
 | Jest 30.5.2, ts-jest 29.4.6, Vitest 5.0.5 | MIT | Unit tooling |

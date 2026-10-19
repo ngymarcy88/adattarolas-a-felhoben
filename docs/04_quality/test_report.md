@@ -1,5 +1,27 @@
 # Test report
 
+## Login/logout/me HttpOnly cookie – 2026-10-19
+
+Vizsgált változat: `feature/cookie-auth`, a `452239f` main baseline utáni auth-iteráció. Környezet: Windows/WSL2, Linux Node 22.23.2, npm 10.9.8. Szintetikus felhasználók/jelszavak/JWT-k. Valós JWT-könyvtár és a meglévő password suite-ban valós scrypt; AuthService unit függőségei mockoltak. Nincs migráció, frontend auth, új integration/e2e suite vagy CI.
+
+| Ellenőrzés | Tényleges eredmény |
+|---|---|
+| `npm run test --workspace backend` | PASS: 8 suite / **210 teszt**, 0 failed/skipped |
+| `npm run test --workspace frontend` | PASS: **18 teszt**, 0 failed/skipped; összesen **228**, az előző 171-hez képest 57 új eset |
+| `npm run typecheck --workspace backend` | PASS |
+| `npm run build --workspace backend` | PASS |
+| Link-, secret- és whitespace-ellenőrzés | PASS: 136 helyi Markdown-link; helyi credentialérték nem került repóba/frontend bundle-be; `git diff --check` sikeres |
+| Független security/backend review | Nem talált blokkoló hibát; same-site/HTTPS és stateless logout korlátai az API/ADR-010-ben rögzítve |
+| `npm audit --json` | 20 moderate, 0 high/critical; az érintett csomagok a Jest/coverage dev-tooling ágán vannak; jsonwebtoken és közvetlen runtime függőségei nem szerepelnek az advisory-listában. Nem általános biztonsági megfelelőségi bizonyíték, auditfix nem része e szeletnek |
+| Licencek | Rögzített `jsonwebtoken@9.0.3`, `@types/jsonwebtoken@9.0.10`: MIT, package metadata alapján. Nincs külső auth-provider vagy adatküldés |
+| Kézi HTTP smoke, buildelt tényleges AppModule | PASS: tényleges route/DTO/Origin/guard/scrypt/JWT és cookie response-headerek, **mockolt perzisztenciával**, DB-connect nélkül. Register → login → me → logout → cookie nélküli 401; egységes ismeretlen-user/rossz-jelszó hiba, no-store/HttpOnly/Lax/Path, tokenmentes JSON, idempotens logout, másolt token ADR szerinti replay-korlátja, hibás/dupla cookie, törölt user, DB-hiba/recovery és közös attempt-limit ellenőrizve. Nem valós DB-/browser-igazolás |
+| Valós PostgreSQL-/browser-próba | **NEM FUTOTT:** Docker Server nem érhető el (`docker_engine` named pipe hiányzik); frontend auth nincs. A valós perzisztencia, böngészős cookie-tárolás/JavaScript-hozzáférés és production HTTPS környezet külön elfogadási kapu |
+
+Unit-bemenetek és elvárt/tényleges ágak: pontos login DTO, shared email-normalizálás, változatlan jelszó és regisztrációs erősségtől külön login; HS256/issuer/audience/iat/exp/UUID/TTL, más kulcs/algoritmus, hiányzó claim, jövőbeli claim és lejárati határ elutasítása; túlméretes/dupla cookie és bearer figyelmen kívül hagyása; helyi/production cookie-opciók és azonos attribútumú clear; hibás jelszó/ismeretlen email azonos 401 és dummy verify; DB/KDF/sign hibák biztonságos kezelése; register/login közös párhuzamosság és felszabadítás; törölt DB-user 401; idempotens Origin-védett logout. Minden unit-elvárás teljesült. Tesztkód: `backend/test/cookie-auth.spec.ts`, módosított registration/environment/error tesztek.
+
+Kézi következő próba: Quickstart és szintetikus regisztráció után az [API](../03_design/api.md#get-authme) curl-folyamata (200 login + cookie → 200 me → 204 logout → 401 me), valódi User rekorddal. Böngészőben igazolandó a credentials/include működése, HttpOnly miatti JS-olvashatatlanság, tárolási hely, same-site és production Secure/HTTPS; token ne kerüljön képernyőképbe, logba vagy localStorage-ba. Logout nem vonja vissza a korábban másolt JWT-t: ez elfogadott ADR-010 korlát, nem elvárt szerveroldali revokáció. Terhelési benchmark és külső UAT nem készült.
+
+
 ## Backend regisztráció – 2026-10-19
 
 Vizsgált változat: `feature/backend-registration`, a `43f1827` main baseline utáni regisztrációs iteráció. Környezet: Windows/WSL2, Linux Node 22.23.2, npm 10.9.8. Szintetikus adatok, valós scrypt a korábbi password suite-ban; a regisztrációs unit suite Prisma/hash mockot használ. Nincs új npm-függőség, migráció vagy integration/e2e/CI suite.
