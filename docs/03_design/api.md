@@ -152,7 +152,7 @@ Request:
 
 Pontosan két string mező kötelező, extra mező elutasított. Email a regisztrációval azonos shared trim+lowercase/ASCII szabály. Jelszó 1–1024 UTF-8 bájt, jól formált Unicode; nincs trim/normalizálás/csonkolás, és login nem alkalmazza az új regisztráció 15 kódpontos erősségi küszöbét. Rossz input `400 VALIDATION_ERROR`; helyes alakú ismeretlen email és hibás jelszó ugyanaz a `401 INVALID_CREDENTIALS`, üres details-szel. Ismeretlen usernél is valódi scrypt verify fut dummy rekorddal; teljes requestidő-azonosság nincs állítva. Siker előtt nincs Set-Cookie. Origin kötelező, hiánya/eltérése 403; közös register/login peer-korlát 429, foglaltság vagy DB/KDF/sign hiba 503, belső részletek nélkül.
 
-Frontend/backend same-site topológiát igényel; productionben HTTPS szükséges. Cookie-s kérésnél `credentials: include`. Token nem kerül JSON-ba vagy localStorage-ba. Nincs refresh, automatikus hosszabbítás vagy minden eszközről kijelentkeztetés.
+A frontend `/login` űrlapja ezt a végpontot hívja; siker után `/app`-ra navigál és új `/me` ellenőrzést kér. Frontend/backend same-site topológiát igényel; productionben HTTPS szükséges. Cookie-s kérésnél `credentials: include`. Token nem kerül JSON-ba vagy localStorage-ba. Nincs refresh, automatikus hosszabbítás vagy minden eszközről kijelentkeztetés.
 
 ### `POST /auth/logout`
 
@@ -164,7 +164,7 @@ Stateless korlát: a korábban másolt JWT a saját lejáratáig továbbra is é
 
 **Implementált siker:** `200 OK`, `Cache-Control: no-store`, bodyban a közös publikus `user`. Nem újítja meg a tokent. A SessionGuard csak az egyértelmű `cloudvault_access` cookie-t olvassa; Authorization bearer nem támogatott. JWT: kizárólag HS256 + helyes aláírás, fix `iss=cloudvault`, `aud=cloudvault-api`, UUID `sub`, kötelező egész `iat`/`exp`, nem jövőbeli iat, még élő exp és legfeljebb konfigurált élettartam. Üres/dupla/hibás/túl hosszú auth-cookie, érvénytelen aláírás/algoritmus/claim és lejárat `401 AUTH_REQUIRED`.
 
-A guard ezután DB-ből public selecttel újra lekéri a usert: megszűnt user 401, DB-hiba 503. Így a JWT nem egy elavult profil-cache; hash, kvóta és más belső adat nem kerül válaszba. GET-ként nem követel Origint; a globális CORS az explicit eltérő Origint továbbra is tiltja, same-site cookie és DB/token-ellenőrzés kötelező.
+Ez a frontend `/app` útvonalának védett backend végpontja; külön példavégpont nem szükséges. A frontend guard közvetlen megnyitáskor és minden új védett navigáción lekéri; 401 loginra, átmeneti hiba külön retry oldalra vezet, adatmegjelenítés előtt. A guard ezután DB-ből public selecttel újra lekéri a usert: megszűnt user 401, DB-hiba 503. Így a JWT nem egy elavult profil-cache; hash, kvóta és más belső adat nem kerül válaszba. GET-ként nem követel Origint; a globális CORS az explicit eltérő Origint továbbra is tiltja, same-site cookie és DB/token-ellenőrzés kötelező.
 
 Kézi auth-próba a regisztráció után (szintetikus adatokkal, a cookie-jar hozzáférést adó token, ne commitold/ne publikáld):
 

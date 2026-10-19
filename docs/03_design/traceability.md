@@ -4,7 +4,7 @@
 
 ## Cél
 
-A mátrix összeköti a szakdolgozat négy szakmai pillérét a tervezett capabilitykkel, user storykkal, API-csoportokkal, entitásokkal és unit tesztcsoportokkal. US-01 részleges bizonyíték: `AuthController` → `RegisterValidationPipe`/`RegistrationGuard` → `AuthService`/`PasswordService` → Prisma `User`; `registration.spec.ts`, password-, error- és config-unit tesztek. Login/logout/me: `SessionService` + `SessionGuard` + Origin-guard + `cookie-auth.spec.ts`; a valós DB-/browser-próba és UI még nyitott; a többi terméksorhoz nincs működési bizonyíték.
+A mátrix összeköti a szakdolgozat négy szakmai pillérét a tervezett capabilitykkel, user storykkal, API-csoportokkal, entitásokkal és unit tesztcsoportokkal. US-01 részleges bizonyíték: `AuthController` → `RegisterValidationPipe`/`RegistrationGuard` → `AuthService`/`PasswordService` → Prisma `User`; `registration.spec.ts`, password-, error- és config-unit tesztek. Login/logout/me: `SessionService` + `SessionGuard` + Origin-guard + `cookie-auth.spec.ts`; frontend `/login`, `/app`, `/auth-unavailable` és `api/auth.ts`/router-session guard implementált, `auth.spec.ts`, `protected-route.spec.ts`, `auth-pages.spec.ts` unit/template bizonyítékkal; backend `/me` guard-regresszió is van. A valós DB-/browser-próba, regisztrációs UI és fájlfolyamat még nyitott; a többi terméksorhoz nincs működési bizonyíték.
 
 ## Pillérek
 

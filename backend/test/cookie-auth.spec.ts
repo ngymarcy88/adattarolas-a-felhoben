@@ -208,3 +208,19 @@ describe('Auth guards', () => {
     expect(currentUser).not.toHaveBeenCalled();
   });
 });
+
+// Boundary regression: rendering flags in the SPA must never replace this guard.
+describe('Protected backend /auth/me boundary', () => {
+  it('keeps the real controller route protected by SessionGuard', () => {
+    const guards: unknown[] = Reflect.getMetadata('__guards__', AuthController.prototype.me);
+    expect(guards).toContain(SessionGuard);
+  });
+  it.each(['AUTH_REQUIRED', 'SERVICE_UNAVAILABLE'] as const)('does not attach a user after DB %s', async (code) => {
+    const { ApiError } = await import('../src/common/errors/api-error');
+    const currentUser = jest.fn().mockRejectedValue(new ApiError(code));
+    const guard = new SessionGuard(new SessionService(config()), { currentUser } as unknown as AuthService);
+    const request = { headers: { cookie: cookie(signed()) } } as AuthenticatedRequest;
+    await expect(guard.canActivate(requestContext(request))).rejects.toMatchObject({ code });
+    expect(request.user).toBeUndefined();
+  });
+});

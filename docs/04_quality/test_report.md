@@ -1,5 +1,27 @@
 # Test report
 
+## Védett backend végpont és frontend útvonal – 2026-10-19
+
+Vizsgált változat: `feature/protected-route`, a `d18cc7b` main baseline utáni útvonalvédelmi iteráció. Környezet: Windows/WSL2, Linux Node 22.23.2, npm 10.9.8. Szintetikus profilok/jelszavak, mockolt fetch/Prisma-függőségek, tényleges Vue Router memory history és Vue SSR template-render. A már létező `/api/v1/auth/me` valódi védett backend végpontját használjuk, nem hoztunk létre mesterséges példavégpontot. Nincs új dependency, migráció, integration/e2e vagy CI.
+
+| Ellenőrzés | Tényleges eredmény |
+|---|---|
+| `npm run test --workspace backend` | PASS: 8 suite / **213 teszt**, 0 failed/skipped |
+| `npm run test --workspace frontend` | PASS: 4 suite / **55 teszt**, 0 failed/skipped; együtt **268**, az előző 228-hoz képest 40 új eset |
+| `npm run typecheck` | PASS: Prisma generate + backend/frontend typecheck; a végső frontend build a módosított template-tesztek típusait is ellenőrzi |
+| `npm run build` | PASS: Prisma generate, Nest build, frontend vue-tsc + Vite production bundle |
+| Független frontend/security review | Nincs javítást igénylő találat; backend guard, API-validáció, navigációs versenyek, cookie/token határ és lifecycle átnézve |
+| Helyi dokumentumlink/secret/diff ellenőrzés | PASS: 137 helyi Markdown-link; tényleges lokális credential nem található a repóban vagy ellenőrzött frontend bundle-ben; whitespace check sikeres |
+| Valós böngészős próba | **NEM FUTOTT:** a beépített browser Node REPL környezeti `sandboxCwd`/URI hibával megállt; fallback Playwright Chrome bináris hiányzik (`/opt/google/chrome/chrome`). Nem telepítettünk új browser- vagy tesztfüggőséget |
+| Valós DB + böngészős auth-folyamat | Továbbra is nyitott; az előző auth-iterációban a Docker daemon nem volt elérhető, ebben a szeletben a perzisztencia nem változott |
+
+Backend-regresszió: a tényleges controller `/auth/me` metódusán a SessionGuard marad; DB-user hiánya és DB-hiba esetén nincs attached user. A korábbi suite a JWT nélküli/hibás tokent és a tényleges DB-lookup paramétereit is védi. Frontend input/lépések: credentialed login/me/logout; váratlan/érzékeny mező vagy hibás válasz kizárása; 401/400/403/429/503, hálózati hiba, teljes request/body timeout és megszakított JSON-read; a logout csak 204-et fogad el. Router: közvetlen `/app`, hamis kliensprofil, 401 login, kiesés retry, újraellenőrzés és lejárati elutasítás; régi siker/hiba és megszakított navigáció nem állíthat vissza elavult profilt vagy redirectet. Vue template-render: belépőmezők/autocomplete, ellenőrzés alatti adatrejtés, escaped profil és retry link. Elvárt/tényleges eredmények a végleges tesztkörben minden esetben egyeznek.
+
+A template-render **nem** igazol böngészős hydrationt, űrlap-interakciókat, tényleges cookie-tárolást, history/back viselkedést, layoutot vagy külső UAT-ot. A login/logout handler dupla-submit, jelszóürítés és hibás logout viselkedése kódreview-val ellenőrzött, interaktív browser-próba szükséges. Egy kezdeti custom-renderer tesztharness hibásan klienskomponensként mountolta a Vitest node módban SSR-re fordított SFC-ket; ezt helyes Vue SSR template-próbára cseréltük, nem termékkódhibaként kezeltük.
+
+Kézi elfogadás a Quickstart és API-ból szintetikus fiók létrehozása után: cookie nélkül közvetlen `/app` → login; rossz jelszó → biztonságos hiba és ürült jelszó; jó login → ellenőrzés → saját profil; refresh/back és lejárt/törölt cookie → új szerveres ellenőrzés; backend kikapcsolva → adatmentes retry oldal, visszakapcsolva retry → profil; sikertelen logout maradjon javítható hiba, sikeres logout után `/app` ne nyíljon meg új belépés nélkül. Ellenőrizendő a mobil elrendezés, billentyűzet/fókusz, localStorage/sessionStorage tokenmentesség és HttpOnly JS-hozzáférés tiltása. Tétlen oldalon nincs session-polling vagy cross-tab szinkron; backend guard minden védett kérésnél kötelező. Token/PII ne kerüljön screenshotba vagy logba.
+
+
 ## Login/logout/me HttpOnly cookie – 2026-10-19
 
 Vizsgált változat: `feature/cookie-auth`, a `452239f` main baseline utáni auth-iteráció. Környezet: Windows/WSL2, Linux Node 22.23.2, npm 10.9.8. Szintetikus felhasználók/jelszavak/JWT-k. Valós JWT-könyvtár és a meglévő password suite-ban valós scrypt; AuthService unit függőségei mockoltak. Nincs migráció, frontend auth, új integration/e2e suite vagy CI.

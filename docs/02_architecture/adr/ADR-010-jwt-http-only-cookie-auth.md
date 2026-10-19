@@ -1,6 +1,6 @@
 # ADR-010: Short-lived JWT HttpOnly cookie authentication
 
-**Backend login/logout/me és cookie implementált; a frontend, valós DB-/browser-elfogadás még nyitott.**
+**Backend login/logout/me, cookie és minimális frontend auth/védett fiókoldal implementált; valós DB-/browser-elfogadás még nyitott.**
 
 ## Status
 
