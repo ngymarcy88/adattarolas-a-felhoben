@@ -12,7 +12,7 @@ Accepted
 
 ## Implementation status
 
-Nincs auth implementáció vagy telepített dependency.
+JWT/cookie-auth endpoint és tokenfüggőség még nincs. A külön jelszóhash/check primitív már implementált, az [ADR-014](ADR-014-password-hashing.md) szerint; ez nem a teljes auth-flow.
 
 ## Context
 

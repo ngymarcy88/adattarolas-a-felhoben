@@ -1,6 +1,6 @@
 # Backend
 
-NestJS 12 + TypeScript API-alap, központilag validált konfigurációval, Prisma 7/PostgreSQL kapcsolattal, request ID middleware-rel és globális hibakezeléssel. Jelenleg egyetlen endpoint létezik: a publikus `GET /api/v1/health`, válasza `{"status":"ok"}`. Ez API-liveness jelzés, nem folyamatos adatbázis-/MinIO-readiness vizsgálat.
+NestJS 11 + TypeScript API-alap, központilag validált konfigurációval, Prisma 7/PostgreSQL kapcsolattal, request ID middleware-rel és globális hibakezeléssel. Jelenleg egyetlen endpoint létezik: a publikus `GET /api/v1/health`, válasza `{"status":"ok"}`. Ez API-liveness jelzés, nem folyamatos adatbázis-/MinIO-readiness vizsgálat.
 
 ## Futtatás és konfiguráció
 
@@ -35,3 +35,9 @@ A `start` már létező buildet és generált klienst igényel. A teljes workspa
 A kezdeti Prisma-modellek: `User`, `FileObject`, `ShareLink`, `AuditEvent`. A séma és migráció az adatbázisalapot adják; regisztráció, login, kvótaműveletek, upload, sharing, import és processor még nincs implementálva. A storage adapter és az AWS SDK sincs még bevezetve. Az új import-/processing-entitásokat a részletes szerződés lezárása után külön migráció adja hozzá.
 
 A Jest unit tesztek a konfigurációt, request ID-t, generikus hibamappinget és health választ fedik; a hálózati/adatbázis-együttműködés valós próbáját ezek nem helyettesítik. CI, integration és e2e suite nincs.
+
+## Jelszóhash/check primitív
+
+A `src/auth/password.service.ts` `PasswordService.hash(password)` és `verify(password, storedHash)` metódusai Node beépített aszinkron scryptjét használják, új npm-függőség nélkül. Véletlen salt és verziózott hash-formátum; hibás rekord nem választhat drága KDF-paramétert. Jelszóváltoztatás/csonkolás nincs, a technikai korlát 1024 UTF-8 bájt. A pontos formátumot, hibákat és terhelési korlátokat az [ADR-014](../docs/02_architecture/adr/ADR-014-password-hashing.md) rögzíti.
+
+Célzott unit teszt a repógyökérből: `npm run test --workspace backend -- --runTestsByPath test/password.service.spec.ts`. A service még nincs auth-végpontba kötve; az erősségi policy, DTO, regisztráció, login, cookie és rate limit külön következő feladat.
