@@ -10,7 +10,7 @@ Accepted
 
 ## Implementation status
 
-Tervezett állapot – nincs implementált API vagy storage adapter.
+Tervezett upload/download – a health/auth API létezik, de nincs implementált upload/download végpont vagy storage adapter.
 
 ## Context
 
@@ -18,7 +18,7 @@ A browsernek médiaobjektumot kell mozgatnia anélkül, hogy tartós storage cre
 
 ## Decision
 
-A Core MVP backend-kontrollált presigned flow-t használ:
+Az első képszelet tervezett backend-kontrollált presigned flow-ja (a teljes resumable SZD2 adatútját nem választja ki):
 
 1. Az authenticated init kérés validálja a deklarált metaadatot és kvótát.
 2. A backend `PENDING_UPLOAD` rekordot hoz létre, kvótát foglal, és ötperces presigned PUT URL-t ad.
@@ -36,7 +36,7 @@ A backend proxy nem automatikus CORS-fallback. A lokális MinIO CORS beállítá
 - Frontend tartós credentialdel: elfogadhatatlan security és authorization kockázat.
 - Backend proxy minden bináris adathoz: erősebb központi kontroll, de felesleges API-terhelés és rosszabb skálázhatóság.
 - Nyilvános bucket: egyszerű demo, de nem felel meg a privát alapállapotnak.
-- Multipart upload azonnal: a Core MVP scope-jához túl nagy komplexitás; ADR-009 szerint Later.
+- Multipart az első képszeletben: most nincs kiválasztva; a kötelező resumable képimporthoz külön PoC/ADR kell. Csak a nagyvideós bővítés marad egyértelműen Later (ADR-009).
 
 ## Consequences
 
@@ -52,3 +52,11 @@ A backend proxy nem automatikus CORS-fallback. A lokális MinIO CORS beállítá
 - Unit teszt ellenőrzi a confirm validationt és exactly-once transitiont.
 - Manuális log review igazolja, hogy URL vagy credential nem kerül naplóba.
 - A későbbi lokális smoke check igazolja a MinIO CORS és presigned PUT/GET működését; ez nem része a jelen dokumentációs körnek.
+
+## Első képfeltöltési szerződés pontosítása – 2026-10-20
+
+A kanonikus request/response és hibaút az [API Upload részében](../../03_design/api.md#upload--első-képfeltöltési-szelet-tervezett) található. Az init kötelező ownerhez kötött `Idempotency-Key` alapján egyetlen fájlt/foglalást hoz létre; a normalizált payload és a határidők replaykor változatlanok. A tartós nyilvántartás konkrét adatmodellje külön következő feladat.
+
+A szokásos presigned PUT többször használható és felülírhatja a már ellenőrzött objektumot; a korábbi egyszerű HEAD→ACTIVE leírás ezt önmagában nem zárja ki. Az API elvárt create-only iránya az aláírt `If-None-Match: *`, de a tényleges MinIO/S3 kompatibilitás, megkerülhetetlenség, méretkikényszerítés és a HEAD/range objektumazonosság még implementáció előtti bizonyítási kapu. Belső storage URL nem helyettesíthet böngészőből elérhető, helyesen aláírt publikus URL-t; CORS szükséges.
+
+A késői in-flight PUT és cleanup versenyénél puszta URL-lejárat/HEAD 404 nem elég a reservation felszabadításához. Biztonságos íráslezárás és confirm/cleanup kizárás szükséges; ennek adapteres bizonyítéka külön feladat. Amíg a kapuk nem teljesülnek, ez dokumentált követelmény, nem igazolt biztonsági képesség. A teljes képintegritás/processor eredményét a magic-number ellenőrzés nem garantálja.

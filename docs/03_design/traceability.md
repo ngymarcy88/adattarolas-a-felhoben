@@ -36,7 +36,7 @@ A mátrix összeköti a szakdolgozat négy szakmai pillérét a tervezett capabi
 |---|---|
 | `UT-AUTH` | Jelszóhash/check, inputvalidáció, generic login hiba, egyórás `HttpOnly; SameSite=Lax` cookie, logout, Origin allowlist, token hiánya response bodyban/localStorage szerződésben |
 | `UT-OWNERSHIP` | Saját resource siker; más owner és nem létező file azonos `404 FILE_NOT_FOUND`; state-check minden védett műveletnél |
-| `UT-UPLOAD` | Init validáció és rollback, 100 MB limit, 5 perces PUT URL, 15 perces pending deadline, párhuzamos reservation, első és ismételt confirm |
+| `UT-UPLOAD` | Init validáció/rollback és tartós owner+kulcs dedupe (azonos/eltérő payload, párhuzamosság, újraindítás, legalább 24 órás receipt), 104857600 bájtos limit, fix 5/15 perces határok és replay megújítás nélkül; párhuzamos reservation, első/ismételt/soft-deleted confirm, commitkori határidő |
 | `UT-VALIDATION` | Pontos kép-/video-MIME allowlist, `HEAD` méreteltérés, bounded range magic-number mismatch, unknown/corrupt/active content |
 | `UT-ACCOUNTING` | `used + reserved <= limit`, pontosan egyszeri reserved→used transfer, soft delete/restore no-op, cleanup és későbbi purge invariáns |
 | `UT-CLEANUP` | Object-not-found, delete success, delete failure, reservation megtartás/feloldás, retry-képes pending állapot és időalapú kiválasztás |
@@ -51,3 +51,9 @@ A mátrix összeköti a szakdolgozat négy szakmai pillérét a tervezett capabi
 ## Evidence frissítési szabály
 
 Implementációkor minden sorhoz legalább egy stabil kódhivatkozás és egy teszteset vagy dokumentált manuális bizonyíték kerül. A végrehajtott eredményt a `docs/04_quality/test_report.md`, a metrikakapcsolatot a `docs/01_product/metrics.md`, az AI-asszisztált állítás ellenőrzését a `docs/07_ai/verification_log.md` rögzíti. Tervezett sort nem szabad bizonyíték nélkül készre állítani.
+
+## Első képfeltöltési API ellenőrzési kapui – tervezett, 2026-10-20
+
+A [képszelet szerződése](api.md#upload--első-képfeltöltési-szelet-tervezett) dokumentált, nem implementált. Az init tartós dedupe/terminális lezárás adatmodellje és a konkrét storage adapter külön feladat. A meglévő UT-UPLOAD/UT-VALIDATION/UT-ACCOUNTING/UT-CLEANUP csoportok későbbi esetei fedjék: idegen owner és hiányzó fájl azonos 404, MIME/név/méret határok, same-key retry és payload-konfliktus, egyszeri foglalás és könyvelés, ACTIVE no-op lejárat után is, cleanup/confirm verseny, 413/422 terminális ok megőrzése, hiány/átmeneti hiba eltérő kezelése és a sikertelen cleanup foglalásmegtartása.
+
+Az adapter előtti külön tényleges MinIO/S3 bizonyítási kapuk: aláírt headerek megkerülhetetlensége és create-only PUT, storage-oldali méretkorlát a valódi browser-adatúton, változatlan HEAD/range objektum, publikus/belső cím és CORS, lejárat előtt indult PUT/cleanup versenyének biztonságos lezárása. Ezek **nem lefutott tesztek**, és nem vezetnek be most integration/e2e suite-ot. A végrehajtásuk külön engedélyezett implementációs/ellenőrzési feladat; kizárólag unit mock nem bizonyít provider-kompatibilitást. A végleges resumable PoC és újraküldöttbájt-mérés ettől külön SZD2-kapu.
