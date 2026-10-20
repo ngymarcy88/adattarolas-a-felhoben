@@ -3,8 +3,9 @@ import { onBeforeUnmount } from 'vue';
 import { RouterLink } from 'vue-router';
 import { authClient } from '../api/auth';
 import { createAuthForm } from '../auth/form';
+import PasswordInput from '../components/PasswordInput.vue';
 
-const { state, submit, dispose } = createAuthForm('register', authClient, async () => {});
+const { state, requirements, togglePasswordVisibility, submit, dispose } = createAuthForm('register', authClient, async () => {});
 onBeforeUnmount(dispose);
 </script>
 
@@ -32,13 +33,21 @@ onBeforeUnmount(dispose);
           </div>
           <div>
             <label for="password" class="mb-2 block text-sm font-medium">Jelszó</label>
-            <input id="password" v-model="state.password" type="password" name="password" autocomplete="new-password" maxlength="1024" required :disabled="state.pending" :aria-invalid="Boolean(state.fields.password)" :aria-describedby="state.fields.password ? 'password-hint password-error' : 'password-hint'" class="w-full rounded-xl border border-slate-300 px-3 py-3" />
-            <p id="password-hint" class="mt-2 text-sm text-slate-500">Legalább 15 karakter. Hosszú jelmondatot, szóközt és ékezeteket is használhatsz.</p>
+            <PasswordInput id="password" v-model="state.password" name="password" autocomplete="new-password" :disabled="state.pending" :invalid="Boolean(state.fields.password)" :describedby="state.fields.password ? 'password-hint password-error' : 'password-hint'" :visible="state.passwordVisible" @toggle="togglePasswordVisibility('password')" />
+            <div id="password-hint" class="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
+              <p class="mb-2 font-medium text-slate-700">Jelszókövetelmények</p>
+              <ul class="space-y-1" aria-live="polite" aria-atomic="true">
+                <li v-for="rule in requirements" :key="rule.key" :class="rule.met ? 'text-emerald-800' : state.password || state.fields.password ? 'text-red-700' : 'text-slate-600'">
+                  {{ rule.met ? '✓ Teljesítve: ' : state.password || state.fields.password ? 'Hiányzik: ' : '– ' }}{{ rule.label }}
+                </li>
+              </ul>
+              <p class="mt-2 text-xs text-slate-500">Szóköz és ékezet is használható; legfeljebb 1024 UTF-8 bájt. A szóköz nem speciális karakter.</p>
+            </div>
             <p v-if="state.fields.password" id="password-error" class="mt-2 text-sm text-red-700">{{ state.fields.password }}</p>
           </div>
           <div>
             <label for="password-confirmation" class="mb-2 block text-sm font-medium">Jelszó megerősítése</label>
-            <input id="password-confirmation" v-model="state.passwordConfirmation" type="password" name="passwordConfirmation" autocomplete="new-password" maxlength="1024" required :disabled="state.pending" :aria-invalid="Boolean(state.fields.passwordConfirmation)" :aria-describedby="state.fields.passwordConfirmation ? 'confirmation-error' : undefined" class="w-full rounded-xl border border-slate-300 px-3 py-3" />
+            <PasswordInput id="password-confirmation" v-model="state.passwordConfirmation" name="passwordConfirmation" autocomplete="new-password" :disabled="state.pending" :invalid="Boolean(state.fields.passwordConfirmation)" :describedby="state.fields.passwordConfirmation ? 'confirmation-error' : undefined" :visible="state.passwordConfirmationVisible" @toggle="togglePasswordVisibility('passwordConfirmation')" />
             <p v-if="state.fields.passwordConfirmation" id="confirmation-error" class="mt-2 text-sm text-red-700">{{ state.fields.passwordConfirmation }}</p>
           </div>
           <p v-if="Object.keys(state.fields).length" role="alert" class="text-sm text-red-700">Javítsd a jelzett mezőket, majd próbáld újra.</p>

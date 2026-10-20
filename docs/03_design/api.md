@@ -109,7 +109,7 @@ Request:
 {
   "email": "user@example.test",
   "displayName": "Teszt Felhasználó",
-  "password": "example-only-not-a-real-password"
+  "password": "Example-only-test-password1!"
 }
 ```
 
@@ -118,7 +118,7 @@ Request:
 - Kötelező pontosan három string mező: `email`, `displayName`, `password`; extra mező (például kvóta vagy hash), array/null és hibás típus elutasított. Saját Nest DTO-pipe van; class-validator nincs a meglévő függőségek között, új függőség nem került be.
 - Email: trim + lowercase az egész címre; legfeljebb 254 karakter, ASCII dot-atom local part (legfeljebb 64), ponttal tagolt domain, legfeljebb 63 karakteres címkék. Quoted local part, SMTPUTF8, egycímkés domain nem támogatott. A case-insensitive alkalmazásazonosító tudatos szabály; plus-tag/dot összevonás nincs. A login ugyanezt a közös normalizálást használja. Email-tulajdonlás ellenőrzése nincs.
 - Display name: trim, 1–100 Unicode-kódpont; vezérlőkarakter és nem párosított surrogate elutasított. Nem HTML; megjelenítéskor a frontendnek szövegként kell kezelnie.
-- Jelszó: legalább 15 Unicode-kódpont, legfeljebb 1024 UTF-8 bájt; a 15 karakteres minimum MFA nélküli alkalmazáshoz az [OWASP útmutatóra](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html) támaszkodik. Whitespace/Unicode engedélyezett, nincs trim, normalizálás, csonkolás vagy kötelező karakterösszetétel. Kompromittáltjelszó-blokklista még nincs; ez nem teljes jelszóbiztonsági megfelelőségi állítás.
+- Jelszó: legalább 15 Unicode-kódpont, legfeljebb 1024 UTF-8 bájt; a 15 karakteres minimum MFA nélküli alkalmazáshoz az [OWASP útmutatóra](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html) támaszkodik. A 2026-10-20-i explicit szerzői kérés szerint új regisztrációnál kötelező legalább egy Unicode nagybetű (`Lu`), decimális számjegy (`Nd`) és írásjel vagy szimbólum (`P`/`S`). Például `!`, `@`, `#`; a szóköz és a láthatatlan elválasztó önmagában nem speciális karakter, emoji szimbólumként elfogadott. Whitespace/Unicode továbbra is engedélyezett, nincs trim, normalizálás vagy csonkolás. A frontend mező alatti lista élőben jelzi mind a négy feltételt. A [jelenlegi NIST-ajánlás](https://pages.nist.gov/800-63-4/sp800-63b/authenticators/) alátámasztja a 15-ös minimumot egyfaktoros jelszónál, de nem ír elő karakterkeverést: az összetétel itt felhasználó által kért projektszabály, nem NIST-megfelelőség. Kompromittáltjelszó-blokklista még nincs; ez nem teljes jelszóbiztonsági megfelelőségi állítás.
 - Hash: ADR-014 scrypt. A Prisma egyetlen `user.create` művelete, a unique email index és a DB defaultok adják a létrehozás atomikusságát. Nincs read-then-write duplikációellenőrzés. A Prisma 7 pg adapter strukturált constraint hibája és a korábbi `meta.target` alak is kezelt. Ugyanaz a normalizált email nem írható be kétszer.
 - Kezdőkvóta: `DEFAULT_USER_STORAGE_LIMIT_BYTES`, default 1073741824 (1 GiB), pozitív JS safe integer; a szerver BigIntté alakítja. Meglévő `.env` mellett is működik a default; nincs credentialcsere vagy sémamódosítás. A kliens nem választhat kvótát; used/reserved a DB defaultja szerint nulla.
 - Kötelező `Origin`: pontosan a konfigurált `FRONTEND_PUBLIC_URL`; hiányzó, `null`, eltérő host/séma/port `403 ORIGIN_NOT_ALLOWED`. Health továbbra is publikus Origin nélkül. Ez böngészős forrásvédelem, nem klienshitelesítés.
@@ -132,7 +132,7 @@ Szintetikus request a Quickstart után (a példa body nem valódi credential):
 curl -i http://127.0.0.1:3000/api/v1/auth/register \
   -H 'Origin: http://127.0.0.1:5173' \
   -H 'Content-Type: application/json' \
-  --data '{"email":"user@example.test","displayName":"Teszt User","password":"example-only-not-a-real-password"}'
+  --data '{"email":"user@example.test","displayName":"Teszt User","password":"Example-only-test-password1!"}'
 ```
 
 Elvárt: 201 és a fenti publikus user, ismétléskor 409; Origin nélkül 403; rövid jelszóval 400. A unit eredmények és a még hiányzó valós PostgreSQL-próba a [tesztriportban](../04_quality/test_report.md) vannak.
@@ -144,13 +144,13 @@ Request:
 ```json
 {
   "email": "user@example.test",
-  "password": "example-only-not-a-real-password"
+  "password": "Example-only-test-password1!"
 }
 ```
 
 **Implementált siker:** `200 OK`, `Cache-Control: no-store`, bodyban kizárólag `user: { id, email, displayName, createdAt }`. A `cloudvault_access` JWT csak `Set-Cookie`-ban kerül ki: HttpOnly, SameSite=Lax, Path=/api/v1, Domain nélkül; productionben Secure, maxAge a TTL-lel egyezik. `JWT_EXPIRES_IN` 1s–24h, default 1h; a konfiguráció egész s/m/h/d jelölést fogad el, a könyvtár numerikus másodpercet kap.
 
-Pontosan két string mező kötelező, extra mező elutasított. Email a regisztrációval azonos shared trim+lowercase/ASCII szabály. Jelszó 1–1024 UTF-8 bájt, jól formált Unicode; nincs trim/normalizálás/csonkolás, és login nem alkalmazza az új regisztráció 15 kódpontos erősségi küszöbét. Rossz input `400 VALIDATION_ERROR`; helyes alakú ismeretlen email és hibás jelszó ugyanaz a `401 INVALID_CREDENTIALS`, üres details-szel. Ismeretlen usernél is valódi scrypt verify fut dummy rekorddal; teljes requestidő-azonosság nincs állítva. Siker előtt nincs Set-Cookie. Origin kötelező, hiánya/eltérése 403; közös register/login peer-korlát 429, foglaltság vagy DB/KDF/sign hiba 503, belső részletek nélkül.
+Pontosan két string mező kötelező, extra mező elutasított. Email a regisztrációval azonos shared trim+lowercase/ASCII szabály. Jelszó 1–1024 UTF-8 bájt, jól formált Unicode; nincs trim/normalizálás/csonkolás, és login nem alkalmazza az új regisztráció minimumhossz- és karakterösszetételi szabályait. Rossz input `400 VALIDATION_ERROR`; helyes alakú ismeretlen email és hibás jelszó ugyanaz a `401 INVALID_CREDENTIALS`, üres details-szel. Ismeretlen usernél is valódi scrypt verify fut dummy rekorddal; teljes requestidő-azonosság nincs állítva. Siker előtt nincs Set-Cookie. Origin kötelező, hiánya/eltérése 403; közös register/login peer-korlát 429, foglaltság vagy DB/KDF/sign hiba 503, belső részletek nélkül.
 
 A frontend `/login` űrlapja ezt a végpontot hívja; siker után `/app`-ra navigál és új `/me` ellenőrzést kér. Frontend/backend same-site topológiát igényel; productionben HTTPS szükséges. Cookie-s kérésnél `credentials: include`. Token nem kerül JSON-ba vagy localStorage-ba. Nincs refresh, automatikus hosszabbítás vagy minden eszközről kijelentkeztetés.
 
@@ -171,7 +171,7 @@ Kézi auth-próba a regisztráció után (szintetikus adatokkal, a cookie-jar ho
 ```bash
 curl -i -c /tmp/cloudvault-auth.cookies http://127.0.0.1:3000/api/v1/auth/login \
   -H 'Origin: http://127.0.0.1:5173' -H 'Content-Type: application/json' \
-  --data '{"email":"user@example.test","password":"example-only-not-a-real-password"}'
+  --data '{"email":"user@example.test","password":"Example-only-test-password1!"}'
 curl -i -b /tmp/cloudvault-auth.cookies http://127.0.0.1:3000/api/v1/auth/me
 curl -i -b /tmp/cloudvault-auth.cookies -c /tmp/cloudvault-auth.cookies \
   -H 'Origin: http://127.0.0.1:5173' -X POST http://127.0.0.1:3000/api/v1/auth/logout

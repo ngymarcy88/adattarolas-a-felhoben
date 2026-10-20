@@ -1,5 +1,28 @@
 # Test report
 
+## Jelszómegjelenítés és élő regisztrációs policy – 2026-10-20
+
+Vizsgált változat: `feature/full-app-compose`, `4744c69` utáni auth-kiegészítés. Környezet: WSL/Linux Node 22.23.2, npm 10.9.8; szintetikus jelszó-fixture-ök, mockolt auth/perzisztencia, Vue SSR template-render. A szerző új összetételi szabályokat kért; a 15-ös minimumot a NIST-forrás ellenőrzése után megtartottuk. Ez nem teljes NIST-megfelelőségi állítás.
+
+| Ellenőrzés | Tényleges eredmény |
+|---|---|
+| `npm test` | PASS: 2 container-helper + 221 backend + 105 frontend = **328 unit/template teszt**; 0 failed/skipped |
+| `npm run build` | PASS: Prisma-generálás, NestJS, vue-tsc és Vite production bundle |
+| Link/secret/diff ellenőrzés | PASS: 140 helyi Markdown-link, tényleges credential nincs a forrásban/frontend bundle-ben; whitespace ellenőrzés sikeres |
+| FE/BE regisztrációs policy | PASS: min. 15 kódpont, Unicode nagybetű/számjegy/írásjel vagy szimbólum; külön hiányzó feltételek, whitespace/zero-width nem speciális karakter; kódolt Unicode és 1024 UTF-8 bájtos határ |
+| Élő visszajelzés | PASS: közös reaktív formból minden követelmény állapota frissül; a javított jelszó elavult mezőhibája törlődik; érvénytelen jelszó nem jut az API-ig |
+| Mutatás/Elrejtés | PASS: külön mezők, változatlan jelszó és nincs submit; rejtés beküldéskor/dispose-kor, pending/siker/dispose után nincs újra megjelenítés; SSR type és ARIA controls/pressed, élő szöveges követelménylista |
+| Meglévő fiók kompatibilitása | PASS unit szinten: login rövid és az új összetételnek nem megfelelő meglévő jelszót is ellenőriz, nincs automatikus jelszócsere |
+| Független frontend/backend security review | Javítandó hiba nincs; policyparitás, Unicode/bájtkorlát, titokéletciklus, accessibility átnézve |
+
+A korábbi fióklétrehozás a szerző visszajelzése, nem az új policy böngészős elfogadása. Ez az iteráció nem tartalmaz új integration/e2e suite-ot, DB-migrációt vagy dependencyt. Kézi újrateszt: rebuild után régi fiókkal login, minden jelszómező mutatása/rejtése, hibás regisztrációs jelszónál a pontos hiányok, majd mind a négy feltételt teljesítő, egyező jelszóval új szintetikus fiók. Billentyűzet/fókusz és jelszókezelő-autocomplete browser-próba még szükséges; az SSR nem interaktív browser-bizonyíték.
+
+
+## Szerzői indítási visszajelzés – 2026-10-20
+
+A szerző a Compose-útmutató után azt jelezte: az alkalmazás működik, fiókot létrehozott. Ez saját gépes, felhasználó által jelentett indulási és regisztrációs siker; nem független AI-futtatás és nem külső UAT. A pontos futó commit/image, a login → védett oldal → logout és az újraindítás utáni adatmegőrzés nem lett külön visszaigazolva. Az ezt követően készülő jelszópolicy/UX-módosításnak még nincs szerzői újratesztelési eredménye. A korábbi Docker-hiány az akkori AI-kísérlet állapotát írja le.
+
+
 ## Teljes alkalmazás Docker Compose-konfigurációja – 2026-10-20
 
 Vizsgált változat: `feature/full-app-compose`, `197cdec` baseline utáni Compose-iteráció. Környezet: Windows/WSL2, Node 22.23.2, npm 10.9.8. Bemenet: meglévő generált lokális `.env` (értékei nem publikáltak), szintetikus URL-fixture kódolt jelszóval. A várt viselkedés: encoded credential/query megőrzése a konténeres hostcserénél, hibás konfiguráció elutasítása, explicit bind-address validálása, sikeres fordítás és Compose-séma.

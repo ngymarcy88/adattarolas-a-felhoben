@@ -13,7 +13,7 @@ import { RegistrationGuard } from '../src/auth/registration.guard';
 const config = { getOrThrow: jest.fn().mockReturnValue({
   frontendPublicUrl: 'http://127.0.0.1:5173', defaultUserStorageLimitBytes: 1073741824,
 }) } as unknown as ConfigService;
-const valid = () => ({ email: ' Test.User+tag@Example.test ', displayName: ' Teszt User ', password: 'long test passphrase' });
+const valid = () => ({ email: ' Test.User+tag@Example.test ', displayName: ' Teszt User ', password: 'Long test passphrase1!' });
 const pipe = new RegisterValidationPipe();
 const context = (origin: unknown = 'http://127.0.0.1:5173', peer = '127.0.0.1', forwarded = 'spoofed') => ({
   switchToHttp: () => ({ getRequest: () => ({
@@ -26,7 +26,7 @@ const uniqueError = (target: string[] = ['email']) => new Prisma.PrismaClientKno
 
 describe('RegisterValidationPipe', () => {
   it('normalizes email and name while preserving the password', () => {
-    const input = { ...valid(), password: '  Árvíztűrő test passphrase  ' };
+    const input = { ...valid(), password: '  Árvíztűrő test passphrase1!  ' };
     expect(pipe.transform(input)).toEqual(new RegisterDto('test.user+tag@example.test', 'Teszt User', input.password));
   });
 
@@ -49,10 +49,18 @@ describe('RegisterValidationPipe', () => {
     catch (error) { expect(error).toMatchObject({ code: 'VALIDATION_ERROR', status: 400 }); }
   });
 
-  it.each(['a'.repeat(15), '😀'.repeat(15), 'a'.repeat(1024), '😀'.repeat(256), ' '.repeat(15)])
+  it.each(['A1!' + 'a'.repeat(12), 'Á١€' + '😀'.repeat(12), 'A1!' + 'a'.repeat(1021), 'A1!' + '😀'.repeat(255) + 'x', 'A1!' + ' '.repeat(12)])
     ('accepts Unicode/whitespace and documented password boundaries %#', (password) => {
       expect(pipe.transform({ ...valid(), password }).password).toBe(password);
     });
+
+  it.each([
+    'long test passphrase1!', 'Long test passphrase!', 'Long test passphrase1',
+    'A1!' + 'a'.repeat(11), 'A1' + ' '.repeat(13), 'A1' + '\u200b'.repeat(13),
+  ])('rejects missing composition requirements or a short password %#', (password) => {
+    expect(() => pipe.transform({ ...valid(), password }))
+      .toThrow(expect.objectContaining({ code: 'VALIDATION_ERROR', status: 400 }));
+  });
 
   it('accepts a 100-code-point display name and a 254-character email', () => {
     const email = `${'l'.repeat(64)}@${'a'.repeat(63)}.${'b'.repeat(63)}.${'c'.repeat(61)}`;
