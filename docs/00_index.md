@@ -2,7 +2,11 @@
 
 ## Repository státusz
 
-A repository kezdeti technikai alapot tartalmaz: Vue/NestJS scaffold, npm workspaces és lockfile, központi konfiguráció, publikus health endpoint, Prisma-séma/kezdeti migráció és PostgreSQL–MinIO Docker Compose. Auth, feltöltés, import és feldolgozás még nincs implementálva; CI/CD sincs. A futtatási eredmények és a kézi környezetpróba állapotát a [tesztriport](04_quality/test_report.md) rögzíti; a többi dokumentum célállapotát nem szabad kész funkciónak tekinteni.
+A repository kezdeti technikai alapot tartalmaz: Vue/NestJS scaffold, npm workspaces és lockfile, központi konfiguráció, publikus health endpoint, Prisma-séma/kezdeti migráció és PostgreSQL–MinIO Docker Compose. Backend auth és a regisztráció/login/védett frontend fiókoldal implementált, unit/template bizonyítékokkal. Feltöltés, import és feldolgozás még nincs implementálva; CI/CD sincs. A valódi DB-s és böngészős auth-elfogadás még nyitott. A futtatási eredmények és a kézi környezetpróba állapotát a [tesztriport](04_quality/test_report.md) rögzíti; a többi dokumentum célállapotát nem szabad kész funkciónak tekinteni.
+
+## Szakdolgozati kézirat
+
+[Első részleges kéziratdraft – 2026. október 20.](thesis_draft.md): probléma és követelmények, technológiák/architektúra/döntések, implementált auth és ellenőrzése, AI-használat és korlátok. Szerzői review-ra szánt, nem végleges dolgozat.
 
 ## Követelménybaseline és szerződések
 
