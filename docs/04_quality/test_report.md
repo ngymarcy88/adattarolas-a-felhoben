@@ -1,5 +1,25 @@
 # Test report
 
+## Auth kézi ellenőrzése és újraindítás utáni belépés – 2026-10-20
+
+**Eredmény: PASS a szerző által visszaigazolt folyamatokra.** Ellenőrző: a szakdolgozat szerzője, saját helyi gépén. Módszer: kézi böngészős használat, majd az alkalmazás újraindítása és ismételt belépés. Ez szerzői fejlesztői ellenőrzés, nem AI által végrehajtott teszt, automatizált e2e vagy külső UAT.
+
+- Kapcsolódó fejlesztési változat: `feature/full-app-compose`, `39e212b` (jelszómegjelenítés és élő követelmények), [PR #17](https://github.com/ngymarcy88/adattarolas-a-felhoben/pull/17). A ténylegesen futó image commitját a szerző nem adta meg külön; ez a verziókapcsolat fejlesztési referencia, nem ellenőrzött image-azonosító.
+- Környezet: a szerző Windows gépén futó helyi Docker Compose-alkalmazás és böngésző. A Docker Desktop/Compose és a böngésző pontos verziója nincs rögzítve.
+- Bemenet: a szerző által korábban létrehozott fiók és a hozzá tartozó helyes belépési adatok. Email, jelszó, cookie és token nem kerül a riportba.
+- Bizonyíték: a szerző beszélgetésbeli visszajelzése. Először működő alkalmazást és fióklétrehozást jelzett, majd a „belépés → védett fiókoldal → kijelentkezés, újraindítás után ismét belépés” ellenőrzésére kifejezetten azt válaszolta, hogy működik. Képernyőkép, parancskimenet és közvetlen DB-lekérdezés nem érkezett.
+
+| Azonosító | Lépés | Elvárt eredmény | Tényleges eredmény | Minősítés |
+|---|---|---|---|---|
+| AUTH-M01 | Fiók létrehozása a regisztrációs felületen | Létrejön a később belépésre használható fiók | A szerző sikeres fióklétrehozást jelzett | PASS, szerzői visszajelzés |
+| AUTH-M02 | Belépés helyes adatokkal | A felhasználó eljut a védett fiókoldalra | A szerző visszaigazolta a sikeres belépést és fiókoldalt | PASS, szerzői visszajelzés |
+| AUTH-M03 | Kijelentkezés a fiókoldalról | A felhasználó kijelentkezik | A szerző a folyamat kijelentkezési lépését is működőnek jelezte | PASS, szerzői visszajelzés |
+| AUTH-M04 | Újraindítás, majd ismételt belépés ugyanazzal a fiókkal | A fiók az újraindítás után is használható | A szerző visszaigazolta az ismételt belépést | PASS, szerzői visszajelzés |
+
+**Következtetés:** a pozitív auth-alapfolyamat és a fiók újraindítás utáni használhatósága kézzel kipróbált, a szerző által visszaigazolt. Az ismételt belépés a fiók megmaradásának felhasználói szintű bizonyítéka; nem teljes adatbázis- vagy MinIO-adatmegőrzési vizsgálat.
+
+Külön még nem igazolt: kijelentkezés után a `/app` közvetlen újranyitásának tiltása/átirányítása, hibás jelszó és lejárt munkamenet, cookie-attribútumok böngészős vizsgálata, közvetlen DB-rekord és storage-próbaobjektum megmaradása. A jelszó-UX-re kapott általános „működik” visszajelzés nem jelent minden karakterfeltétel, billentyűzet/fókusz vagy autocomplete külön dokumentált próbáját. Képernyőkép később csatolható, de ebben a bejegyzésben nincs nem létező képmelléklet. A teljes SZD2-1 mérföldkő ezzel önmagában nem zárul le.
+
 ## Jelszómegjelenítés és élő regisztrációs policy – 2026-10-20
 
 Vizsgált változat: `feature/full-app-compose`, `4744c69` utáni auth-kiegészítés. Környezet: WSL/Linux Node 22.23.2, npm 10.9.8; szintetikus jelszó-fixture-ök, mockolt auth/perzisztencia, Vue SSR template-render. A szerző új összetételi szabályokat kért; a 15-ös minimumot a NIST-forrás ellenőrzése után megtartottuk. Ez nem teljes NIST-megfelelőségi állítás.
@@ -20,7 +40,7 @@ A korábbi fióklétrehozás a szerző visszajelzése, nem az új policy böngé
 
 ## Szerzői indítási visszajelzés – 2026-10-20
 
-A szerző a Compose-útmutató után azt jelezte: az alkalmazás működik, fiókot létrehozott. Ez saját gépes, felhasználó által jelentett indulási és regisztrációs siker; nem független AI-futtatás és nem külső UAT. A pontos futó commit/image, a login → védett oldal → logout és az újraindítás utáni adatmegőrzés nem lett külön visszaigazolva. Az ezt követően készülő jelszópolicy/UX-módosításnak még nincs szerzői újratesztelési eredménye. A korábbi Docker-hiány az akkori AI-kísérlet állapotát írja le.
+A szerző a Compose-útmutató után azt jelezte: az alkalmazás működik, fiókot létrehozott. Ez saját gépes, felhasználó által jelentett indulási és regisztrációs siker; nem független AI-futtatás és nem külső UAT. Ennél a korábbi visszajelzésnél a pontos futó commit/image és a teljes auth-/újraindítási folyamat még nem volt külön visszaigazolva. A későbbi szerzői ellenőrzés eredményét a riport elején található „Auth kézi ellenőrzése és újraindítás utáni belépés” bejegyzés rögzíti. Az ezt követően készülő jelszópolicy/UX-módosításnak még nincs szerzői újratesztelési eredménye. A korábbi Docker-hiány az akkori AI-kísérlet állapotát írja le.
 
 
 ## Teljes alkalmazás Docker Compose-konfigurációja – 2026-10-20
