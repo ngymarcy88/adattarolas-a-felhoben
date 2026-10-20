@@ -1,8 +1,9 @@
 import { parseApiBaseUrl } from './health';
 
 export interface AuthUser { id: string; email: string; displayName: string; createdAt: string }
-export type AuthErrorCode = 'unauthorized' | 'invalid_credentials' | 'invalid_input' | 'rate_limited' | 'unavailable';
+export type AuthErrorCode = 'unauthorized' | 'invalid_credentials' | 'invalid_input' | 'rate_limited' | 'email_exists' | 'unavailable';
 const messages: Record<AuthErrorCode, string> = {
+  email_exists: 'Ezzel az e-mail-címmel már létezik fiók. Jelentkezz be, vagy használj másik címet.',
   unauthorized: 'A munkamenet lejárt. Jelentkezz be újra.',
   invalid_credentials: 'Hibás e-mail-cím vagy jelszó.',
   invalid_input: 'Ellenőrizd a megadott adatokat.',
@@ -27,7 +28,7 @@ function parseUser(data: unknown): AuthUser {
 }
 
 export function createAuthClient(baseUrl: string | undefined) {
-  async function request(path: 'me' | 'login' | 'logout', method: 'GET' | 'POST', body?: object, signal?: AbortSignal): Promise<AuthUser | undefined> {
+  async function request(path: 'me' | 'login' | 'register' | 'logout', method: 'GET' | 'POST', body?: object, signal?: AbortSignal): Promise<AuthUser | undefined> {
     const controller = new AbortController();
     const abort = () => controller.abort();
     if (signal?.aborted) abort();
@@ -41,6 +42,7 @@ export function createAuthClient(baseUrl: string | undefined) {
       });
       if (!response.ok) {
         const code: AuthErrorCode = response.status === 401 ? (path === 'login' ? 'invalid_credentials' : 'unauthorized')
+          : response.status === 409 && path === 'register' ? 'email_exists'
           : response.status === 400 ? 'invalid_input' : response.status === 429 ? 'rate_limited' : 'unavailable';
         throw new AuthRequestError(code);
       }
@@ -49,7 +51,7 @@ export function createAuthClient(baseUrl: string | undefined) {
         if (response.status !== 204) throw new AuthRequestError('unavailable');
         return undefined;
       }
-      if (response.status !== 200) throw new AuthRequestError('unavailable');
+      if (response.status !== (path === 'register' ? 201 : 200)) throw new AuthRequestError('unavailable');
       return parseUser(await response.json());
     } catch (error) {
       if (error instanceof AuthRequestError) throw error;
@@ -60,6 +62,9 @@ export function createAuthClient(baseUrl: string | undefined) {
     }
   }
   return {
+    async register(email: string, displayName: string, password: string, signal?: AbortSignal): Promise<AuthUser> {
+      return (await request('register', 'POST', { email, displayName, password }, signal))!;
+    },
     async currentUser(signal?: AbortSignal): Promise<AuthUser> {
       return (await request('me', 'GET', undefined, signal))!;
     },

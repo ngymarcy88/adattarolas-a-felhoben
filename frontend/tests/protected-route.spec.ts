@@ -7,14 +7,14 @@ import { createAppRouter } from '../src/router';
 const user: AuthUser = { id: '00000000-0000-4000-8000-000000000001', email: 'unit@example.test', displayName: 'Unit User', createdAt: '2026-10-19T10:00:00.000Z' };
 function fixture(currentUser = vi.fn().mockResolvedValue(user)) {
   const state = createSessionState();
-  const client: AuthClient = { currentUser, login: vi.fn(), logout: vi.fn() };
+  const client: AuthClient = { currentUser, login: vi.fn(), logout: vi.fn(), register: vi.fn() };
   return { state, currentUser, router: createAppRouter(createMemoryHistory(), client, state) };
 }
 
 describe('Protected application route', () => {
   it('does not call auth for public routes, including recovery/login', async () => {
     const { router, currentUser } = fixture();
-    for (const path of ['/', '/login', '/auth-unavailable']) await router.push(path);
+    for (const path of ['/', '/login', '/register', '/auth-unavailable']) await router.push(path);
     expect(currentUser).not.toHaveBeenCalled();
   });
   it('verifies a direct /app entry before retaining a public user', async () => {

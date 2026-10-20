@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory, type RouterHistory } from 'vue-router';
 import HomePage from '../pages/HomePage.vue';
+import RegisterPage from '../pages/RegisterPage.vue';
 import LoginPage from '../pages/LoginPage.vue';
 import AccountPage from '../pages/AccountPage.vue';
 import AuthUnavailablePage from '../pages/AuthUnavailablePage.vue';
@@ -11,6 +12,7 @@ export function createAppRouter(history: RouterHistory, client: AuthClient = aut
     history,
     routes: [
       { path: '/', name: 'home', component: HomePage },
+      { path: '/register', name: 'register', component: RegisterPage },
       { path: '/login', name: 'login', component: LoginPage },
       { path: '/app', name: 'account', component: AccountPage, meta: { requiresAuth: true } },
       { path: '/auth-unavailable', name: 'auth-unavailable', component: AuthUnavailablePage },

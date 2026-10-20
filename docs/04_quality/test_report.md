@@ -1,5 +1,26 @@
 # Test report
 
+## Regisztrációs és belépési felület – 2026-10-19
+
+Vizsgált változat: `feature/registration-ui`, a `dfeec7d` main baseline utáni űrlap-iteráció. Környezet: Windows/WSL2, Linux Node 22.23.2, npm 10.9.8. Szintetikus név/e-mail/jelszó, mockolt API és tényleges Vue reaktív form-kezelő; SSR template-render és memory router. A meglévő backend és sémája változatlan; nincs új dependency, integration/e2e suite vagy CI.
+
+| Ellenőrzés | Tényleges eredmény |
+|---|---|
+| `npm run test --workspace frontend` | PASS: 5 suite / **93 teszt**, 0 failed/skipped; az előző 55 frontend esethez képest 38 új |
+| `npm run typecheck --workspace frontend` | PASS; a build a végleges tesztek/template-ek típusait is újra ellenőrzi |
+| `npm run build --workspace frontend` | PASS: vue-tsc és Vite production bundle |
+| Független frontend/security review | Nincs javítandó észrevétel; backendhez illeszkedő mezők, pending/dupla-submit, megszakítás/jelszóürítés, success/no-auto-login és ARIA-kapcsolatok átnézve |
+| Link/secret/diff ellenőrzés | PASS: 136 helyi Markdown-link, tényleges credential nincs a repóban/ellenőrzött frontend bundle-ben; `git diff --check` sikeres |
+| Backend regresszió | A baseline backend kódja változatlan, ebben a kizárólag frontend-szeletben nem futott új backend tesztkör. Az előző 213 backend teszt külön, korábbi bizonyíték; nem állítunk frissen futott 306-os teljes kört |
+| Valódi browser/DB-próba | **NEM FUTOTT:** a beépített browser Node REPL ismét `sandboxCwd`/URI környezeti hibát adott. A backend perzisztencia nem változott, a korábban hiányzó valós DB-/cookie-elfogadás továbbra is nyitott |
+
+A form unit tesztek a tényleges két oldal által közösen használt állapotkezelőt hívják: pontos register/login paraméterek, helyi kötelező/név/Unicode/jelszó-bájthatár/megerősítés, meglévő rövid jelszó loginja, beküldés alatti pending és dupla-submit tiltás, 400/409/429/kiesés és váratlan hiba biztonságos üzenete, retry, megerősített regisztrációs siker, auto-login hiánya, jelszóürítés és dispose utáni késői siker/hiba/navigáció kizárása. Az API-klienst 201/409 és hibás 200/204 regisztrációs státuszra is vizsgáltuk; confirmation nem kerül a backendhez. A template-próbák valódi Vue SSR-renderrel ellenőrzik a regisztrációs mezőket, label/ARIA/hibakapcsolatot, loading státuszt és disabled attribútumokat, siker után az űrlap helyetti login linket. Minden végleges elvárás teljesült.
+
+A kezdeti két loading-template assertion tévesen a Tailwind `disabled:` osztályokat is disabled attribútumnak számolta; a teszt valódi attribútumra szűkítve, a termékkód változtatása nélkül javult. Ez nem loading-funkcióhiba volt. Az SSR-próba továbbra sem interaktív browser/DOM bizonyíték.
+
+Kézi elfogadás: kezdőlap → regisztráció; hiányzó/hibás mező és eltérő jelszó érthető javítása; lassú kérés alatt nincs dupla beküldés; 201 után siker és login link, automatikus belépés nélkül; 409-nél biztonságos foglalt-email üzenet; 429 és szerverkiesés után újrapróbálás. Jó login → szerveres session-check → saját profil; rossz login után biztonságos hiba és ürült jelszó. Ellenőrizendő a valódi DB-rekord, browser-cookie, tab/fókusz, natív email-validáció, mobil layout és oldalváltás alatti megszakítás. Ne használj valódi személyes adatot vagy publikálj jelszót/tokenes képernyőképet. Regisztrációs success nem email-verifikáció, a kliensvalidáció nem backend-jogosultság.
+
+
 ## Védett backend végpont és frontend útvonal – 2026-10-19
 
 Vizsgált változat: `feature/protected-route`, a `d18cc7b` main baseline utáni útvonalvédelmi iteráció. Környezet: Windows/WSL2, Linux Node 22.23.2, npm 10.9.8. Szintetikus profilok/jelszavak, mockolt fetch/Prisma-függőségek, tényleges Vue Router memory history és Vue SSR template-render. A már létező `/api/v1/auth/me` valódi védett backend végpontját használjuk, nem hoztunk létre mesterséges példavégpontot. Nincs új dependency, migráció, integration/e2e vagy CI.
