@@ -6,7 +6,7 @@ A repository kezdeti technikai alapot tartalmaz: Vue/NestJS scaffold, npm worksp
 
 ## Szakdolgozati kézirat
 
-[Első részleges kéziratdraft – 2026. október 20.](thesis_draft.md): probléma és követelmények, technológiák/architektúra/döntések, implementált auth és ellenőrzése, AI-használat és korlátok. Szerzői review-ra szánt, nem végleges dolgozat.
+[Első részleges kéziratdraft – 2026. október 20.](thesis_draft.md): probléma és követelmények, technológiák/architektúra/döntések, implementált auth és ellenőrzése, AI-használat és korlátok. Szerzői review-ra szánt, nem végleges dolgozat. Letölthető export a projekt gyökerében: [CloudVault_szakdolgozat_draft_v1.pdf](../CloudVault_szakdolgozat_draft_v1.pdf).
 
 ## Követelménybaseline és szerződések
 
