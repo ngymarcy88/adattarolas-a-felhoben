@@ -1,0 +1,136 @@
+name: cloudvault
+
+services:
+  postgres:
+    image: postgres:17.9-bookworm
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?Run node scripts/init-env.mjs first}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run node scripts/init-env.mjs first}
+      POSTGRES_DB: ${POSTGRES_DB:?Run node scripts/init-env.mjs first}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+
+  minio:
+    build:
+      context: ./infra/minio
+      target: server
+    image: cloudvault-minio:2025-10-15
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Run node scripts/init-env.mjs first}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Run node scripts/init-env.mjs first}
+      MINIO_REGION_NAME: ${S3_REGION:?Run node scripts/init-env.mjs first}
+      MINIO_API_CORS_ALLOW_ORIGIN: ${FRONTEND_PUBLIC_URL:?Run node scripts/init-env.mjs first}
+      MINIO_BROWSER_REDIRECT_URL: http://127.0.0.1:9001
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  minio-init:
+    build:
+      context: ./infra/minio
+      target: client
+    image: cloudvault-minio-client:2025-08-13
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "/init.sh"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Run node scripts/init-env.mjs first}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Run node scripts/init-env.mjs first}
+      S3_BUCKET: ${S3_BUCKET:?Run node scripts/init-env.mjs first}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?Run node scripts/init-env.mjs first}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?Run node scripts/init-env.mjs first}
+    volumes:
+      - ./infra/minio/init.sh:/init.sh:ro
+    restart: "no"
+
+  db-migrate:
+    build:
+      context: .
+      target: backend
+    image: cloudvault-backend:local
+    command: ["node", "scripts/container-entrypoint.mjs", "migrate"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Run node scripts/init-env.mjs first}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  backend:
+    build:
+      context: .
+      target: backend
+    image: cloudvault-backend:local
+    environment:
+      APP_ENV: ${APP_ENV:-local}
+      BACKEND_HOST: 0.0.0.0
+      BACKEND_PORT: 3000
+      FRONTEND_PUBLIC_URL: ${FRONTEND_PUBLIC_URL:?Run node scripts/init-env.mjs first}
+      BACKEND_PUBLIC_URL: ${BACKEND_PUBLIC_URL:?Run node scripts/init-env.mjs first}
+      DATABASE_URL: ${DATABASE_URL:?Run node scripts/init-env.mjs first}
+      JWT_SECRET: ${JWT_SECRET:?Run node scripts/init-env.mjs first}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1h}
+      DEFAULT_USER_STORAGE_LIMIT_BYTES: ${DEFAULT_USER_STORAGE_LIMIT_BYTES:-1073741824}
+      S3_ENDPOINT: http://minio:9000
+      S3_REGION: ${S3_REGION:?Run node scripts/init-env.mjs first}
+      S3_BUCKET: ${S3_BUCKET:?Run node scripts/init-env.mjs first}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?Run node scripts/init-env.mjs first}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?Run node scripts/init-env.mjs first}
+      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-true}
+      MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-104857600}
+      ALLOWED_MIME_TYPES: ${ALLOWED_MIME_TYPES:-image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm}
+      PRESIGNED_URL_TTL_SECONDS: ${PRESIGNED_URL_TTL_SECONDS:-300}
+    ports:
+      - "127.0.0.1:${BACKEND_PORT:-3000}:3000"
+    depends_on:
+      db-migrate:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    init: true
+
+  frontend:
+    build:
+      context: .
+      target: frontend
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:?Run node scripts/init-env.mjs first}
+    image: cloudvault-frontend:local
+    ports:
+      - "127.0.0.1:5173:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+
+volumes:
+  postgres-data:
+  minio-data:

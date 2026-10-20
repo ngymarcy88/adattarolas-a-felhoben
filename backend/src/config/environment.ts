@@ -45,6 +45,8 @@ export function validateEnvironment(env: Record<string, unknown>): AppConfig {
 
   const environment = text('APP_ENV', 'local');
   if (!['local', 'test', 'production'].includes(environment)) invalid.add('APP_ENV');
+  const host = text('BACKEND_HOST', '127.0.0.1');
+  if (!['127.0.0.1', '0.0.0.0'].includes(host)) invalid.add('BACKEND_HOST');
   const databaseUrl = required('DATABASE_URL');
   try {
     const value = new URL(databaseUrl);
@@ -74,6 +76,7 @@ export function validateEnvironment(env: Record<string, unknown>): AppConfig {
   }
   const config: AppConfig = {
     environment: environment as AppConfig['environment'],
+    host: host as AppConfig['host'],
     port: integer('BACKEND_PORT', 3000, 1, 65535),
     backendPublicUrl: url('BACKEND_PUBLIC_URL', ['http:', 'https:'], true),
     frontendPublicUrl: url('FRONTEND_PUBLIC_URL', ['http:', 'https:'], true),

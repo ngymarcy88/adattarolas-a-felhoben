@@ -1,5 +1,24 @@
 # Test report
 
+## Teljes alkalmazás Docker Compose-konfigurációja – 2026-10-20
+
+Vizsgált változat: `feature/full-app-compose`, `197cdec` baseline utáni Compose-iteráció. Környezet: Windows/WSL2, Node 22.23.2, npm 10.9.8. Bemenet: meglévő generált lokális `.env` (értékei nem publikáltak), szintetikus URL-fixture kódolt jelszóval. A várt viselkedés: encoded credential/query megőrzése a konténeres hostcserénél, hibás konfiguráció elutasítása, explicit bind-address validálása, sikeres fordítás és Compose-séma.
+
+| Ellenőrzés | Tényleges eredmény |
+|---|---|
+| Windows Docker CLI `compose config --quiet` | PASS, a gyökérbeli `docker-compose.yaml` automatikus felfedezésével; feloldott credential nem került kiírásra |
+| `npm run test:container` | PASS: 2 Node builtin unit teszt; encoded password, schema és biztonságos hibakezelés |
+| `npm run test --workspace backend` | PASS: 8 suite / 215 teszt; bind alapérték és 0.0.0.0 elfogadása, hibás/üres bind elutasítása |
+| `npm run build` | PASS: Prisma Client generálás, NestJS fordítás, vue-tsc és Vite production bundle |
+| Független Docker/security review | Blokkoló hiba nincs: függőségi kapuk, nem root runtime, secret-kizárás és Nginx SPA fallback átnézve |
+| Link/secret ellenőrzés | PASS: 140 helyi Markdown-link; tényleges `.env` credential nincs a forrásban vagy ellenőrzött frontend bundle-ben |
+| Teljes Docker image build / indulás | NEM FUTOTT: a Docker Server nem érhető el; a Windows CLI `docker_engine` named pipe hiányát jelzi |
+
+A frontend viselkedése nem változott, frontend unit suite ebben az iterációban nem futott újra. A Compose-config és a host build nem igazolja az image-építést, Nginx runtime-ot vagy a szolgáltatások együttműködését. A health kapu liveness, nem folyamatos DB/storage readiness.
+
+Kézi elfogadás működő Docker motorral: `node scripts/init-env.mjs`, `docker compose up -d --build --wait`, majd `docker compose ps -a`: négy futó/healthy service, db-migrate és minio-init Exited (0). Ellenőrizendő közvetlen /register, /login és /app betöltése, szintetikus regisztráció → belépés → védett profil → logout, tényleges DB-rekord/cookie, privát bucket és korlátozott storage-azonosság. `docker compose down` és ismételt indítás után a DB és a nem érzékeny storage próbaobjektum maradjon meg; `down -v` nélkül. Ez még nyitott saját fejlesztői ellenőrzés, nem UAT vagy tiszta másik gépes telepítési bizonyíték.
+
+
 ## Regisztrációs és belépési felület – 2026-10-19
 
 Vizsgált változat: `feature/registration-ui`, a `dfeec7d` main baseline utáni űrlap-iteráció. Környezet: Windows/WSL2, Linux Node 22.23.2, npm 10.9.8. Szintetikus név/e-mail/jelszó, mockolt API és tényleges Vue reaktív form-kezelő; SSR template-render és memory router. A meglévő backend és sémája változatlan; nincs új dependency, integration/e2e suite vagy CI.

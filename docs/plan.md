@@ -2,9 +2,11 @@
 
 ## Státusz és források
 
-**2026-10-18-i célterv, 2026-10-19-i állapot: technikai alap és backend auth implementált; teljes termékfolyamat még nincs.**
+**2026-10-18-i célterv, 2026-10-20-i állapot: technikai alap és backend auth implementált; teljes termékfolyamat még nincs.**
 
 A repository Vue/NestJS scaffoldot, központilag validált konfigurációt, health endpointot, Prisma-sémát/kezdeti migrációt, npm workspace-scripteket és PostgreSQL–MinIO Compose-környezetet tartalmaz. Jest/Vitest unit runnerek és alaptesztek létrejöttek; a tényleges futtatási eredményeket és a kézi Quickstart-próba státuszát a tesztriport rögzíti. Jelszóhash/check, backend regisztráció, login/logout/me és HttpOnly JWT-cookie implementált; fájlkezelés, import és processor még nincs. A frontend `/register` és `/login` űrlap, valamint a szerveresen ellenőrzött `/app` fiókoldal loading/error/retry kezeléssel implementált; regisztrációnál mezőhibák, jelszómegerősítés és sikerjelzés/login átvezetés is van, auto-login nélkül. Az auth valós PostgreSQL- és böngészős cookie-próbája még nyitott. A terv az októberi témavezetői visszajelzés alapján frissíti a júliusi irányt. A források összefoglalója a gyökérbeli [SKILL.md](../SKILL.md), a munkaszabályok az [AGENTS.md](../AGENTS.md) fájlban találhatók. A nyers levelek a repó melletti `emails/02-email.txt`, `emails/03-email.txt`, a kurzuskövetelmények a `coospace/coospace-szakdoga-2.txt` forrásban vannak; önálló klónozáskor ezek hiányozhatnak.
+
+A teljes alkalmazás Docker Compose-indítása a `docker-compose.yaml` fájlban implementált, automatikus migrációval és bucket-inittel; a konténeres build/indulás tényleges próbája Docker motor hiányában még nyitott. Ez nem zárja le az auth/Quickstart evidence-kaput.
 
 Ez a dokumentum az aktuális cél és scope-változás forrása; a [mérföldkövek](milestones.md) adják a végrehajtási sorrendet és az evidence-kapukat. A [scope contract](01_product/scope_contract.md), [ADR-ek](02_architecture/adr/README.md) és [design dokumentáció](03_design/README.md) meglévő biztonsági és életciklus-szabályai érvényes kiindulópontok, de az új import-/processing-szerződésekkel még kiegészítendők. A single-PUT-only, thumbnail-Later és végleges unit-only scope nem írhatja felül az alábbi új célokat. A tervfrissítés nem jelent protokoll-, dependency- vagy implementációs jóváhagyást.
 

@@ -10,35 +10,32 @@ A kötelező SZD2 cél a teljes alkalmazás, a folytatható kötegelt képimport
 
 ## Előfeltételek
 
-- Node.js 22.23.2 (`.nvmrc`) és npm 10 vagy újabb. A `package.json` kompatibilis Node 24 ágat is enged.
+- Node.js 22.23.2 (`.nvmrc`) az egyszeri env-generáláshoz. npm 10 vagy újabb csak a helyi Node fejlesztési/tesztelési módhoz kell. A `package.json` kompatibilis Node 24 ágat is enged.
 - Docker Engine/Desktop és Docker Compose v2.20+; Linux konténerekkel. Windows/WSL esetén a Docker Desktop fusson, és az adott WSL-disztribúcióhoz legyen Docker-integráció.
 - Szabad lokális 3000, 5173, 5432, 9000 és 9001 port; internet az első dependency/image/source letöltéshez.
 
-A MinIO a biztonsági javítást tartalmazó, pontos upstream commitból épül, mert ez a kiadás forrásként érhető el. A buildhez nem kell helyi Go-telepítés; Docker végzi. Az első `infra:up` több perc lehet, a későbbi indítás cache-elt. Ez lokális fejlesztői környezet, nem cloud deployment. Részletek: [ADR-013](docs/02_architecture/adr/ADR-013-local-foundation.md).
+A MinIO a biztonsági javítást tartalmazó, pontos upstream commitból épül, mert ez a kiadás forrásként érhető el. A buildhez nem kell helyi Go-telepítés; Docker végzi. Az első `docker compose up -d --build --wait` több perc lehet, a későbbi indítás cache-elt. Ez lokális fejlesztői környezet, nem cloud deployment. Részletek: [ADR-013](docs/02_architecture/adr/ADR-013-local-foundation.md).
 
-## Quickstart
+## Quickstart – teljes alkalmazás Docker Compose-zal
 
-A repository gyökerében:
-
-```bash
-npm ci
-npm run env:init
-npm run infra:up
-npm run db:generate
-npm run db:migrate
-```
-
-Az `env:init` véletlen lokális credentialökkel hozza létre az ignore-olt `.env` fájlt, kiírásuk nélkül. Meglévő `.env`-et nem ír felül; korábbi fájlnál egyeztesd a szükséges mezőket az `.env.example`-lel. A minta placeholder értékei nem futtatási credentialök.
-
-Két külön terminálban:
+A repository gyökerében, az első indítás előtt:
 
 ```bash
-npm run dev:backend
+node scripts/init-env.mjs
 ```
 
+Ez véletlen lokális credentialökkel hozza létre az ignore-olt `.env` fájlt, kiírásuk nélkül. Meglévő fájlt nem ír felül; a szükséges mezőket az `.env.example` mutatja. Ehhez Node kell, de helyi dependency-telepítés nem szükséges.
+
+A teljes alkalmazás indítása a gyökérbeli `docker-compose.yaml` alapján:
+
 ```bash
-npm run dev:frontend
+docker compose up -d --build --wait
+docker compose ps -a
 ```
+
+A Compose felépíti a képeket és elindítja a PostgreSQL-t, MinIO-t, NestJS backendet és a buildelt Vue frontendet kiszolgáló Nginxet. A `db-migrate` egyszeri service alkalmazza a meglévő Prisma-migrációkat, a `minio-init` biztosítja a privát bucketet és az alkalmazásjogosultságot. A backend csak mindkettő sikeres lefutása után indul, a frontend megvárja a backend health-jelzését. Az egyszeri service-ek `Exited (0)` állapota normális. Nem kell külön `npm ci`, migráció vagy két dev terminál.
+
+A backend a konténerben `0.0.0.0:3000` címen figyel; a host felől minden publikált port csak `127.0.0.1` címen érhető el. A DB URL kódolt hitelesítő adatai és adatbázisneve megmaradnak, csak a belső cím lesz `postgres:5432`. A backend belső storage-címe `http://minio:9000`. A böngészős API-cím továbbra is a host címe, nem a Docker-service neve. A frontendbe kizárólag a publikus `VITE_API_BASE_URL` kerül buildkor; credential és `.env` nem kerül a képek build contextjébe.
 
 Nyisd meg a [frontend kezdőoldalát](http://127.0.0.1:5173). A „Regisztráció” link a `/register` űrlapra vezet: név, e-mail, legalább 15 karakteres jelszó és megerősítés. Siker után a visszajelzésből lépj a `/login` oldalra; nincs automatikus beléptetés. A „Saját fiók” (`/app`) munkamenet nélkül szintén a loginra vezet. Kipróbáláshoz használj szintetikus adatokat. Belépés után fiókadatok és kijelentkezés jelenik meg; fájlgaléria/usage még nem. A [health endpoint](http://127.0.0.1:3000/api/v1/health) válasza `{"status":"ok"}`. Azonos hostot használj a frontend és backend URL-ben; `localhost` és `127.0.0.1` keverése CORS/cookie eltérést okoz. Egyedi port esetén az `.env` URL-jeit, portját és a Compose/Vite portbeállítását együtt módosítsd.
 
@@ -47,15 +44,31 @@ A MinIO konzol a [9001-es porton](http://127.0.0.1:9001) érhető el a helyi `.e
 Állapot és leállítás, a tárolt adatok megtartásával:
 
 ```bash
-npm run infra:status
-npm run infra:down
+docker compose ps -a
+docker compose logs --tail=100 backend frontend db-migrate minio-init
+docker compose down
 ```
 
 A named volume-ok megmaradnak. A `docker compose down -v` adatot töröl, ezért nem része az alap leállításnak. Már inicializált adatbázis mellett a `.env` jelszavának cseréje önmagában nem módosítja a DB-felhasználó jelszavát.
 
+## Opcionális fejlesztés helyi Node dev szerverekkel
+
+Ha hot reload kell, állítsd le a teljes alkalmazást (`docker compose down`), majd csak a két infrastruktúra-service-t indítsd; a kötetek megmaradnak:
+
+```bash
+npm ci
+docker compose up -d --build --wait postgres minio
+docker compose run --build --rm minio-init
+npm run db:generate
+npm run db:migrate
+```
+
+Ezután két külön terminálban: `npm run dev:backend` és `npm run dev:frontend`. A hoston futó backendhez az `.env` `BACKEND_HOST=127.0.0.1`, `DATABASE_URL` és `S3_ENDPOINT` lokális hostcímei használatosak. A meglévő `infra:*` npm-parancsok infrastruktúra-segédek; az elsődleges teljes indítás a fenti közvetlen Compose-parancs.
+
 ## Build, typecheck és unit tesztek
 
 ```bash
+npm ci
 npm run db:validate
 npm run typecheck
 npm test
@@ -70,9 +83,11 @@ A build és typecheck először generálja a Prisma Clientet. A tesztek izolált
 
 - **Docker daemon nem érhető el:** indítsd el Docker Desktopot; WSL-ben ellenőrizd a disztribúció Docker-integrációját és a `docker version` Server részét.
 - **Konfiguráció hibás:** az üzenet csak változóneveket ír ki. Egyeztesd `.env.example`-lel, ne másolj credentialt hibajegybe vagy naplóba.
-- **Backend nem indul:** `npm run infra:status`, majd `npm run db:migrate` és `npm run db:generate`; ellenőrizd a lokális portokat.
-- **A frontend nem éri el az API-t:** a Vite indításakor érvényes `VITE_API_BASE_URL` és `FRONTEND_PUBLIC_URL` egyezzen a használt hosttal. `.env` változtatás után indítsd újra a dev szervereket.
+- **Backend nem indul:** `docker compose ps -a` és `docker compose logs --tail=100 db-migrate backend minio-init`; ellenőrizd a service-ek sikerét és a szabad lokális portokat. Sikertelen migráció után javítsd az okot, majd ismételd az indítást; ne töröld a köteteket.
+- **A frontend nem éri el az API-t:** a frontend buildjekor érvényes `VITE_API_BASE_URL` és `FRONTEND_PUBLIC_URL` egyezzen a használt hosttal. Publikus frontend-konfiguráció változtatása után új build kell: `docker compose up -d --build --wait`. A helyi Vite dev szervert elég újraindítani.
 - **MinIO-init újrafuttatás:** `docker compose run --build --rm minio-init`; idempotensen biztosítja a privát bucketet és az alkalmazásjogosultságot. A hozzáférési adatok nem kerülnek logba.
+
+A teljes konténeres indulás futtatási ellenőrzése még nyitott: a fejlesztői gépen a Docker motor nem érhető el. A sikeres Compose-config ellenőrzés nem helyettesíti a build/indítás és a regisztráció → login → védett oldal → logout valós DB-s próbáját. Részletek: [tesztriport](docs/04_quality/test_report.md), [ADR-015](docs/02_architecture/adr/ADR-015-full-app-compose.md).
 
 ## Stack és struktúra
 
@@ -82,7 +97,8 @@ Vue 3 / Vite / TypeScript / Tailwind CSS / Vue Router; NestJS / Prisma / Postgre
 /
 ├── AGENTS.md, SKILL.md   # munkaszabályok és témavezetői célok
 ├── package.json         # npm workspace és gyökérparancsok
-├── compose.yaml         # lokális PostgreSQL, MinIO és bucket-init
+├── docker-compose.yaml  # teljes lokális alkalmazás, migráció és bucket-init
+├── Dockerfile           # backend és frontend build/runtime célok
 ├── scripts/             # credentialt nem kiíró env inicializálás
 ├── infra/minio/         # rögzített upstream build és alkalmazáspolicy
 ├── backend/             # NestJS, Prisma schema/migrations és Jest unit tesztek

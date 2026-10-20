@@ -4,7 +4,7 @@ Vue 3 + Vite + TypeScript + Tailwind CSS + Vue Router alapalkalmazás. Egy magya
 
 ## Konfiguráció és indítás
 
-A gyökérbeli README Quickstart részét kövesd. A függőségek telepítése a repógyökérből, az egyetlen root lockfile alapján történik: `npm ci`.
+A teljes alkalmazáshoz a gyökérbeli README Docker Compose Quickstart részét kövesd (`node scripts/init-env.mjs`, majd `docker compose up -d --build --wait`). Az alábbi npm-parancsok az opcionális hoston futó fejlesztéshez használatosak. A függőségek telepítése a repógyökérből, az egyetlen root lockfile alapján történik: `npm ci`.
 
 A root `.env` fájl `VITE_API_BASE_URL` változója adja a backend API alapcímét, például `http://127.0.0.1:3000/api/v1`. A Vite csak a `VITE_` prefixű értékeket teszi elérhetővé a böngésző számára; ebbe a névtérbe kizárólag nyilvános beállítás kerülhet. Storage credential, adatbázis-URL vagy JWT-titok nem adható át a frontendnek. A Vite build a konfigurációt beépíti a bundle-be; változtatás után új build szükséges.
 

@@ -4,7 +4,7 @@ NestJS 11 + TypeScript API-alap, központilag validált konfigurációval, Prism
 
 ## Futtatás és konfiguráció
 
-A gyökérbeli README Quickstart részét kövesd. Node.js 22.23.2 és npm 10 az induló környezet; a két workspace egyetlen gyökérbeli lockfile-t használ. A függőségeket a repógyökérből telepítsd: `npm ci`.
+A teljes alkalmazáshoz a gyökérbeli README Docker Compose Quickstart részét kövesd (`node scripts/init-env.mjs`, majd `docker compose up -d --build --wait`). Az alábbi npm-parancsok az opcionális hoston futó fejlesztéshez használatosak. Node.js 22.23.2 és npm 10 az induló környezet; a két workspace egyetlen gyökérbeli lockfile-t használ. A függőségeket a repógyökérből telepítsd: `npm ci`.
 
 A backend a root `.env` fájlt olvassa, központilag validálja a szükséges változókat, majd `127.0.0.1:3000` címen indul az alapkonfigurációval. Hibás konfiguráció és sikertelen indulás nem ad vissza credentialt vagy providerüzenetet. A frontend origin alapértéke `http://127.0.0.1:5173`; a CORS credentialt és pontos origint használ, wildcard nélkül.
 

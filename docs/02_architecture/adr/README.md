@@ -45,3 +45,5 @@ Az ADR-ek elfogadott **tervezési döntéseket** rögzítenek. Elfogadott státu
 ## Jelszóhash-elési alap
 
 - [ADR-014: Asynchronous scrypt password hashing](ADR-014-password-hashing.md) – külön hash/check service, auth endpointok nélkül.
+
+- [ADR-015: Teljes alkalmazás Docker Compose-zal](ADR-015-full-app-compose.md) – frontend/backend/infrastruktúra és egyszeri inicializálás; valós konténerpróba még nyitott.
