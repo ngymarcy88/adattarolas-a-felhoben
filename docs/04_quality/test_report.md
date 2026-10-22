@@ -1,5 +1,15 @@
 # Test report
 
+## GitHub Actions unit CI – 2026-10-22
+
+Vizsgált változat: `feature/unit-test-ci`, `fe5887d` main baseline utáni CI-iteráció. A szerző külön engedélyezte a meglévő tesztek Actions-futtatását. A workflow az `.nvmrc` szerinti Node-ot, root lockfile-t, `npm ci`, `npm run db:generate`, majd `npm test` parancsokat használja Ubuntu 24.04 alatt. Nincs service container, valódi credential vagy deployment; a DATABASE_URL szintetikus, a generálás nem kapcsolódik DB-hez.
+
+Statikus ellenőrzés: workflow YAML és trigger-set, read-only permission, teljes SHA-pinek PASS (PyYAML). Az action-referenciák a hivatalos repositoryk v6 Git-refjeivel összevetve helyesek. Független workflow/security review nem talált javítandó hibát. A Node `yaml` modul első próbán nem volt telepítve; a YAML-ellenőrzés a meglévő Python/PyYAML használatával sikerült, dependency telepítése nélkül.
+
+A helyi Prisma-generálás CI=true és a workflow szintetikus DATABASE_URL értékével PASS. A helyi `CI=true DATABASE_URL=<szintetikus URL> npm test` PASS: 8 backend suite / 213 teszt és 5 frontend fájl / 93 teszt, összesen **306**, 0 failed/skipped. Környezet: WSL, Linux Node 22.23.2, npm 10.9.8; meglévő függőségek, újratelepítés nélkül. A tényleges GitHub-hosted futás külön ellenőrzés; a statikus konfiguráció vagy helyi siker önmagában nem sikeres CI-futás. **Tényleges GitHub-hosted CI: PASS.** [Tests #1 futás](https://github.com/ngymarcy88/adattarolas-a-felhoben/actions/runs/39751340008), workflow-commit `0ea63bd`, job `Unit tests` (119732390430). A GitHub API alapján minden lépés sikeres: checkout, Node setup, tiszta `npm ci`, Prisma-generálás, `npm test` és post lépések. A run a [PR #19](https://github.com/ngymarcy88/adattarolas-a-felhoben/pull/19) pull_request eseményére indult; nincs kézi triggerre vagy main-pushra vonatkozó külön futtatási bizonyíték ebben a bejegyzésben. Ez a futás a workflow-kódot igazolja; az eredmény dokumentálása későbbi docs-commitot eredményezhet.
+
+A helyi link/secret/diff ellenőrzés PASS (160 helyi hivatkozás a PR előtti állapotban). A unit suite nem integrációs/böngészős működési bizonyíték.
+
 ## Regisztrációs és belépési felület – 2026-10-19
 
 Vizsgált változat: `feature/registration-ui`, a `dfeec7d` main baseline utáni űrlap-iteráció. Környezet: Windows/WSL2, Linux Node 22.23.2, npm 10.9.8. Szintetikus név/e-mail/jelszó, mockolt API és tényleges Vue reaktív form-kezelő; SSR template-render és memory router. A meglévő backend és sémája változatlan; nincs új dependency, integration/e2e suite vagy CI.
