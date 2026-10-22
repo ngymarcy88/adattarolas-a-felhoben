@@ -25,9 +25,9 @@ A validáció kétlépcsős:
 
 A későbbi implementáció `file-type` vagy azzal egyenértékű, karbantartott könyvtárat használhat. A range mérete a választott detektor dokumentált minimumához igazodik, de nem tölti le a teljes fájlt.
 
-Csak dokumentált kép- és videótípus aktiválható. A deklarált és detektált típus eltérése, ismeretlen tartalom vagy méreteltérés validation failure. HTML, SVG, JavaScript és XML nem engedélyezett inline tartalom.
+Csak dokumentált kép- és videótípus aktiválható. A deklarált és detektált típus eltérése, ismeretlen/hiányos signature vagy méreteltérés validation failure. A magic-number detektálás nem teljes képdekódolás, nem bizonyít minden sérülésmentességet és nem malware-vizsgálat; a későbbi processor dekódolási hibáját külön kell kezelni. HTML, SVG, JavaScript és XML nem engedélyezett inline tartalom.
 
-Invalid objektum cleanupot igényel. A reservation csak akkor oldható fel, ha az objektum bizonyítottan nem létezik vagy sikeresen törölve lett.
+Invalid objektum cleanupot igényel. A reservation csak akkor oldható fel, ha az objektum bizonyítottan nem létezik vagy sikeresen törölve lett, és az API újabb storage-kapuja szerint korábban kiadott/in-flight PUT-ból sem keletkezhet később újra.
 
 ## Alternatives considered
 
@@ -48,3 +48,5 @@ Invalid objektum cleanupot igényel. A reservation csak akkor oldható fel, ha a
 - Unit tesztek valódi támogatott signature-ökre, MIME-eltérésre, unknown/HTML/SVG mintára és rövid/corrupt bufferre.
 - Unit teszt HEAD méreteltérésre és range-read/storage hibára.
 - Security review ellenőrzi az inline allowlistet és a safe `Content-Disposition` logikát.
+
+A 2026-10-20-i első [képfeltöltési API](../../03_design/api.md#upload--első-képfeltöltési-szelet-tervezett) csak JPEG/PNG/WebP/GIF típusokra szűkíti ezt a lépést; video későbbi Core-szelet. A HEAD és bounded read ugyanazt a változatlan objektumot vizsgálja, a korábban kiadott PUT-jog aktívvá tétel után sem írhatja át. A storage-védelem és a detektor konkrét byte-korlátja külön implementáció előtti döntés/ellenőrzés.

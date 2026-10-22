@@ -12,6 +12,8 @@ Accepted
 
 A júniusi döntés indoklása történeti baseline. A [friss terv](../../plan.md) alapján a folytatható kötegelt képimport kötelező SZD2 követelmény; az alábbi single-PUT-only állítás nem a teljes SZD2 végleges átviteli szerződése. A nagy videók multipart-bővítése továbbra is későbbi scope.
 
+A 2026-10-20-i első [képfeltöltési API-szerződés](../../03_design/api.md#upload--első-képfeltöltési-szelet-tervezett) egyfájlos single-PUT baseline, nem végleges SZD2 átviteli döntés. Init/confirm idempotenciája vagy a teljes fájl újraküldése nem valódi resume.
+
 A resumable mechanizmus még nincs kiválasztva: tus és S3 multipart külön alternatíva. A transfer PoC és a kiválasztott adatút ADR-je előtt nem állítható, hogy multipart szükséges vagy kizárt. Az érintett döntést a roadmap SZD2-3 kapujában felül kell vizsgálni, a major dependency/multipart implementáció felhatalmazását megtartva.
 
 ## Implementation status

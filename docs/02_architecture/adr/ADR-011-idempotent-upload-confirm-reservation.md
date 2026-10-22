@@ -12,7 +12,7 @@ Accepted
 
 ## Implementation status
 
-Nincs upload service vagy adatbázisséma.
+A kezdeti User/FileObject séma és migráció létezik, de nincs upload service/végpont. Init-dedupe receipt, terminális műveletlezárás és import/processor tárolás nincs a kezdeti sémában.
 
 ## Context
 
@@ -48,3 +48,11 @@ Presigned feltöltésnél az init és a bináris upload között idő telik el. 
 - Unit teszt konkurens init, limit boundary és rollback esetére.
 - Unit teszt ismételt, párhuzamos és lejárt confirmra.
 - Unit teszt object-not-found, invalid type, cleanup success/failure és counter invariánsokra.
+
+## Első képszelet kiegészítése – 2026-10-20
+
+Az [API-szerződés](../../03_design/api.md#upload--első-képfeltöltési-szelet-tervezett) az initet is idempotenssé teszi: kötelező ownerhez és init művelethez kötött UUIDv4 kulcs, normalizált payload-azonosság, konfliktusnál 409. A dedupe, a kvótafeltétel, pending létrehozás és foglalás ugyanazon DB-tranzakció invariánsai. A presign előkészítése után csak sikeres commitra adható ki URL; ismeretlen commit-kimenetel ugyanazzal a kulccsal tisztázható. A sikeres művelet tartós azonossága legalább 24 óráig, és minden nyitott upload-jog/írás/cleanup lezárásáig megmarad. Pontos entitások/migrációk külön adatmodell-feladatban készülnek.
+
+Replay nem hosszabbítja meg az 5 perces PUT-jogot vagy 15 perces confirm-ablakot; aktív fájl nem kap új PUT-jogot. Confirm végső tranzakciójában is pending és `now < confirmBy` feltétel szükséges. Saját ACTIVE no-op, SOFT_DELETED nem reaktiválható. Konkurens confirmokból csak egy mozgathatja a reserved bájtokat a used számlálóba; a cleanup előbb kizárja az aktiválást.
+
+A korábbi object-not-found/delete utáni release szabály **szükséges, de nem elégséges**: ki kell zárni, hogy korábban kiadott PUT később objektumot hozzon létre. Élő jog, in-flight írás vagy ennek bizonytalansága esetén a foglalás megmarad. A storage-oldali íráslezárás és az aktív objektum felülírásának kizárása az adapter implementáció előtti kapuja. A kliensnek adott 410/413/422 nem állít automatikusan sikeres cleanupot vagy már felszabadult kvótát.
