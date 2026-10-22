@@ -4,7 +4,7 @@ Vue 3 + Vite + TypeScript + Tailwind CSS + Vue Router alapalkalmazás. Egy magya
 
 ## Konfiguráció és indítás
 
-A gyökérbeli README Quickstart részét kövesd. A függőségek telepítése a repógyökérből, az egyetlen root lockfile alapján történik: `npm ci`.
+A teljes alkalmazáshoz a gyökérbeli README Docker Compose Quickstart részét kövesd (`node scripts/init-env.mjs`, majd `docker compose up -d --build --wait`). Az alábbi npm-parancsok az opcionális hoston futó fejlesztéshez használatosak. A függőségek telepítése a repógyökérből, az egyetlen root lockfile alapján történik: `npm ci`.
 
 A root `.env` fájl `VITE_API_BASE_URL` változója adja a backend API alapcímét, például `http://127.0.0.1:3000/api/v1`. A Vite csak a `VITE_` prefixű értékeket teszi elérhetővé a böngésző számára; ebbe a névtérbe kizárólag nyilvános beállítás kerülhet. Storage credential, adatbázis-URL vagy JWT-titok nem adható át a frontendnek. A Vite build a konfigurációt beépíti a bundle-be; változtatás után új build szükséges.
 
@@ -41,7 +41,7 @@ Unit bizonyíték: API HTTP/JSON/timeout/abort, tényleges Vue Router memory-his
 
 ## Közös auth-űrlapkezelés
 
-A `src/auth/form.ts` tesztelhető reaktív űrlapállapotot ad a két oldalnak. Beküldés előtt ellenőrzi a kötelező mezőket, regisztrációnál a név 1–100 Unicode-kódpontját, a jelszó legalább 15 kódpontját/legfeljebb 1024 UTF-8 bájtját és pontos megerősítését; jelszót nem trimel/normalizál. Az email teljes szabályát a backend ellenőrzi, a böngésző `type=email` és az űrlap alapellenőrzése csak UX-segítség. Login meglévő rövid jelszót is elfogad. Új backend-szabály vagy jelszópolicy nem készült.
+A `src/auth/form.ts` tesztelhető reaktív űrlapállapotot ad a két oldalnak. Beküldés előtt ellenőrzi a kötelező mezőket, regisztrációnál a név 1–100 Unicode-kódpontját, a jelszó legalább 15 kódpontját/legfeljebb 1024 UTF-8 bájtját, nagybetű/számjegy/speciális karakter összetételét és pontos megerősítését; jelszót nem trimel/normalizál. Az email teljes szabályát a backend ellenőrzi, a böngésző `type=email` és az űrlap alapellenőrzése csak UX-segítség. Login meglévő rövid jelszót is elfogad. A backend ugyanazt az újregisztrációs policyt érvényesíti. A `password-policy.ts` élő követelménylistát ad; a közös `PasswordInput.vue` billentyűzettel elérhető Mutatás/Elrejtés gombja nem küld formot, ARIA controls/pressed jelzéssel rendelkezik. A jelszó láthatósága beküldéskor és dispose-kor visszaáll rejtettre; a jelszókezelők autocomplete mezői megmaradnak.
 
 Kérés alatt új submit nem indít másik kérést. Minden elküldött kísérlet után mindkét jelszó ürül; helyi mezőhiba esetén az el nem küldött mezők javíthatók. Unmount abortál és törli a jelszavakat; késői siker/hiba nem indít navigációt vagy regisztrációs sikerjelzést. Megerősített siker után a regisztrációs űrlap eltűnik, így ismételt beküldés nincs. Az email/név nem kerül query-paraméterbe, jelszó/token webstorage-ba sem. Timeout után nem állítjuk, hogy a szerver biztosan nem hozott létre fiókot; az ismétlés 409 üzenete belépésre is irányít.
 

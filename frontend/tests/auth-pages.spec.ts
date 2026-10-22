@@ -49,6 +49,31 @@ describe('Auth page templates', () => {
 
 
 describe('Registration and login form templates', () => {
+  it('renders all live registration requirements with text and linked feedback', async () => {
+    const form = formModule.createAuthForm('register', authClient, async () => {});
+    form.state.password = 'long test passphrase1!';
+    vi.spyOn(formModule, 'createAuthForm').mockReturnValue(form);
+    const router = createAppRouter(createMemoryHistory()); await router.push('/register');
+    const html = await render(router);
+    expect(html).toContain('Hiányzik: Legalább egy nagybetű');
+    expect(html).toContain('Teljesítve: Legalább egy számjegy');
+    expect(html).toContain('Teljesítve: Legalább egy speciális karakter');
+    expect(html).toContain('aria-live="polite"'); expect(html).toContain('aria-describedby="password-hint"');
+  });
+  it.each(['login', 'register'] as const)('renders accessible %s password toggles and revealed input state', async (mode) => {
+    const form = formModule.createAuthForm(mode, authClient, async () => {});
+    form.togglePasswordVisibility('password');
+    vi.spyOn(formModule, 'createAuthForm').mockReturnValue(form);
+    const router = createAppRouter(createMemoryHistory()); await router.push('/' + mode);
+    const html = await render(router);
+    expect(html).toMatch(/id="password"[^>]*type="text"/);
+    expect(html).toContain('aria-controls="password" aria-pressed="true"');
+    expect(html).toContain('aria-label="Jelszó megjelenítése"'); expect(html).toContain('Elrejtés');
+    if (mode === 'register') {
+      expect(html).toMatch(/id="password-confirmation"[^>]*type="password"/);
+      expect(html).toContain('aria-controls="password-confirmation" aria-pressed="false"');
+    }
+  });
   it('renders a reachable public registration form with named and linked password fields', async () => {
     const router = createAppRouter(createMemoryHistory()); await router.push('/register');
     const html = await render(router);
@@ -62,7 +87,7 @@ describe('Registration and login form templates', () => {
     const router = createAppRouter(createMemoryHistory()); await router.push('/' + mode);
     const html = await render(router);
     expect(html).toContain('aria-busy="true"'); expect(html).toContain('role="status"');
-    expect((html.match(/\sdisabled(?=[\s=>])/g) ?? []).length).toBe(mode === 'register' ? 5 : 3);
+    expect((html.match(/\sdisabled(?=[\s=>])/g) ?? []).length).toBe(mode === 'register' ? 7 : 4);
   });
   it('connects registration field errors to inputs and shows a safe form error', async () => {
     const form = formModule.createAuthForm('register', authClient, async () => {});

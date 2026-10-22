@@ -876,6 +876,12 @@ Do not assume an earlier session's temporary `/tmp` Docker wrapper still exists.
 
 ## Commands
 
+The primary full local startup uses root `docker-compose.yaml`: first `node scripts/init-env.mjs`, then `docker compose up -d --build --wait`. This builds and starts frontend/backend/PostgreSQL/MinIO, applies committed migrations through `db-migrate` and initializes storage through `minio-init`. Use `docker compose ps -a`, `docker compose logs --tail=100 <service>` and `docker compose down`; never add `-v` for routine shutdown. The Windows Docker CLI fallback above can run the same full startup command. Full container startup still requires a reachable Docker Server; config validation alone is not runtime evidence.
+
+The backend bind address is centrally validated as `BACKEND_HOST` (default `127.0.0.1` for host development, `0.0.0.0` inside Compose). Only public `VITE_API_BASE_URL` is passed to frontend builds. Root `.env` must never enter image build context. Container startup rewrites only the host/port of `DATABASE_URL`, preserving encoded credentials and database settings. Changes to this helper are checked with `npm run test:container`.
+
+The npm commands below are the optional host development/verification workflow, not prerequisites for full Compose startup. Stop full application containers before starting host dev servers on the same ports.
+
 Before running commands, inspect the relevant `package.json` files. These root scripts exist in the technical foundation; keep this list synchronized when scripts change. The Quickstart and prerequisites are in [README.md](README.md).
 
 ```bash
@@ -893,7 +899,7 @@ npm run dev:frontend
 # Verification; unit tests do not require PostgreSQL or MinIO.
 npm run db:validate
 npm run typecheck
-npm test
+npm test  # Includes container configuration helper tests and both workspaces.
 npm run build
 
 # Local infrastructure status / non-destructive shutdown, when needed.

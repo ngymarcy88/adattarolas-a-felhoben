@@ -10,7 +10,7 @@ Accepted
 
 ## Implementation status
 
-A `backend/src/auth/password.service.ts` külön, injektálható `PasswordService` szolgáltatást ad. A későbbi regisztrációs szelet az AuthModule-ba kötötte: `POST /auth/register` hash-t ment PostgreSQL-be. Maga a primitív továbbra sem tárol és nem logol. A regisztrációs policy és kezdeti rate/concurrency-védelem az [API-szerződésben](../../03_design/api.md#post-authregister) szerepel; a login még nincs. Az ADR-010 JWT/cookie stratégiája változatlan.
+A `backend/src/auth/password.service.ts` külön, injektálható `PasswordService` szolgáltatást ad. A későbbi regisztrációs szelet az AuthModule-ba kötötte: `POST /auth/register` hash-t ment PostgreSQL-be. Maga a primitív továbbra sem tárol és nem logol. A regisztrációs policy és kezdeti rate/concurrency-védelem az [API-szerződésben](../../03_design/api.md#post-authregister) szerepel; a login a meglévő jelszót a regisztráció új összetételi feltételeitől függetlenül ellenőrzi. Az ADR-010 JWT/cookie stratégiája változatlan.
 
 ## Context
 
@@ -42,3 +42,9 @@ A verziózás későbbi migrációt tesz lehetővé, de rehash/legacy algoritmus
 Jest unit tesztek valós, produkciós költségű scrypttel: helyes/hibás jelszó, véletlen salt, független Python `hashlib.scrypt` szintetikus fixture, whitespace/Unicode megőrzés, 72 bájton túli különbség, UTF-8 határok, hibás rekord és túlzott költség elutasítása KDF nélkül, valamint biztonságos infrastruktúrahibák. A tesztek sorosan futnak; a költség nincs csökkentve. Eredmények: [tesztriport](../../04_quality/test_report.md).
 
 Források: [OWASP Password Storage](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html), [Node 22 crypto](https://nodejs.org/docs/latest-v22.x/api/crypto.html#cryptoscryptpassword-salt-keylen-options-callback).
+
+## Regisztrációs policy kiegészítése – 2026-10-20
+
+Explicit szerzői kérés szerint az új jelszó a 15 kódpontos minimum és 1024 UTF-8 bájtos maximum mellett Unicode nagybetűt (`Lu`), számjegyet (`Nd`) és írásjelet/szimbólumot (`P`/`S`) igényel. Szóköz nem teljesíti a speciális karakter feltételét. Kisbetű nem kötelező. A backend DTO és a frontend élő listája azonos szabályokat alkalmaz; a hash formátuma, scrypt és login-kompatibilitás változatlan. A már létező fiókokat nem kényszerítjük jelszócserére.
+
+A [NIST aktuális jelszókövetelménye](https://pages.nist.gov/800-63-4/sp800-63b/authenticators/) egyfaktoros használathoz 15 karaktert kér és ellenzi a kötelező karakterkeverést. Az összetételi szabály itt tudatos termékdöntés a felhasználó kérésére; nem nevezzük iparági vagy teljes NIST-megfelelőségnek. A hosszú, egyedi jelszó és a később még szükséges kompromittáltjelszó-blokklista továbbra is fontos. A Mutatás/Elrejtés csak átmeneti kliensállapot, beküldéskor/oldalelhagyáskor rejtés és a már meglévő titoktörlés történik.

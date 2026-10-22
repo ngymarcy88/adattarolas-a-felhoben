@@ -6,6 +6,7 @@ export type AllowedMimeType = (typeof supportedMimeTypes)[number];
 
 export interface AppConfig {
   environment: 'local' | 'test' | 'production';
+  host: '127.0.0.1' | '0.0.0.0';
   port: number;
   backendPublicUrl: string;
   frontendPublicUrl: string;

@@ -3,9 +3,10 @@ import { onBeforeUnmount } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import { authClient } from '../api/auth';
 import { createAuthForm } from '../auth/form';
+import PasswordInput from '../components/PasswordInput.vue';
 
 const router = useRouter();
-const { state, submit, dispose } = createAuthForm('login', authClient, () => router.replace({ name: 'account' }));
+const { state, togglePasswordVisibility, submit, dispose } = createAuthForm('login', authClient, () => router.replace({ name: 'account' }));
 onBeforeUnmount(dispose);
 </script>
 
@@ -23,7 +24,7 @@ onBeforeUnmount(dispose);
         </div>
         <div>
           <label for="password" class="mb-2 block text-sm font-medium">Jelszó</label>
-          <input id="password" v-model="state.password" type="password" name="password" autocomplete="current-password" maxlength="1024" required :disabled="state.pending" :aria-invalid="Boolean(state.fields.password)" :aria-describedby="state.fields.password ? 'password-error' : undefined" class="w-full rounded-xl border border-slate-300 px-3 py-3" />
+          <PasswordInput id="password" v-model="state.password" name="password" autocomplete="current-password" :disabled="state.pending" :invalid="Boolean(state.fields.password)" :describedby="state.fields.password ? 'password-error' : undefined" :visible="state.passwordVisible" @toggle="togglePasswordVisibility('password')" />
           <p v-if="state.fields.password" id="password-error" class="mt-2 text-sm text-red-700">{{ state.fields.password }}</p>
         </div>
         <p v-if="Object.keys(state.fields).length" role="alert" class="text-sm text-red-700">Javítsd a jelzett mezőket, majd próbáld újra.</p>

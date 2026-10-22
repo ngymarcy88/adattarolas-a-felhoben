@@ -38,7 +38,8 @@ export class RegisterValidationPipe implements PipeTransform<unknown, RegisterDt
     if (!normalizedName || [...normalizedName].length > 100 || !validUnicode(normalizedName) ||
         /[\u0000-\u001f\u007f-\u009f]/.test(normalizedName)) return fail();
     if ([...password].length < 15 || Buffer.byteLength(password, 'utf8') > MAX_PASSWORD_BYTES ||
-        !validUnicode(password)) return fail();
+        !validUnicode(password) || !/\p{Lu}/u.test(password) || !/\p{Nd}/u.test(password) ||
+        !/[\p{P}\p{S}]/u.test(password)) return fail();
     return new RegisterDto(normalizedEmail, normalizedName, password);
   }
 }

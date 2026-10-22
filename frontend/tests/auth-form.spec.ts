@@ -7,15 +7,54 @@ function fixture(mode: 'login' | 'register' = 'register') {
   const client: AuthClient = { register: vi.fn().mockResolvedValue(user), login: vi.fn().mockResolvedValue(user), logout: vi.fn(), currentUser: vi.fn() };
   const navigate = vi.fn().mockResolvedValue(undefined);
   const form = createAuthForm(mode, client, navigate);
-  Object.assign(form.state, { email: user.email, displayName: user.displayName, password: '  exact test passphrase  ', passwordConfirmation: '  exact test passphrase  ' });
+  Object.assign(form.state, { email: user.email, displayName: user.displayName, password: '  Exact test passphrase1!  ', passwordConfirmation: '  Exact test passphrase1!  ' });
   return { ...form, client, navigate };
 }
 
 describe('Shared registration/login form state', () => {
+  it.each([
+    ['long test passphrase1!', 'uppercase'], ['Long test passphrase!', 'number'],
+    ['Long test passphrase1', 'special'], ['A1!' + 'a'.repeat(11), 'length'],
+    ['A1' + ' '.repeat(13), 'special'], ['A1' + '\u200b'.repeat(13), 'special'],
+  ])('reports the missing %s requirement live and blocks registration', async (password, missing) => {
+    const { state, requirements, submit, client } = fixture();
+    state.password = state.passwordConfirmation = password;
+    expect(requirements.value.filter((rule) => !rule.met).map((rule) => rule.key)).toContain(missing);
+    await submit(); expect(state.fields.password).toBeTruthy(); expect(client.register).not.toHaveBeenCalled();
+    state.password = state.passwordConfirmation = 'Corrected password1!';
+    expect(requirements.value.every((rule) => rule.met)).toBe(true);
+    expect(state.fields.password).toBeUndefined();
+  });
+  it('toggles each password independently without changing or submitting its value', () => {
+    const { state, togglePasswordVisibility, client } = fixture();
+    expect(state.passwordVisible).toBe(false); expect(state.passwordConfirmationVisible).toBe(false);
+    togglePasswordVisibility('password'); expect(state.passwordVisible).toBe(true);
+    expect(state.passwordConfirmationVisible).toBe(false);
+    togglePasswordVisibility('passwordConfirmation'); expect(state.passwordConfirmationVisible).toBe(true);
+    togglePasswordVisibility('password'); expect(state.passwordVisible).toBe(false);
+    expect(state.password).toBe('  Exact test passphrase1!  '); expect(client.register).not.toHaveBeenCalled();
+  });
+  it('hides both fields when submitting, blocks visibility changes while pending and resets on disposal', async () => {
+    const { state, togglePasswordVisibility, submit, dispose, client } = fixture();
+    let finish!: (value: typeof user) => void;
+    vi.mocked(client.register).mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
+    togglePasswordVisibility('password'); togglePasswordVisibility('passwordConfirmation');
+    const pending = submit();
+    expect(state.passwordVisible).toBe(false); expect(state.passwordConfirmationVisible).toBe(false);
+    togglePasswordVisibility('password'); expect(state.passwordVisible).toBe(false);
+    finish(user); await pending;
+    togglePasswordVisibility('password'); expect(state.passwordVisible).toBe(false);
+    dispose(); togglePasswordVisibility('passwordConfirmation'); expect(state.passwordConfirmationVisible).toBe(false);
+  });
+  it('resets a visible login password on disposal', () => {
+    const { state, togglePasswordVisibility, dispose } = fixture('login');
+    togglePasswordVisibility('password'); expect(state.passwordVisible).toBe(true);
+    dispose(); expect(state.passwordVisible).toBe(false); expect(state.password).toBe('');
+  });
   it('registers with exactly the input credentials, clears secrets and does not log in automatically', async () => {
     const { state, submit, client, navigate } = fixture();
     await submit();
-    expect(client.register).toHaveBeenCalledWith(user.email, user.displayName, '  exact test passphrase  ', expect.any(AbortSignal));
+    expect(client.register).toHaveBeenCalledWith(user.email, user.displayName, '  Exact test passphrase1!  ', expect.any(AbortSignal));
     expect(state.registered).toBe(true); expect(state.pending).toBe(false);
     expect(state.password).toBe(''); expect(state.passwordConfirmation).toBe('');
     expect(client.login).not.toHaveBeenCalled(); expect(navigate).not.toHaveBeenCalled();
@@ -34,7 +73,7 @@ describe('Shared registration/login form state', () => {
       await submit();
       expect(state.error).toBe(new AuthRequestError(code).message); expect(state.registered).toBe(false); expect(state.pending).toBe(false);
       expect(state.password).toBe(''); expect(state.passwordConfirmation).toBe('');
-      state.password = state.passwordConfirmation = 'retry test passphrase'; await submit();
+      state.password = state.passwordConfirmation = 'Retry test passphrase1!'; await submit();
       expect(state.error).toBe(''); expect(state.registered).toBe(true);
     });
   it('does not expose unexpected provider errors', async () => {
@@ -50,14 +89,14 @@ describe('Shared registration/login form state', () => {
     const { state, submit, client } = fixture(); state[field] = value;
     await submit(); expect(state.fields[field]).toBeTruthy(); expect(client.register).not.toHaveBeenCalled(); expect(state.pending).toBe(false);
   });
-  it.each(['a'.repeat(15), '😀'.repeat(15), '😀'.repeat(256), 'a'.repeat(1024)])
+  it.each(['A1!' + 'a'.repeat(12), 'Á١€' + '😀'.repeat(12), 'A1!' + '😀'.repeat(255) + 'x', 'A1!' + 'a'.repeat(1021)])
     ('permits code-point and UTF-8 boundary passwords %#', async (password) => {
       const { state, submit, client } = fixture(); state.password = state.passwordConfirmation = password;
       await submit(); expect(client.register).toHaveBeenCalledTimes(1);
     });
   it('clears previous field errors when corrected, without dropping unsent passwords', async () => {
     const { state, submit, client } = fixture(); state.displayName = '';
-    await submit(); expect(state.fields.displayName).toBeTruthy(); expect(state.password).toBe('  exact test passphrase  ');
+    await submit(); expect(state.fields.displayName).toBeTruthy(); expect(state.password).toBe('  Exact test passphrase1!  ');
     state.displayName = user.displayName; await submit(); expect(state.fields).toEqual({}); expect(client.register).toHaveBeenCalledTimes(1);
   });
   it.each(['resolve', 'reject'])('aborts on disposal, clears secrets and ignores late %s', async (outcome) => {
@@ -79,7 +118,7 @@ describe('Shared registration/login form state', () => {
     const { state, submit, client, navigate } = fixture('login');
     vi.mocked(client.login).mockRejectedValueOnce(new AuthRequestError('invalid_credentials'));
     await submit(); expect(state.error).toBe('Hibás e-mail-cím vagy jelszó.'); expect(state.pending).toBe(false);
-    expect(navigate).not.toHaveBeenCalled(); state.password = 'retry test passphrase'; await submit(); expect(navigate).toHaveBeenCalledTimes(1);
+    expect(navigate).not.toHaveBeenCalled(); state.password = 'Retry test passphrase1!'; await submit(); expect(navigate).toHaveBeenCalledTimes(1);
   });
   it('never navigates for a login response arriving after unmount', async () => {
     const { submit, client, navigate, dispose } = fixture('login'); let finish!: (value: typeof user) => void;

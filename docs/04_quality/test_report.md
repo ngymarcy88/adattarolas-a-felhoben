@@ -10,6 +10,68 @@ A helyi Prisma-generálás CI=true és a workflow szintetikus DATABASE_URL ért�
 
 A helyi link/secret/diff ellenőrzés PASS (160 helyi hivatkozás a PR előtti állapotban). A unit suite nem integrációs/böngészős működési bizonyíték.
 
+## Auth kézi ellenőrzése és újraindítás utáni belépés – 2026-10-20
+
+**Eredmény: PASS a szerző által visszaigazolt folyamatokra.** Ellenőrző: a szakdolgozat szerzője, saját helyi gépén. Módszer: kézi böngészős használat, majd az alkalmazás újraindítása és ismételt belépés. Ez szerzői fejlesztői ellenőrzés, nem AI által végrehajtott teszt, automatizált e2e vagy külső UAT.
+
+- Kapcsolódó fejlesztési változat: `feature/full-app-compose`, `39e212b` (jelszómegjelenítés és élő követelmények), [PR #17](https://github.com/ngymarcy88/adattarolas-a-felhoben/pull/17). A ténylegesen futó image commitját a szerző nem adta meg külön; ez a verziókapcsolat fejlesztési referencia, nem ellenőrzött image-azonosító.
+- Környezet: a szerző Windows gépén futó helyi Docker Compose-alkalmazás és böngésző. A Docker Desktop/Compose és a böngésző pontos verziója nincs rögzítve.
+- Bemenet: a szerző által korábban létrehozott fiók és a hozzá tartozó helyes belépési adatok. Email, jelszó, cookie és token nem kerül a riportba.
+- Bizonyíték: a szerző beszélgetésbeli visszajelzése. Először működő alkalmazást és fióklétrehozást jelzett, majd a „belépés → védett fiókoldal → kijelentkezés, újraindítás után ismét belépés” ellenőrzésére kifejezetten azt válaszolta, hogy működik. Képernyőkép, parancskimenet és közvetlen DB-lekérdezés nem érkezett.
+
+| Azonosító | Lépés | Elvárt eredmény | Tényleges eredmény | Minősítés |
+|---|---|---|---|---|
+| AUTH-M01 | Fiók létrehozása a regisztrációs felületen | Létrejön a később belépésre használható fiók | A szerző sikeres fióklétrehozást jelzett | PASS, szerzői visszajelzés |
+| AUTH-M02 | Belépés helyes adatokkal | A felhasználó eljut a védett fiókoldalra | A szerző visszaigazolta a sikeres belépést és fiókoldalt | PASS, szerzői visszajelzés |
+| AUTH-M03 | Kijelentkezés a fiókoldalról | A felhasználó kijelentkezik | A szerző a folyamat kijelentkezési lépését is működőnek jelezte | PASS, szerzői visszajelzés |
+| AUTH-M04 | Újraindítás, majd ismételt belépés ugyanazzal a fiókkal | A fiók az újraindítás után is használható | A szerző visszaigazolta az ismételt belépést | PASS, szerzői visszajelzés |
+
+**Következtetés:** a pozitív auth-alapfolyamat és a fiók újraindítás utáni használhatósága kézzel kipróbált, a szerző által visszaigazolt. Az ismételt belépés a fiók megmaradásának felhasználói szintű bizonyítéka; nem teljes adatbázis- vagy MinIO-adatmegőrzési vizsgálat.
+
+Külön még nem igazolt: kijelentkezés után a `/app` közvetlen újranyitásának tiltása/átirányítása, hibás jelszó és lejárt munkamenet, cookie-attribútumok böngészős vizsgálata, közvetlen DB-rekord és storage-próbaobjektum megmaradása. A jelszó-UX-re kapott általános „működik” visszajelzés nem jelent minden karakterfeltétel, billentyűzet/fókusz vagy autocomplete külön dokumentált próbáját. Képernyőkép később csatolható, de ebben a bejegyzésben nincs nem létező képmelléklet. A teljes SZD2-1 mérföldkő ezzel önmagában nem zárul le.
+
+## Jelszómegjelenítés és élő regisztrációs policy – 2026-10-20
+
+Vizsgált változat: `feature/full-app-compose`, `4744c69` utáni auth-kiegészítés. Környezet: WSL/Linux Node 22.23.2, npm 10.9.8; szintetikus jelszó-fixture-ök, mockolt auth/perzisztencia, Vue SSR template-render. A szerző új összetételi szabályokat kért; a 15-ös minimumot a NIST-forrás ellenőrzése után megtartottuk. Ez nem teljes NIST-megfelelőségi állítás.
+
+| Ellenőrzés | Tényleges eredmény |
+|---|---|
+| `npm test` | PASS: 2 container-helper + 221 backend + 105 frontend = **328 unit/template teszt**; 0 failed/skipped |
+| `npm run build` | PASS: Prisma-generálás, NestJS, vue-tsc és Vite production bundle |
+| Link/secret/diff ellenőrzés | PASS: 140 helyi Markdown-link, tényleges credential nincs a forrásban/frontend bundle-ben; whitespace ellenőrzés sikeres |
+| FE/BE regisztrációs policy | PASS: min. 15 kódpont, Unicode nagybetű/számjegy/írásjel vagy szimbólum; külön hiányzó feltételek, whitespace/zero-width nem speciális karakter; kódolt Unicode és 1024 UTF-8 bájtos határ |
+| Élő visszajelzés | PASS: közös reaktív formból minden követelmény állapota frissül; a javított jelszó elavult mezőhibája törlődik; érvénytelen jelszó nem jut az API-ig |
+| Mutatás/Elrejtés | PASS: külön mezők, változatlan jelszó és nincs submit; rejtés beküldéskor/dispose-kor, pending/siker/dispose után nincs újra megjelenítés; SSR type és ARIA controls/pressed, élő szöveges követelménylista |
+| Meglévő fiók kompatibilitása | PASS unit szinten: login rövid és az új összetételnek nem megfelelő meglévő jelszót is ellenőriz, nincs automatikus jelszócsere |
+| Független frontend/backend security review | Javítandó hiba nincs; policyparitás, Unicode/bájtkorlát, titokéletciklus, accessibility átnézve |
+
+A korábbi fióklétrehozás a szerző visszajelzése, nem az új policy böngészős elfogadása. Ez az iteráció nem tartalmaz új integration/e2e suite-ot, DB-migrációt vagy dependencyt. Kézi újrateszt: rebuild után régi fiókkal login, minden jelszómező mutatása/rejtése, hibás regisztrációs jelszónál a pontos hiányok, majd mind a négy feltételt teljesítő, egyező jelszóval új szintetikus fiók. Billentyűzet/fókusz és jelszókezelő-autocomplete browser-próba még szükséges; az SSR nem interaktív browser-bizonyíték.
+
+
+## Szerzői indítási visszajelzés – 2026-10-20
+
+A szerző a Compose-útmutató után azt jelezte: az alkalmazás működik, fiókot létrehozott. Ez saját gépes, felhasználó által jelentett indulási és regisztrációs siker; nem független AI-futtatás és nem külső UAT. Ennél a korábbi visszajelzésnél a pontos futó commit/image és a teljes auth-/újraindítási folyamat még nem volt külön visszaigazolva. A későbbi szerzői ellenőrzés eredményét a riport elején található „Auth kézi ellenőrzése és újraindítás utáni belépés” bejegyzés rögzíti. Az ezt követően készülő jelszópolicy/UX-módosításnak még nincs szerzői újratesztelési eredménye. A korábbi Docker-hiány az akkori AI-kísérlet állapotát írja le.
+
+
+## Teljes alkalmazás Docker Compose-konfigurációja – 2026-10-20
+
+Vizsgált változat: `feature/full-app-compose`, `197cdec` baseline utáni Compose-iteráció. Környezet: Windows/WSL2, Node 22.23.2, npm 10.9.8. Bemenet: meglévő generált lokális `.env` (értékei nem publikáltak), szintetikus URL-fixture kódolt jelszóval. A várt viselkedés: encoded credential/query megőrzése a konténeres hostcserénél, hibás konfiguráció elutasítása, explicit bind-address validálása, sikeres fordítás és Compose-séma.
+
+| Ellenőrzés | Tényleges eredmény |
+|---|---|
+| Windows Docker CLI `compose config --quiet` | PASS, a gyökérbeli `docker-compose.yaml` automatikus felfedezésével; feloldott credential nem került kiírásra |
+| `npm run test:container` | PASS: 2 Node builtin unit teszt; encoded password, schema és biztonságos hibakezelés |
+| `npm run test --workspace backend` | PASS: 8 suite / 215 teszt; bind alapérték és 0.0.0.0 elfogadása, hibás/üres bind elutasítása |
+| `npm run build` | PASS: Prisma Client generálás, NestJS fordítás, vue-tsc és Vite production bundle |
+| Független Docker/security review | Blokkoló hiba nincs: függőségi kapuk, nem root runtime, secret-kizárás és Nginx SPA fallback átnézve |
+| Link/secret ellenőrzés | PASS: 140 helyi Markdown-link; tényleges `.env` credential nincs a forrásban vagy ellenőrzött frontend bundle-ben |
+| Teljes Docker image build / indulás | NEM FUTOTT: a Docker Server nem érhető el; a Windows CLI `docker_engine` named pipe hiányát jelzi |
+
+A frontend viselkedése nem változott, frontend unit suite ebben az iterációban nem futott újra. A Compose-config és a host build nem igazolja az image-építést, Nginx runtime-ot vagy a szolgáltatások együttműködését. A health kapu liveness, nem folyamatos DB/storage readiness.
+
+Kézi elfogadás működő Docker motorral: `node scripts/init-env.mjs`, `docker compose up -d --build --wait`, majd `docker compose ps -a`: négy futó/healthy service, db-migrate és minio-init Exited (0). Ellenőrizendő közvetlen /register, /login és /app betöltése, szintetikus regisztráció → belépés → védett profil → logout, tényleges DB-rekord/cookie, privát bucket és korlátozott storage-azonosság. `docker compose down` és ismételt indítás után a DB és a nem érzékeny storage próbaobjektum maradjon meg; `down -v` nélkül. Ez még nyitott saját fejlesztői ellenőrzés, nem UAT vagy tiszta másik gépes telepítési bizonyíték.
+
+
 ## Regisztrációs és belépési felület – 2026-10-19
 
 Vizsgált változat: `feature/registration-ui`, a `dfeec7d` main baseline utáni űrlap-iteráció. Környezet: Windows/WSL2, Linux Node 22.23.2, npm 10.9.8. Szintetikus név/e-mail/jelszó, mockolt API és tényleges Vue reaktív form-kezelő; SSR template-render és memory router. A meglévő backend és sémája változatlan; nincs új dependency, integration/e2e suite vagy CI.
