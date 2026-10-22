@@ -6,7 +6,9 @@ Vizsgált változat: `feature/unit-test-ci`, `fe5887d` main baseline utáni CI-i
 
 Statikus ellenőrzés: workflow YAML és trigger-set, read-only permission, teljes SHA-pinek PASS (PyYAML). Az action-referenciák a hivatalos repositoryk v6 Git-refjeivel összevetve helyesek. Független workflow/security review nem talált javítandó hibát. A Node `yaml` modul első próbán nem volt telepítve; a YAML-ellenőrzés a meglévő Python/PyYAML használatával sikerült, dependency telepítése nélkül.
 
-A helyi Prisma-generálás CI=true és a workflow szintetikus DATABASE_URL értékével PASS. A helyi tesztfutás és a tényleges GitHub-hosted futás eredménye az ellenőrzés lezárásakor kerül ide; a statikus konfiguráció önmagában nem sikeres CI-futás. A unit suite nem integrációs/böngészős működési bizonyíték.
+A helyi Prisma-generálás CI=true és a workflow szintetikus DATABASE_URL értékével PASS. A helyi `CI=true DATABASE_URL=<szintetikus URL> npm test` PASS: 8 backend suite / 213 teszt és 5 frontend fájl / 93 teszt, összesen **306**, 0 failed/skipped. Környezet: WSL, Linux Node 22.23.2, npm 10.9.8; meglévő függőségek, újratelepítés nélkül. A tényleges GitHub-hosted futás külön ellenőrzés; a statikus konfiguráció vagy helyi siker önmagában nem sikeres CI-futás. **Tényleges GitHub-hosted CI: PASS.** [Tests #1 futás](https://github.com/ngymarcy88/adattarolas-a-felhoben/actions/runs/39751340008), workflow-commit `0ea63bd`, job `Unit tests` (119732390430). A GitHub API alapján minden lépés sikeres: checkout, Node setup, tiszta `npm ci`, Prisma-generálás, `npm test` és post lépések. A run a [PR #19](https://github.com/ngymarcy88/adattarolas-a-felhoben/pull/19) pull_request eseményére indult; nincs kézi triggerre vagy main-pushra vonatkozó külön futtatási bizonyíték ebben a bejegyzésben. Ez a futás a workflow-kódot igazolja; az eredmény dokumentálása későbbi docs-commitot eredményezhet.
+
+A helyi link/secret/diff ellenőrzés PASS (160 helyi hivatkozás a PR előtti állapotban). A unit suite nem integrációs/böngészős működési bizonyíték.
 
 ## Regisztrációs és belépési felület – 2026-10-19
 
