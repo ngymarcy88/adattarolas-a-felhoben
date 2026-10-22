@@ -12,7 +12,15 @@ A unit-first fejlesztés nem a végső SZD2 elfogadási kapu. Az októberi célh
 - MinIO/S3 adapter integration tesztek;
 - API contract tesztek;
 - Playwright vagy más e2e/UI tesztek;
-- CI quality gate és coverage enforcement.
+- A unit CI-n túli build/typecheck quality gate és coverage enforcement.
+
+## Engedélyezett unit CI – 2026-10-22
+
+A szerző kifejezett kérésére a korábban későbbre tervezett CI első, szűk része most bevezetésre kerül: [GitHub Actions Tests](../../.github/workflows/tests.yml). Események: PR a mainre, push a mainre, valamint default branchre kerülés után kézi indítás. Ubuntu 24.04, `.nvmrc` szerinti Node, root lockfile és `npm ci`; utána Prisma Client generálás szintetikus URL-lel és a teljes meglévő `npm test`. Ez az aktuális root scripthez igazodik, ezért későbbi scriptváltozásnál a workflow és a dokumentáció együtt ellenőrizendő.
+
+Nincs futó DB/MinIO, valós credential vagy artifact-feltöltés. Az actionök teljes commit SHA-ra rögzítettek, a token `contents: read`, checkout credential nem marad a Git-configban. PR-kód nem `pull_request_target` privilegizált eseményben fut. Függő azonos-ref futások megszakíthatók; a job 15 percre korlátozott. A megoldás a [GitHub biztonsági útmutatóját](https://docs.github.com/en/actions/reference/security/secure-use) és a [setup-node dokumentációját](https://github.com/actions/setup-node) követi.
+
+A futási link és tényleges eredmény a tesztriportba kerül. A workflow-fájl nem állít automatikusan GitHub required checket: branch protection/ruleset külön beállítás. Integration/e2e/contract tesztek, coverage enforcement, deployment és automatikus merge továbbra is külön engedélyezendő scope.
 
 ## Tesztelhetőségi elvek
 
@@ -110,7 +118,7 @@ A jelenlegi baseline nélkül nincs hiteles százalékos coverage-küszöb. A k�
 
 ## SZD2 minőségi és átadási fázis
 
-Az SZD2-6 fázisban a teljes alkalmazás bizonyításához az alábbi ellenőrzési terv tartozik; a jelenlegi scaffold nem hoz létre nagyobb tesztszintet vagy CI-t. Az integration/e2e/contract és CI indulásához külön felhatalmazás szükséges. Bevezetéskor rögzíteni kell a környezetet, fixture cleanupot, MinIO/PostgreSQL izolációt, CI-erőforrást és flake-kezelést.
+Az SZD2-6 fázisban a teljes alkalmazás bizonyításához az alábbi ellenőrzési terv tartozik; a jelenlegi unit CI nem hoz létre nagyobb tesztszintet. Az integration/e2e/contract és a CI további bővítése külön felhatalmazást igényel. Bevezetéskor rögzíteni kell a környezetet, fixture cleanupot, MinIO/PostgreSQL izolációt, CI-erőforrást és flake-kezelést.
 
 | Szint | Bizonyítandó viselkedés |
 |---|---|

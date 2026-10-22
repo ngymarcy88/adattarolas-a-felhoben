@@ -1,5 +1,13 @@
 # Test report
 
+## GitHub Actions unit CI – 2026-10-22
+
+Vizsgált változat: `feature/unit-test-ci`, `fe5887d` main baseline utáni CI-iteráció. A szerző külön engedélyezte a meglévő tesztek Actions-futtatását. A workflow az `.nvmrc` szerinti Node-ot, root lockfile-t, `npm ci`, `npm run db:generate`, majd `npm test` parancsokat használja Ubuntu 24.04 alatt. Nincs service container, valódi credential vagy deployment; a DATABASE_URL szintetikus, a generálás nem kapcsolódik DB-hez.
+
+Statikus ellenőrzés: workflow YAML és trigger-set, read-only permission, teljes SHA-pinek PASS (PyYAML). Az action-referenciák a hivatalos repositoryk v6 Git-refjeivel összevetve helyesek. Független workflow/security review nem talált javítandó hibát. A Node `yaml` modul első próbán nem volt telepítve; a YAML-ellenőrzés a meglévő Python/PyYAML használatával sikerült, dependency telepítése nélkül.
+
+A helyi Prisma-generálás CI=true és a workflow szintetikus DATABASE_URL értékével PASS. A helyi tesztfutás és a tényleges GitHub-hosted futás eredménye az ellenőrzés lezárásakor kerül ide; a statikus konfiguráció önmagában nem sikeres CI-futás. A unit suite nem integrációs/böngészős működési bizonyíték.
+
 ## Regisztrációs és belépési felület – 2026-10-19
 
 Vizsgált változat: `feature/registration-ui`, a `dfeec7d` main baseline utáni űrlap-iteráció. Környezet: Windows/WSL2, Linux Node 22.23.2, npm 10.9.8. Szintetikus név/e-mail/jelszó, mockolt API és tényleges Vue reaktív form-kezelő; SSR template-render és memory router. A meglévő backend és sémája változatlan; nincs új dependency, integration/e2e suite vagy CI.

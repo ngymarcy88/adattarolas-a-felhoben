@@ -66,6 +66,12 @@ A build és typecheck először generálja a Prisma Clientet. A tesztek izolált
 
 Épített backend indítása: `npm run start --workspace backend`. Frontend build megtekintése: `npm run preview --workspace frontend`. Migrációk normál alkalmazása `npm run db:migrate` (Prisma migrate deploy); új fejlesztői migráció generálása később `npm run db:migrate:dev -- --name <name>`. Destruktív reset nem Quickstart lépés.
 
+## Automatikus unit tesztek (GitHub Actions)
+
+A [Tests workflow](.github/workflows/tests.yml) a `main`-re nyitott/frissített pull requesteknél és a `main` pushainál fut. A GitHub Actions felületen kézzel is indítható, miután a workflow a default branchre került. Linux runneren az `.nvmrc` szerinti Node-verziót és a gyökérbeli lockfile-t használja: `npm ci` → `npm run db:generate` → `npm test`.
+
+A Prisma-generálás szintetikus `DATABASE_URL` értéket kap; nem kapcsolódik adatbázishoz. Nem kell repository secret, `.env`, PostgreSQL vagy MinIO. A státusz a PR Checks fülén **Tests / Unit tests**, a részletes kimenet az Actions futásban található. Új commit megszakítja az azonos PR korábbi futását. Ez unit-teszt CI; deployment, integration/e2e, coverage-kapu és automatikus merge nem része. A kötelező merge-kapuhoz külön GitHub branch protection/ruleset beállítás szükséges.
+
 ## Hibaelhárítás
 
 - **Docker daemon nem érhető el:** indítsd el Docker Desktopot; WSL-ben ellenőrizd a disztribúció Docker-integrációját és a `docker version` Server részét.
@@ -76,7 +82,7 @@ A build és typecheck először generálja a Prisma Clientet. A tesztek izolált
 
 ## Stack és struktúra
 
-Vue 3 / Vite / TypeScript / Tailwind CSS / Vue Router; NestJS / Prisma / PostgreSQL; helyben MinIO. Egy npm workspace és gyökérbeli lockfile van, almappákban nincs külön install vagy lockfile. Nincs Pinia, CI/CD vagy integration/e2e tesztkörnyezet.
+Vue 3 / Vite / TypeScript / Tailwind CSS / Vue Router; NestJS / Prisma / PostgreSQL; helyben MinIO. Egy npm workspace és gyökérbeli lockfile van, almappákban nincs külön install vagy lockfile. Nincs Pinia vagy integration/e2e tesztkörnyezet; GitHub Actions futtatja a meglévő unit teszteket, deployment nincs.
 
 ```text
 /
