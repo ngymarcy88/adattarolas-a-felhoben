@@ -23,7 +23,7 @@ Az ADR-ek elfogadott **tervezési döntéseket** rögzítenek. Elfogadott státu
 
 - Core MVP: ADR-001–ADR-011 releváns döntései.
 - MVP+: ADR-012, külön implementációs go/no-go kapuval.
-- Later: ADR-009 multipart upload és ADR-006 automatizált purge része.
+- Later: ADR-009 nagyvideós multipart bővítés és ADR-006 automatizált purge része. A kötelező folytatható képimport mechanizmusa külön PoC/ADR, nem automatikusan Later.
 
 ## Kötelező ADR-forma
 

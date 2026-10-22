@@ -65,18 +65,19 @@ A filter 400/401/403/404/405/409/413/415/429/503 HTTP-státuszhoz rendre `INVALI
 | HTTP | Kód | Jelentés és kliensreakció |
 |---:|---|---|
 | 400 | `INVALID_FILE_NAME` | Nem normalizálható vagy tiltott fájlnév; másik név/fájl választható |
+| 409 | `IDEMPOTENCY_CONFLICT` | Azonos owner/init-kulcs eltérő normalizált payloadhoz; nincs új fájl vagy foglalás |
 | 409 | `QUOTA_EXCEEDED` | `used + reserved + requested` meghaladná a limitet |
 | 409 | `UPLOAD_NOT_READY` | Az objektum a 15 perces határ előtt még nem látható; confirm később megismételhető |
 | 410 | `UPLOAD_EXPIRED` | A pending confirm határideje lejárt; új upload init szükséges |
-| 413 | `FILE_TOO_LARGE` | A deklarált vagy tényleges méret meghaladja a 100 MB-os Core limitet |
+| 413 | `FILE_TOO_LARGE` | A deklarált vagy tényleges méret meghaladja a konfigurált plafont (legfeljebb 104857600 bájt = 100 MiB) |
 | 415 | `UNSUPPORTED_MEDIA_TYPE` | A deklarált MIME nincs a pontos allowlisten |
 | 415 | `PREVIEW_NOT_ALLOWED` | A fájl letölthető lehet, de inline preview nem engedélyezett |
-| 422 | `UPLOAD_VALIDATION_FAILED` | `HEAD` méreteltérés, MIME/magic mismatch, unknown vagy sérült tartalom |
+| 422 | `UPLOAD_VALIDATION_FAILED` | `HEAD` méreteltérés, MIME/magic mismatch, unknown/hiányos signature; nem teljes képsértetlenségi vizsgálat |
 | 503 | `UPLOAD_VERIFICATION_UNAVAILABLE` | `HEAD` vagy bounded range-read átmeneti storage-hibája; confirm retry lehetséges |
 
-Az engedélyezett MIME-ok: `image/jpeg`, `image/png`, `image/webp`, `image/gif`, `video/mp4`, `video/webm`.
+Az első képszelet MIME-jai: `image/jpeg`, `image/png`, `image/webp`, `image/gif`, a konfigurációval tovább szűkíthetően. A tágabb tervezett Core MIME-lista videót is tartalmaz (`video/mp4`, `video/webm`), de ezek nem az első képfeltöltési szelet részei. A pontos init/confirm, TTL, idempotencia és retry szerződés az [API Upload szakaszában](api.md#upload--első-képfeltöltési-szelet-tervezett) szerepel.
 
-Az `ACTIVE` fájl ismételt confirmja nem hiba: `200 OK`, ugyanaz a reprezentáció és nulla új számlálómódosítás. Invalid/abandoned cleanup storage-hibája belső retry-állapot; nem szabad azt állítani a kliensnek, hogy reservation már felszabadult.
+Az `ACTIVE` fájl ismételt confirmja nem hiba: `200 OK`, ugyanaz a reprezentáció és nulla új számlálómódosítás. A cleanupnak ki kell zárnia a confirm-aktiválást és a későbbi PUT-befejezésből történő objektum-újrakeletkezést; URL-lejárat vagy pillanatnyi 404 önmagában nem bizonyíték. Invalid/abandoned cleanup storage-hibája belső retry-állapot; nem szabad azt állítani a kliensnek, hogy reservation már felszabadult.
 
 ### Lifecycle és sharing
 
@@ -158,7 +159,7 @@ A provider konkrét státusza, request ID-ja, hostja és response bodyja nem ker
 | Művelet | Kliens retry |
 |---|---|
 | Login/register | Csak felhasználói döntéssel; vak automatikus retry nem javasolt |
-| Upload init | Timeoutnál óvatosan: a kliens előbb a perzisztált állapotot kérje le vagy az új initből keletkező külön pending rekord cleanupját fogadja el |
+| Upload init | Timeout/503 után ugyanaz az ownerhez kötött `Idempotency-Key` és normalizált payload; egy fájl/foglalás, változatlan határidők. Eltérő payload 409; garantált megőrzés legalább 24 óra és minden nyitott storage/cleanup életciklusa. Új kísérlethez új kulcs, nem vak új init |
 | Upload confirm | Ugyanarra a `fileId`-ra biztonságosan ismételhető; első siker után no-op |
 | Lista/read URL | Átmeneti 503 vagy lejárt read URL után újrakérhető |
 | Delete/restore | Csak a dokumentált állapot- és idempotenciaszabállyal ismételhető |

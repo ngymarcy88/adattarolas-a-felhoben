@@ -78,6 +78,8 @@ Later phases, only when explicitly requested:
 
 Do not introduce CI/CD, integration tests or e2e tests unless the user asks for them or a milestone explicitly says to start that phase.
 
+On 2026-10-22 the user explicitly authorized GitHub Actions for the existing unit tests. `.github/workflows/tests.yml` runs on PRs targeting `main`, pushes to `main`, and manual dispatch after the workflow is available on the default branch. It uses `.nvmrc`, root `npm ci`, `npm run db:generate`, and `npm test`. No PostgreSQL/MinIO services or real secrets are needed; the database URL is synthetic and only satisfies Prisma generation. Keep action references pinned to reviewed full commit SHAs and token permissions read-only. This authorization does not introduce deployment, integration/e2e tests, coverage enforcement or automatic merging. Required-check/branch-protection settings are separate from committing the workflow.
+
 Unit-first is a development phase, not the final submission standard. SZD2 requires evidence for component cooperation, complete user flows, recovery and user acceptance. Plan an explicit quality phase for appropriate integration/e2e/contract checks and CI; implementation still follows the authorization rule above. The older v1.2 rubric includes test-count/mix and CI criteria, while the newer Coospace guidance emphasizes meaningful results. Keep their final applicability as an explicit clarification item rather than silently dropping them or declaring unit-only completion sufficient.
 
 ---

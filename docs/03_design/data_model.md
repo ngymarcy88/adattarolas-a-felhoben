@@ -15,6 +15,12 @@ A kezdeti [Prisma-séma](../../backend/prisma/schema.prisma) és [SQL migráció
 - User→file/share törlés `Restrict`; file→share törlés `Cascade`; audit actor törlés `SetNull`. Ez FK-védelem, nem megvalósított account-delete vagy purge termékfunkció.
 - `AiMetadataSuggestion`, import/session, processing job és derived result táblák nincsenek ebben a migrációban. A folytatható importhoz a [terv](../plan.md) szerint még külön szerződésfrissítés kell.
 
+## Első upload API és következő adatmodell-feladat – 2026-10-20
+
+Az [API Upload szerződése](api.md#upload--első-képfeltöltési-szelet-tervezett) az első képszelet request/response, owner-check, init-idempotencia és lejárat forrása. A kezdeti séma nem tartalmazza a kötelező init-kulcs/payload-azonosság tartós, legalább 24 órás és nyitott cleanup végéig tartó receiptjét, valamint a terminális invalid/expiry lezárás teljes szerződését. Ezek konkrét tárolása, egyedisége és migrációja a következő külön adatmodell-feladat; itt nincs kész új entitás, séma vagy migráció.
+
+Az alábbi korábbi tranzakciós leírások baseline-ok: az API szerinti init-dedupe ugyanabba a tranzakcióba kerül a kvótafoglalással; confirm/cleanup kölcsönösen kizárja egymást. Object-not-found/delete önmagában nem ad release-jogot, ha korábban kiadott PUT még létrehozhat objektumot. Az első kép-allowlist JPEG/PNG/WebP/GIF; a tágabb Core videótámogatás későbbi szelet. A magic number nem teljes képdekódolási vagy sértetlenségi bizonyíték.
+
 ## Modellezési határ
 
 - A bináris kép- és videotartalom privát MinIO/S3 object storage-ban él.
@@ -314,7 +320,7 @@ A cursor a `createdAt + id` párost használja `DESC` sorrendben; az `id` tie-br
 
 ## Fájlformátum allowlist
 
-A Core MVP pontos allowlistje: `image/jpeg`, `image/png`, `image/webp`, `image/gif`, `video/mp4`, `video/webm`. Initkor a deklarált MIME-nak, confirmkor a detektált MIME-nak is ezen a listán kell szerepelnie, és egyezniük kell. HTML, SVG, JavaScript, XML, ismeretlen és sérült tartalom nem aktiválható.
+A Core MVP pontos allowlistje: `image/jpeg`, `image/png`, `image/webp`, `image/gif`, `video/mp4`, `video/webm`. Initkor a deklarált MIME-nak, confirmkor a detektált MIME-nak is ezen a listán kell szerepelnie, és egyezniük kell. HTML, SVG, JavaScript, XML és ismeretlen/hiányos signature elutasított. A magic-number vizsgálat nem garantálja minden teljes fájlsérülés felismerését; a dekódolási/processor-hiba külön kezelendő.
 
 ## Törlési és retention-szabályok
 

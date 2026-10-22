@@ -137,7 +137,7 @@ Az `MVP+` csak a `Core MVP` stabil működése után kezdhető el, és nem rész
 - Backend: Node.js, TypeScript, NestJS, Prisma és PostgreSQL.
 - Lokális objektumtároló: privát MinIO bucket S3-kompatibilis adapteren keresztül.
 - A frontend nem tárol object storage credentialt.
-- A `Core MVP` egyetlen, legfeljebb 100 MB-os presigned PUT feltöltést használ; multipart upload nincs.
+- Az első, külön [API-szerződésben](../03_design/api.md#upload--első-képfeltöltési-szelet-tervezett) rögzített képszelet legfeljebb 104857600 bájtos single-PUT baseline. Ez nem a teljes SZD2 végső átviteli korlátja: valódi folytatható képimport kötelező, mechanizmusa PoC/ADR tárgya. A nagyvideós multipart külön későbbi bővítés.
 - A visszaállítási idő minden fájlnál egységesen 30 nap.
 - Az első tesztelési szint unit teszt; integration, contract és e2e teszt `Later`.
 

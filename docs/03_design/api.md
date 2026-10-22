@@ -36,8 +36,8 @@ A jelenlegi scaffold a konfigurált `FRONTEND_PUBLIC_URL` origint credentiallel 
 | `POST /auth/login` | **Implementált Core-szelet** | publikus + Origin | JWT-cookie kiadása |
 | `POST /auth/logout` | **Implementált Core-szelet** | Origin; cookie törölhető hiányzó/lejárt állapotban is | Auth-cookie törlése |
 | `GET /auth/me` | **Implementált Core-szelet** | cookie | Aktuális felhasználó |
-| `POST /files/uploads/init` | Core MVP | owner cookie + Origin | Pending rekord, kvótafoglalás és presigned PUT |
-| `POST /files/{fileId}/confirm` | Core MVP | owner cookie + Origin | Idempotens storage-validáció és aktiválás |
+| `POST /files/uploads/init` | **Tervezett első képszelet** | owner cookie + Origin + Idempotency-Key | Egyszeri pending/foglalás és rövid presigned PUT |
+| `POST /files/{fileId}/confirm` | **Tervezett első képszelet** | owner cookie + Origin | Idempotens storage-validáció és aktiválás |
 | `GET /files` | Core MVP | owner cookie | Aktív saját fájlok cursor-lapozott listája |
 | `GET /files/trash` | Core MVP | owner cookie | Visszaállítható saját fájlok cursor-lapozott listája |
 | `GET /files/{fileId}` | Core MVP | owner cookie | Saját fájl biztonságos metaadata |
@@ -181,11 +181,23 @@ rm -f /tmp/cloudvault-auth.cookies
 
 Elvárt sorrend: 200 + cookie, 200 + user, 204 + törlés, 401. A terminál kimenete Set-Cookie-t tartalmazhat, ezért ne másold screenshotba/logba. A futtatási bizonyíték és korlátok a tesztriportban.
 
-## Upload
+## Upload – első képfeltöltési szelet (tervezett)
+
+**2026-10-20-i dokumentációs szerződés; egyik upload-végpont sem implementált.** Ez az SZD2-2 előkészítése: egy init egy képet foglal, egy egyszeri presigned PUT után confirm következik. A teljes Core MVP videótámogatása és a kötelező SZD2 folytatható kötegimport ennél tágabb cél; az első szelet nem helyettesíti őket. Processor, thumbnail, import/session adatmodell és migráció külön feladat.
+
+### Közös jogosultság és reprezentáció
+
+- Teljes útvonalak: `POST /api/v1/files/uploads/init`, `POST /api/v1/files/{fileId}/confirm`.
+- Mindkettő meglévő HttpOnly JWT-cookie-t, aktuális DB-felhasználót és a konfigurált frontenddel pontosan egyező `Origin` headert igényel. Előbb Origin-/auth-ellenőrzés, utána input és owner/state vizsgálat. Tiltott/hiányzó Origin `403 ORIGIN_NOT_ALLOWED`; elfogadott Origin mellett hiányzó/lejárt/invalid session `401 AUTH_REQUIRED`.
+- `ownerId`, storage key, bucket, státusz, kvóta, detektált MIME és határidő mindig szerveroldali adat. A kliens ezeket nem választhatja meg. Confirmnál idegen és hiányzó file egységes `404 FILE_NOT_FOUND`; hibás UUID-alak `400 VALIDATION_ERROR`, létezésvizsgálat nélkül.
+- Backend-válasz `Cache-Control: no-store`, valamint `X-Request-Id`; hibánál a közös nested wrapper és ebben a szeletben `details: {}`. Storage credential, nyers providerhiba és külön `storageKey` mező nincs az API-válaszban. A presigned URL természeténél fogva tartalmazhat object pathot, ezért maga is hozzáférést adó titok, nem naplózható metaadat.
+- A `FileObject` reprezentáció mérete ennél a fájlméretkorlátnál biztonságos JSON egész szám; pending `detectedMimeType: null`. A pending fájl nem látszik aktív galériában, nem preview-zható, nem tölthető le és nem osztható meg.
 
 ### `POST /files/uploads/init`
 
-Request:
+Headerek: `Content-Type: application/json`, `Origin`, cookie és kötelező `Idempotency-Key`. Utóbbi a kliens által egyszer generált UUIDv4; nem auth-token. A kliens ugyanazon fájlkísérlet hálózati retry-jánál ugyanazt küldi, szándékos új feltöltéshez új kulcsot generál.
+
+Request, pontosan három mezővel:
 
 ```json
 {
@@ -195,14 +207,19 @@ Request:
 }
 ```
 
-Az init tranzakciósan ellenőrzi:
+| Mező | Első szelet validációja |
+|---|---|
+| `originalName` | Jól formált Unicode string; külső whitespace trim és NFC-normalizálás után 1–255 kódpont. Üres, `.`/`..`, útvonal-elválasztó (`/`, `\`), C0/C1 vezérlőkarakter és bidi-vezérlő U+202A–U+202E/U+2066–U+2069 elutasított. Nem basename-kivágással javítjuk a beküldött útvonalat. Csak megjelenítési/letöltési név, storage key nem ebből készül. |
+| `mimeType` | Pontosan `image/jpeg`, `image/png`, `image/webp` vagy `image/gif`, kisbetűsen, paraméter nélkül; a szerver konfigurációja ezt tovább szűkítheti. Video, HTML, SVG, JavaScript, XML és ismeretlen típus nem része ennek a képszeletnek. |
+| `sizeBytes` | Pozitív, biztonságos JSON egész szám, numerikus string nélkül; legfeljebb a konfigurált `MAX_UPLOAD_BYTES`, abszolút plafon **104857600 bájt = 100 MiB** (régebbi dokumentumokban „100 MB”). Nulla/tört/negatív/rossz típus `400`; plafon feletti méret `413`. |
 
-- az authenticationt és a fájlnév biztonságos normalizálhatóságát;
-- a 100 MB-os Core MVP méretlimitet;
-- a deklarált MIME allowlistet: `image/jpeg`, `image/png`, `image/webp`, `image/gif`, `video/mp4`, `video/webm`;
-- a `usedStorageBytes + reservedStorageBytes + sizeBytes <= storageLimitBytes` invariánst.
+Extra mező, hibás típus vagy hiányzó/hibás idempotenciakulcs `400 VALIDATION_ERROR`; névhiba `400 INVALID_FILE_NAME`; nem engedett deklarált MIME `415 UNSUPPORTED_MEDIA_TYPE`. A kiterjesztés nem igazolja a tartalmat. Init még nem olvassa a fájlt, ezért nem állíthatja, hogy ténylegesen kép vagy dekódolható.
 
-Siker esetén `201 Created`:
+**Új művelet feldolgozása:** a backend előkészíti a még ki nem adott presigned műveletet, majd egy DB-tranzakcióban atomikusan foglalja a `(owner, init-művelet, Idempotency-Key)` azonosságot, ellenőrzi a kvótát, létrehozza a pending rekordot és növeli a reservationt. A kvótafeltétel `used + reserved + size <= limit`; az egyenlőség megengedett. Párhuzamos kéréseknél user-szintű szerializálás vagy feltételes atomikus update szükséges; külön SELECT és későbbi UPDATE nem elegendő. A válaszban PUT-jog csak sikeres commit után adható ki.
+
+Rollbacknél sem új fájl, sem foglalás, sem sikeres műveletazonosság nem marad. A validáció/kvóta miatt elutasított, nem commitolt kérés kulcsa nem foglalt; a payload-konfliktus szabálya csak megőrzött sikeres műveletre érvényes. Előzetes presign-hibánál nincs kiadott URL és új foglalás. Ismeretlen kimenetelű commit/HTTP-timeout esetén a kliens **azonos kulccsal** kérdez újra; nem feltételezheti, hogy az init biztosan meghiúsult.
+
+**Első siker: `201 Created`.** Az alábbi t0=10:00 példában az URL öt percig, a confirm tizenöt percig él:
 
 ```json
 {
@@ -211,35 +228,107 @@ Siker esetén `201 Created`:
     "status": "PENDING_UPLOAD",
     "originalName": "nyaralas.jpg",
     "mimeType": "image/jpeg",
+    "detectedMimeType": null,
     "sizeBytes": 2457600,
-    "confirmBy": "2026-07-12T10:20:00.000Z"
+    "confirmBy": "2026-10-20T10:15:00.000Z"
   },
   "upload": {
     "method": "PUT",
-    "url": "https://object-storage.example.test/presigned-value",
-    "expiresAt": "2026-07-12T10:10:00.000Z",
+    "url": "https://object-storage.example.test/synthetic-presigned-value",
+    "expiresAt": "2026-10-20T10:05:00.000Z",
     "headers": {
-      "Content-Type": "image/jpeg"
+      "Content-Type": "image/jpeg",
+      "If-None-Match": "*"
     }
   }
 }
 ```
 
-Az upload URL alapértelmezett élettartama 5 perc. A pending rekord teljes határideje inittől 15 perc: az URL lejárata után 10 perces confirm-grace marad a már feltöltött objektum véglegesítésére. A URL bearer capability: csak a válaszban adható át, és nem kerülhet logba, audit eseménybe vagy későbbi API-válaszba.
+Az URL szintetikus példa. A `headers` a ténylegesen alkalmazandó storage-headerek explicit listája. A `Content-Type` és `If-None-Match` értékei az aláíráshoz/feltételhez kötöttek: kihagyásuk vagy módosításuk storage-oldali elutasítást kell okozzon, különben az adatút nem felel meg a szerződésnek. Az `If-None-Match: *` aláírt, create-only PUT-védelem **elvárt, de a használt MinIO/S3 adapterrel még bizonyítandó képesség**, nem kész implementáció. Az alábbi storage-kapuk teljesítése előtt a presigned adatút nem tekinthető implementálhatónak/biztonságosan elfogadottnak.
+
+### Init idempotencia és hálózati retry
+
+| Eset | Válasz és hatás |
+|---|---|
+| Azonos owner + kulcs + normalizált név/MIME/méret, pending, URL még él | `200 OK`, ugyanaz a `file.id`, foglalás és eredeti két határidő. A PUT URL újra aláírható ugyanarra a célra, **legfeljebb az eredeti abszolút lejáratig**; nincs új fájl vagy új foglalás. |
+| Megőrzött sikeres kulcs, eltérő normalizált payload | `409 IDEMPOTENCY_CONFLICT`, nincs változás. A kulcs nem fájltartalom-hash és nem duplikáltképfelismerés. |
+| Párhuzamos azonos init | Egyetlen művelet és foglalás jöhet létre; a második a győztes commitját követően replay. Ha ezt nem lehet határidőn belül feloldani: `503 DATABASE_UNAVAILABLE`, ugyanazon kulccsal retry; nincs második rekord. |
+| Pending, PUT URL lejárt, de `now < confirmBy` | `200 OK`, ugyanaz a pending `file`, `upload: null`; a már feltöltött objektumra confirm kérhető. A replay nem újítja meg az upload-jogot. |
+| Saját fájl már `ACTIVE` | `200 OK`, aktuális aktív `file`, `upload: null`; nincs ismételt PUT vagy könyvelés. |
+| Határidős/invalid/cleanupra lezárt művelet | `410 UPLOAD_EXPIRED`, illetve a korábbi tartalmi végkód: `413 FILE_TOO_LARGE` vagy `422 UPLOAD_VALIDATION_FAILED`; nincs újraélesztés vagy új foglalás. |
+| Saját fájl később soft-deleted | `409 RESOURCE_STATE_CONFLICT`; init replay nem restore. |
+
+A normalizált payload-azonosság és a sikeresen létrehozott init tartós, újraindítást túlélő nyilvántartást igényel. **Ez nincs a kezdeti Prisma-sémában**; a pontos tárolás, egyediség és terminális receipt/tombstone megoldás a következő adatmodell-feladat. A sikeres művelet azonosságát legalább t0+24 óráig, és ezen túl is minden élő upload-jog, függő írás és lezáratlan cleanup megszűnéséig meg kell őrizni. A megőrzés nem növeli a PUT/confirm határidejét és nem őrizhet presigned URL-t. A garantált minimumablakon túl a kliens nem használhat újra régi kulcsot; egy kitakarított kulcs újrafelhasználására nincs deduplikációs garancia. Nem létező/idegen `fileId` publikus státuszából műveletazonosság nem következtethető ki; a belső receipt ownerhez kötött.
+
+### Bináris PUT és implementáció előtti storage-kapuk
+
+1. A browser közvetlenül a **publikusan, a böngészőből elérhető** storage URL-re küldi a kiválasztott teljes `File`/`Blob` tartalmát. A szerveroldali `minio:9000` cím nem browser-cím; az aláírt URL hostját nem szabad utólag szövegcserével módosítani. A két cím adapter-konfigurációja külön feladat.
+2. Nem küld backend-cookie-t/JWT-t, nem használ tartós storage credentialt; a storage kérés credential-módja `omit`. A MinIO CORS csak az explicit frontend origint, a szükséges PUT/headereket engedje; a browsernek szükséges `ETag` header olvashatósága külön beállítandó. A CORS nem authorization és nem véd egy nem böngészős támadótól.
+3. A kiadott jog csak egy szerveroldali véletlen kulcsra, egy privát bucketre és a rögzített feltételekre szólhat. A deklarált méret **storage-oldali kikényszerítését** is igazolni kell (például a ténylegesen aláírt, provider által ellenőrzött content-length révén). A böngésző a `Content-Length` értékét maga állítja; az API nem utasítja tiltott header kézi beállítására. A confirmkori méretellenőrzés önmagában nem védi a fizikai tárhelyet a túlméretes PUT-tól. Ha a kiválasztott adapter/browser kombináció nem képes kikényszeríteni, a szükséges adatútmódosítást előbb külön meg kell tervezni, nem szabad a korlátot garantáltnak nevezni.
+4. Az aktívvá tett, ellenőrzött objektumot a régi PUT-jog nem módosíthatja. Az aláírt create-only feltétel megkerülhetetlenségét és a párhuzamos PUT-ok kezelését igazolni kell. A `HEAD` és a range-read ugyanazt a változatlan objektumot ellenőrizze; változó objektum aktiválása tilos. A [S3 presigned dokumentáció](https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-presigned-url.html) szerint egy szokásos URL újra felhasználható és a meglévő kulcs felülírható; a rövid lejárat ezért nem helyettesíti a védelmet. Az [S3 conditional write](https://docs.aws.amazon.com/AmazonS3/latest/userguide/conditional-writes.html) a vizsgálandó create-only megoldás elsődleges forrása; ez nem bizonyítja automatikusan a helyi MinIO működését.
+5. A storage 2xx válasza csak a bináris művelet sikere; utána confirm kell. Bizonytalan PUT-kimenetelnél előbb confirm, nem új init. A create-only `412` azt is jelentheti, hogy az előző PUT már sikerült; önmagában nem végleges alkalmazáshiba. Átmeneti storage/network hibánál a teljes fájl újraküldése csak az eredeti URL-időablakon belül, ugyanarra a pending műveletre megengedett. Végleges invalid tartalom nem írható át ugyanazon művelet alatt.
+6. A storage saját HTTP/XML hibateste nem a backend JSON error wrapperje. A frontend nem mutat nyers providerüzenetet/URL-t, és nem talál ki belőle backend-domainkódot. Ellenőrzött állapotért confirm vagy az owner fájlmetaadata kérhető; lejárt, befejezetlen átvitelnél új művelet és új foglalás kell, a régi nem tűnik el automatikusan.
 
 ### `POST /files/{fileId}/confirm`
 
-Request body nem szükséges. A backend:
+A kérésnek **nincs bodyja**, és nem fogad kliensoldali méret-, MIME-, hash-, storage key- vagy státuszállítást. Body nélküli POST-hoz `Content-Type` nem kötelező; nem üres body `400 VALIDATION_ERROR`. `Idempotency-Key` itt nem szükséges: az owner + `fileId` a művelet azonossága.
 
-1. ellenőrzi az ownert és a fájl állapotát;
-2. `HEAD` művelettel ellenőrzi az objektum létét és tényleges méretét;
-3. bounded range-readből magic numbert detektál;
-4. csak méret- és típusazonosság esetén hajtja végre a `PENDING_UPLOAD → ACTIVE` tranzakciót;
-5. pontosan egyszer csökkenti a reservationt és növeli a used számlálót.
+1. Origin, JWT/aktuális user, UUID és ownership ellenőrzés.
+2. Saját `ACTIVE` fájl esetén azonnal `200` no-op; a régi `confirmBy` lejárata ilyenkor nem hiba. Saját `SOFT_DELETED` fájl `409 RESOURCE_STATE_CONFLICT`; confirm nem restore.
+3. Tartalmi hibával már lezárt pending nem validálható újra; az eredeti terminális ok szerinti `413 FILE_TOO_LARGE` vagy `422 UPLOAD_VALIDATION_FAILED` marad érvényes. Egyéb pending esetén `now >= confirmBy` már `410 UPLOAD_EXPIRED`, akkor is, ha az objektum jelen van. Cleanup által lefoglalt vagy lezárt művelet nem versenyezhet aktiválással.
+4. `HEAD`: létezés és tényleges méret; határ előtt hiányzó objektum `409 UPLOAD_NOT_READY`. Provider-access-denied/timeout nem tekinthető hiánynak. A tényleges méretnek pozitívnak, a deklarálttal azonosnak és a konfigurált limiten belülinek kell lennie. Túllépés `413 FILE_TOO_LARGE`; egyéb méreteltérés `422 UPLOAD_VALIDATION_FAILED`.
+5. Bounded range-read és magic-number detektálás. A korlátot a választott detektor/adapter későbbi döntése dokumentálja; korlátlan teljes letöltés nem fallback. A detektált típusnak a fenti kép-allowlisten kell lennie és egyeznie kell a deklarált MIME-mal. Ismeretlen, hiányos signature vagy eltérés `422`. A storage metadata `Content-Type` önmagában nem bizonyíték; `ETag` nem hitelesített end-to-end checksum.
+6. A `HEAD` és range alapján ellenőrzött objektum változatlanságának biztosítása után egy DB-tranzakció újból ellenőrzi a pending/cleanup állapotot és a határidőt, majd feltételesen `ACTIVE`-vá teszi a fájlt, elmenti a detektált MIME-ot és **ugyanannyi** bájtot visz át a reservedből a usedba. Az aktiválás és mindkét számláló együtt commitol/rollbackel. A tranzakció közben elért határidő már nem aktiválható.
+7. Két párhuzamos confirmnál legfeljebb egy könyvelhet; a vesztes az aktuális állapot újraolvasásával ugyanazt az aktív fájlt adja vissza, vagy a közben lezárt/lejárt művelet stabil hibáját. DB-hibánál `503 DATABASE_UNAVAILABLE`, retry ugyanarra a `fileId`-ra. Sikeresen aktivált fájl API-timeout után is no-opként kérdezhető újra.
 
-Első és ismételt sikeres confirm is `200 OK`, ugyanazzal az aktív `file` reprezentációval. Az aktív állapotra ismételt kérés no-op. Lejárt, invalid vagy storage-hibás pending objektum nem aktiválható.
+**Első és ismételt siker: `200 OK`, `{"file": <aktuális ACTIVE FileObject>}`**, a fent definiált, storage key és PUT URL nélküli reprezentációval. A siker a tárolási és típusvalidáció lezárása, **nem thumbnail-/processor-siker**. A magic number nem bizonyítja egy teljes kép sértetlenségét/dekódolhatóságát vagy malware-mentességét; a későbbi dekódolási/processor-hibát külön kell kezelni. Ebben a feladatban nem választunk könyvtárat, processor-végpontot vagy derived kvótát.
 
-Invalid vagy abandoned objektumnál cleanup szükséges. A reservation csak bizonyított object-not-found vagy sikeres delete után oldható fel; delete-hibánál a pending rekord és foglalás retry-ig megmarad.
+### Lejárat, invalid tartalom és cleanup
+
+- A szerver UTC ideje az irányadó: t0 az első sikeres init rögzített időpontja, `upload.expiresAt = t0 + 5 perc`, `confirmBy = t0 + 15 perc` alapértékkel. Config szűkítheti a PUT TTL-t; a fix confirm-határ ettől nem nő. Retry/replay egyik határt sem tolja ki. A PUT-jog a providercredential lejárata miatt ennél rövidebb is lehet; az API ténylegesen vállalható lejáratot adjon.
+- `expiresAt <= now < confirmBy`: új PUT-jog nincs, de a már jelen lévő objektum még confirmálható. `now >= confirmBy`: pending már nem aktiválható. A 15 perc után beküldött sikeres storage-válasz sem írja ezt felül.
+- `422`/`413` tartalmi elutasítás terminális a műveletre; ugyanarra a kulcsra nem fogadunk javított tartalmat. A cleanupig fennmaradó pending nem jelent újraaktiválható állapotot. E logikai lezárás tartós jelölése a külön adatmodell-szerződés része lesz, nem állítunk meglévő új enumot.
+- Érvényes, de még nem látható objektum `409` és átmeneti `HEAD`/range hiba `503 UPLOAD_VERIFICATION_UNAVAILABLE`: nincs aktiválás vagy reservation-release; a határidőn belüli confirm retry megengedett. A kliens korlátozott, növekvő késleltetéssel próbálkozzon, egyszerre egy confirmmal/fájllal; `429` esetén tartsa be a `Retry-After` headert, ha van.
+- Cleanup és confirm ugyanazon tartós műveletért versengő állapotátmenetek: a cleanupnak előbb kizárólagosan le kell zárnia az aktiválhatóságot. Az `ACTIVE` állapotba már átment fájlt pending cleanup nem törölheti. Állapotlezárás és számlálóváltozás DB-szinten legyen egyszeri; object delete és DB-tranzakció nem közös atomikus művelet, ezért részhiba utáni retry kötelező.
+- Foglalás csak akkor oldható fel, ha a foglalt bájtokhoz tartozó objektum bizonyítottan hiányzik/sikeresen törölték, **és a már kiadott feltöltési jogból nem keletkezhet későbbi objektum**. Az URL lejárta vagy egy pillanatnyi `HEAD 404` önmagában nem igazolja ezt: lejárat előtt megkezdett PUT és delete versenyezhet. A használt storage in-flight írásainak lezárási/korlátozási bizonyítéka az adapter implementációja előtti nyitott kapu. Korai invalid cleanup sem nyithatja meg újraírásra a kulcsot élő jog mellett. Bizonytalanságnál a reservation és cleanup-nyilvántartás megmarad; nincs hamis „felszabadult tárhely” válasz.
+- Delete-, állapotmentési vagy cleanup-hibánál a foglalás megmarad és újrapróbálható. A hiba külső válasza nem ígéri a cleanup befejezését. Lezárt művelet idempotencia-receiptje a foglalás felszabadulása után is a fenti megőrzési ablakig él, hogy a kliens retry-ja ne indítson új fájlt.
+
+### Első szelet hibaválaszai és kliensreakció
+
+Minden alábbi **tervezett backendhiba**, az implementált auth-kódok új végpontokra történő alkalmazása is későbbi munka. `details: {}`; a táblázat a stabil kódra épülő reakciót rögzíti, nem providerüzenetet.
+
+| HTTP | Kód | Mikor / kliensreakció |
+|---:|---|---|
+| 400 | `INVALID_REQUEST` / `VALIDATION_ERROR` | Hibás JSON / mező, UUID, body vagy init-kulcs; javítani kell, változatlan vak retry nem segít. |
+| 400 | `INVALID_FILE_NAME` | A megadott név nem elfogadható; másik név/fájl szükséges. |
+| 401 | `AUTH_REQUIRED` | Login szükséges; új session után a pending művelet ugyanazon init-kulccsal/fileId-val csak eredeti határidején belül folytatható. Saját ACTIVE confirm ettől függetlenül továbbra is no-op. |
+| 403 | `ORIGIN_NOT_ALLOWED` | Hiányzó/eltérő Origin; konfiguráció/kérés javítása, nem storage-retry. |
+| 404 | `FILE_NOT_FOUND` | Hiányzó vagy nem saját fájl azonos válasza; idegen fájl állapotáról nincs információ. |
+| 409 | `IDEMPOTENCY_CONFLICT` | Ugyanahhoz a kulcshoz más normalizált payload; eredeti kérés ismétlése vagy tudatos új művelet új kulccsal. |
+| 409 | `QUOTA_EXCEEDED` | Az új foglalás nem fér el; a kérés nem hozott létre új fájlt/foglalást. |
+| 409 | `UPLOAD_NOT_READY` | Pending objektum még nincs a storage-ban; PUT bizonytalan kimenetele után confirm retry a határig. |
+| 409 | `RESOURCE_STATE_CONFLICT` | Saját fájl nem megfelelő állapotú; soft-deleted fájlt nem aktivál újra. |
+| 410 | `UPLOAD_EXPIRED` | Lejárt/határidő miatt lezárt pending; új feltöltési kísérlet új kulccsal, régi cleanup külön marad. |
+| 413 | `FILE_TOO_LARGE` | Fájlméretplafon túllépése, nem a kis JSON-body méretkorlátja; confirmnál cleanup szükséges. |
+| 415 | `UNSUPPORTED_MEDIA_TYPE` | Init MIME nem támogatott ebben a képszeletben. |
+| 422 | `UPLOAD_VALIDATION_FAILED` | Terminális tartalmi/méretazonossági hiba; nincs aktív fájl és automatikus ugyanazon-művelet PUT retry. |
+| 429 | `RATE_LIMITED` | Useralapú init/confirm és összes drága storage-verifikáció korlátja; konkrét kezdeti értékek implementáció előtt rögzítendők, a byte-kvóta önmagában nem request-limit. |
+| 503 | `STORAGE_UNAVAILABLE` | Presign/storage infrastruktúrahiba; init retry ugyanazzal a kulccsal. |
+| 503 | `UPLOAD_VERIFICATION_UNAVAILABLE` | HEAD/range átmeneti hiba vagy objektumazonosság nem igazolható; confirm retry, reservation változatlan. |
+| 503 | `DATABASE_UNAVAILABLE` | Átmeneti DB-/konkurenciahiba; ugyanaz a kulcs/fileId, nem új foglalás. |
+| 500 | `INTERNAL_ERROR` | Ismeretlen hiba, biztonságos generikus válasz és request ID. |
+
+### Első szelet és a későbbi valódi folytatható import határa
+
+| Első képfeltöltési szerződés | Kötelező későbbi SZD2-kiegészítés |
+|---|---|
+| Egy init-kulcs → egy fájl és foglalás; teljes fájl egy PUT-ban. | Tartós import-, fájl- és transfer-session azonosság, több fájl koordinációja és korlátozott párhuzamosság. |
+| Init/confirm retry nem könyvel kétszer; hálózati PUT-retry elölről küldhet. | Megszakadt fájl a ténylegesen átvett bájtoktól folytatódik, kész fájlok újraküldése nélkül. |
+| Fix rövid PUT-jog és fix confirm-határ; nincs renew/resume/cancel endpoint. | Backend által jogosított folytatás, session-/credential-megújítás, retry/cancel/expiry és részleges adatok cleanupja. |
+| Magic-number validált eredeti, processor-siker ígérete nélkül. | Verziózott thumbnail és metadata processor, tartós job/result, független retry és worker-restart recovery; eredeti/derived kvóta és lifecycle. |
+| Nem szolgáltat batch-progress vagy import-level idempotencia garanciát. | Per-file progress/részleges hiba, import-level dedupe, ellenőrzött hálózati megszakítás és újraküldöttbájt-mérés. |
+
+A tus/Uppy és S3 multipart vizsgálandó alternatívák, nem kiválasztott implementációk. A [terv](../plan.md), [roadmap](../milestones.md) és [ADR-009](../02_architecture/adr/ADR-009-defer-multipart-upload.md) szerinti PoC/ADR előzi meg a választást. Ebben a dokumentációs körben nem jön létre új protokoll, függőség, Prisma-séma, migration, végpont vagy tesztkód. A részletes adatmodell, processor és storage adapter a következő külön feladatok.
 
 ## Fájllista és lifecycle
 

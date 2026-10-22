@@ -79,6 +79,12 @@ A build és typecheck először generálja a Prisma Clientet. A tesztek izolált
 
 Épített backend indítása: `npm run start --workspace backend`. Frontend build megtekintése: `npm run preview --workspace frontend`. Migrációk normál alkalmazása `npm run db:migrate` (Prisma migrate deploy); új fejlesztői migráció generálása később `npm run db:migrate:dev -- --name <name>`. Destruktív reset nem Quickstart lépés.
 
+## Automatikus unit tesztek (GitHub Actions)
+
+A [Tests workflow](.github/workflows/tests.yml) a `main`-re nyitott/frissített pull requesteknél és a `main` pushainál fut. A GitHub Actions felületen kézzel is indítható, miután a workflow a default branchre került. Linux runneren az `.nvmrc` szerinti Node-verziót és a gyökérbeli lockfile-t használja: `npm ci` → `npm run db:generate` → `npm test`.
+
+A Prisma-generálás szintetikus `DATABASE_URL` értéket kap; nem kapcsolódik adatbázishoz. Nem kell repository secret, `.env`, PostgreSQL vagy MinIO. A státusz a PR Checks fülén **Tests / Unit tests**, a részletes kimenet az Actions futásban található. Új commit megszakítja az azonos PR korábbi futását. Ez unit-teszt CI; deployment, integration/e2e, coverage-kapu és automatikus merge nem része. A kötelező merge-kapuhoz külön GitHub branch protection/ruleset beállítás szükséges.
+
 ## Hibaelhárítás
 
 - **Docker daemon nem érhető el:** indítsd el Docker Desktopot; WSL-ben ellenőrizd a disztribúció Docker-integrációját és a `docker version` Server részét.
@@ -87,11 +93,11 @@ A build és typecheck először generálja a Prisma Clientet. A tesztek izolált
 - **A frontend nem éri el az API-t:** a frontend buildjekor érvényes `VITE_API_BASE_URL` és `FRONTEND_PUBLIC_URL` egyezzen a használt hosttal. Publikus frontend-konfiguráció változtatása után új build kell: `docker compose up -d --build --wait`. A helyi Vite dev szervert elég újraindítani.
 - **MinIO-init újrafuttatás:** `docker compose run --build --rm minio-init`; idempotensen biztosítja a privát bucketet és az alkalmazásjogosultságot. A hozzáférési adatok nem kerülnek logba.
 
-A szerző 2026-10-20-án működő indulást és sikeres fióklétrehozást jelzett. A teljes login/védett oldal/logout és adatmegőrzési próba részletes eredménye még nincs rögzítve; az új jelszó-visszajelzés külön újratesztelendő. Az AI korábbi saját Docker-próbáját a nem elérhető motor blokkolta. A sikeres Compose-config ellenőrzés nem helyettesíti a build/indítás és a regisztráció → login → védett oldal → logout valós DB-s próbáját. Részletek: [tesztriport](docs/04_quality/test_report.md), [ADR-015](docs/02_architecture/adr/ADR-015-full-app-compose.md).
+A szerző 2026-10-20-án működő indulást és sikeres fióklétrehozást jelzett. A szerzői belépés/védett fiókoldal/kijelentkezés és újraindítás utáni ismételt belépés eredménye a tesztriportban rögzítve van. A részletes negatív auth-, cookie-, DB/storage- és jelszó-UX próbák külön kapuk. Az AI korábbi saját Docker-próbáját a nem elérhető motor blokkolta. A sikeres Compose-config ellenőrzés nem helyettesíti a build/indítás és a regisztráció → login → védett oldal → logout valós DB-s próbáját. Részletek: [tesztriport](docs/04_quality/test_report.md), [ADR-015](docs/02_architecture/adr/ADR-015-full-app-compose.md).
 
 ## Stack és struktúra
 
-Vue 3 / Vite / TypeScript / Tailwind CSS / Vue Router; NestJS / Prisma / PostgreSQL; helyben MinIO. Egy npm workspace és gyökérbeli lockfile van, almappákban nincs külön install vagy lockfile. Nincs Pinia, CI/CD vagy integration/e2e tesztkörnyezet.
+Vue 3 / Vite / TypeScript / Tailwind CSS / Vue Router; NestJS / Prisma / PostgreSQL; helyben MinIO. Egy npm workspace és gyökérbeli lockfile van, almappákban nincs külön install vagy lockfile. Nincs Pinia vagy integration/e2e tesztkörnyezet; GitHub Actions futtatja a meglévő unit teszteket, deployment nincs.
 
 ```text
 /
