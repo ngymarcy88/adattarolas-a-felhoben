@@ -1,5 +1,23 @@
 # Test report
 
+## MinIO/S3 storage adapter – 2026-10-23
+
+Verzió: `feature/minio-storage-adapter`, a `4be1b7c` main baseline utáni adapterváltozás; a PR commitjai azonosítják a végleges kódot. Környezet: WSL Bash, Node 22.23.2/npm 10.9.8, Windows Docker Desktop Linux engine 26.1.1, a repóban rögzített MinIO `9e49d5e7a648f00e26f2246f4dc28e6b07f8c84a`, privát bucket és bucketre korlátozott alkalmazáscredential. Csak MinIO indult el; a próbához PostgreSQL, backend HTTP-szerver és frontend nem szükséges. Ez fejlesztői provider-próba, nem UAT vagy teljes user flow.
+
+| Ellenőrzés / lépések | Elvárt / tényleges eredmény | Bizonyíték |
+|---|---|---|
+| `npm test`: container helper, backend, frontend | PASS: 2 + 283 + 105 = **390 unit teszt** | 9 Jest suite, 5 Vitest fájl; a runner exit 0 |
+| `npm run typecheck` | PASS: Prisma generation és mindkét workspace | exit 0 |
+| `npm run build` | PASS: Prisma generation, Nest build, frontend typecheck és Vite build | exit 0 |
+| MinIO `compose up -d --wait minio`, majd `compose run --rm minio-init` | PASS: healthy service, privát bucket és scoped user | Windows Docker CLI; root `.env` nem került kimenetre |
+| `node scripts/verify-storage.mjs` a backend build után | PASS: 11 megnevezett provider-ellenőrzés | A verziózott script determinisztikus állításai és PASS kimenete |
+
+A script bemenete egy 68 bájtos szintetikus 1×1 PNG, négy véletlen `originals/<ownerUUID>/<fileUUID>` kulcs és az alkalmazáscredential. Ellenőrzések: hiányzó kulcs null; hiányzó/nem elérhető bucket nem null; automatikus Blob Content-Length mellett sikeres presigned PUT; ugyanazzal az URL-lel más bájtok feltöltése 412; HEAD és 8 bájtos If-Match range pontos egyezés; külön friss kulcsokon eltérő méret, módosított Content-Type, illetve hiányzó If-None-Match elutasítása és az objektumhiány ellenőrzése; aláírt download bájt-/disposition-egyezés; anonim GET 403; CORS OPTIONS 204, megfelelő origin, PUT és mindkét header. Végül a script minden saját kulcsát kétszer törli, és HEAD-del ellenőrzi a hiányt. Más kulcsot, bucketet és DB-rekordot nem töröl. A Compose-config validálása, `git diff --check`, 181 helyi Markdown-link és a valódi `.env` credentialértékek repo/frontend-bundle ellenőrzése is PASS.
+
+A próba közben a kombinált hibás-header kérés 400-at adott a várt 403 helyett. A végleges próba külön vizsgálja a két headert, és mindkét szabályos 400/403 elutasítást elfogadja; sikeres objektum nem maradhat utánuk. A HEAD általános 404 válasza unit review során külön bucketellenőrzést kapott, így konfigurációs hiba nem igazolhat véletlenül objektumhiányt.
+
+**Nyitott kapuk:** a HTTP preflight és Node Blob feltöltés nem tényleges böngészőteszt. AWS/OCI runtime nem volt elérhető. Az ETag nem checksum; a prefix nem teljes képintegritás. A már megkezdett PUT biztos lezárása/cleanup-verseny nincs bizonyítva (`writeClosureEvidence = 'unproven'`), ezért `writesClosedAt`, kvótafelszabadítás vagy a teljes upload készenléte ebből nem következik. A törléspróba csak a saját, már befejezett kérésekre bizonyít fizikai törlést. URL-lejárat, támadó párhuzamos PUT és böngészős viselkedés további célzott próba; init/confirm/cleanup/DB-accounting még nincs implementálva.
+
 ## GitHub Actions unit CI – 2026-10-22
 
 Vizsgált változat: `feature/unit-test-ci`, `fe5887d` main baseline utáni CI-iteráció. A szerző külön engedélyezte a meglévő tesztek Actions-futtatását. A workflow az `.nvmrc` szerinti Node-ot, root lockfile-t, `npm ci`, `npm run db:generate`, majd `npm test` parancsokat használja Ubuntu 24.04 alatt. Nincs service container, valódi credential vagy deployment; a DATABASE_URL szintetikus, a generálás nem kapcsolódik DB-hez.

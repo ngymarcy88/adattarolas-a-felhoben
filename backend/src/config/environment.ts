@@ -28,8 +28,8 @@ export function validateEnvironment(env: Record<string, unknown>): AppConfig {
     }
     return value;
   };
-  const url = (name: string, protocols: string[], originOnly = false): string => {
-    const raw = required(name);
+  const url = (name: string, protocols: string[], originOnly = false, fallback?: string): string => {
+    const raw = env[name] === undefined && fallback !== undefined ? fallback : required(name);
     try {
       const value = new URL(raw);
       if (!protocols.includes(value.protocol) || !value.hostname || value.username || value.password ||
@@ -87,6 +87,7 @@ export function validateEnvironment(env: Record<string, unknown>): AppConfig {
     defaultUserStorageLimitBytes: integer('DEFAULT_USER_STORAGE_LIMIT_BYTES', 1073741824, 1, Number.MAX_SAFE_INTEGER),
     storage: {
       endpoint: url('S3_ENDPOINT', ['http:', 'https:'], true),
+      publicEndpoint: url('S3_PUBLIC_ENDPOINT', ['http:', 'https:'], true, text('S3_ENDPOINT')),
       region,
       bucket,
       accessKeyId: secret('S3_ACCESS_KEY_ID', 3),
