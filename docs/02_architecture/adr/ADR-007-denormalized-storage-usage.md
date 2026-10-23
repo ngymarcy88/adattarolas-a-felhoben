@@ -10,7 +10,7 @@ Accepted
 
 ## Implementation status
 
-Tervezett állapot – nincs adatbázisséma vagy számlálólogika.
+A kezdeti számlálómezők és SQL-invariánsok léteznek, upload-könyvelési logika még nincs.
 
 ## Context
 
@@ -47,3 +47,7 @@ Soft delete és restore nem változtatja a used értéket. Csökkenés csak a k�
 - Unit teszt ismételt confirmra és pontosan egyszeri counter transferre.
 - Unit teszt invalid/abandoned cleanup sikerére és hibájára.
 - Unit teszt soft delete, restore és későbbi purge accountingra.
+
+## Első upload-művelet és release – 2026-10-23
+
+A [tervezett UploadOperation](../../03_design/data_model.md#első-képfeltöltés-adatmodell-szerződése--tervezett-2026-10-23) rögzíti a siker/hiba/lejárat és a foglalásfeloldás külön állapotát. REJECTED/EXPIRED nem csökkenti automatikusan a reservedet. Csak bizonyított íráslezárás és absence/delete után, a reservationReleasedAt jelzővel egy tranzakcióban történhet egyszeri levonás. Kitakarított, de még dedupe-megőrzés alatt álló PENDING_UPLOAD metadata már nem számít foglalásnak. FINALIZED esetén a foglalás ugyanannyi used-dá alakul, nem hibás-upload release történik. A companion modell és az új jelzők egyelőre dokumentáltak, a Prisma-séma változatlan.

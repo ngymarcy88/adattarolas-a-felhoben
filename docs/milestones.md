@@ -94,6 +94,7 @@ A történeti MVP-0–MVP-7 helyett az alábbi **SZD2-0–SZD2-7** az aktuális 
 
 - [ ] A hat meglévő alapstory kiegészítési terve import/processing acceptance criteriával és a két belső ütem eltérésével.
 - [x] Az első képfeltöltés init/confirm API-szerződése: owner/Origin, validáció, foglalás, init/confirm idempotencia, lejárat, hibák és storage-bizonyítási kapuk dokumentálva; nem implementáció.
+- [x] Az első egyképes upload adatmodell-szerződése: UploadOperation, tartós dedupe, végleges hiba/expiry, egyszeri foglalás/release és receipt-megőrzés dokumentálva; séma/migráció és storage-bizonyítás még külön feladat.
 - [ ] Az első slice-hoz szükséges API/adatmodell/state-machine kiegészítés: import- és fájlazonosság, processor/job/result, egyediség és ownership.
 - [ ] Az első derived preview kvótafoglalásának, finalizálásának és sikertelen cleanupjának policyja; eredeti/derived delete/restore összhang.
 - [ ] Uppy/tus és más meglévő S3-kompatibilis folytatható mechanizmus szűk PoC-terve; jogosultság, részleges resume és tényleges tárolási eredmény ellenőrzése.
