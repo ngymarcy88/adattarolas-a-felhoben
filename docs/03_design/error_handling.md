@@ -203,3 +203,7 @@ A jelenlegi health kliens csak a státusz és válaszforma ellenőrzését végz
 ## Implementált belső storage-hibák
 
 A storage adapter `StorageError` kódjai: `INVALID_ARGUMENT`, `NOT_FOUND`, `OBJECT_CHANGED`, `INVALID_RESPONSE`, `UNAVAILABLE`. A publikus üzenet mindig generikus; SDK-cause, URL és credential nem kerül bele. A HEAD csak meglévő/elérhető bucket ellenőrzése után adhat nullt; más konfigurációs vagy hálózati hiba nem objektumhiány. Az `OBJECT_CHANGED` a feltételes olvasás 412/416 hibája, nem engedély automatikus aktiválásra. Ezek belső hibák; az upload HTTP-mapping és tartós hibareceipt az init/confirm implementációjánál készül el.
+
+## Upload-init implementált hibák – 2026-10-24
+
+Az init a dokumentált VALIDATION_ERROR, INVALID_FILE_NAME, UNSUPPORTED_MEDIA_TYPE, FILE_TOO_LARGE, QUOTA_EXCEEDED, IDEMPOTENCY_CONFLICT, RESOURCE_STATE_CONFLICT, UPLOAD_EXPIRED, UPLOAD_VALIDATION_FAILED, DATABASE_UNAVAILABLE és STORAGE_UNAVAILABLE domainkódokat használja a megfelelő állapotokban. A 413/422 tartalmi végkódok jelenleg megőrzött receipt-replay ágak; új tartalomellenőrzést az init nem végez. Origin/session/limiter a DTO előtt fut. Az upload service az ismeretlen DB-/commit-hibát is maszkolt DATABASE_UNAVAILABLE válasszal zárja; a kliens ugyanazt az idempotenciakulcsot használja. A filter minden hibára no-store-t állít, és nem adja tovább a provider/Prisma üzenetet.

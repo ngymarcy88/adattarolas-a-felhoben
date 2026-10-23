@@ -1,10 +1,10 @@
 # API-szerződés
 
-**Részben implementált szerződés: health és backend register/login/logout/me létezik; a többi végpont tervezett.**
+**Részben implementált szerződés: health, register/login/logout/me és upload-init létezik; a többi végpont tervezett.**
 
-A scaffold `GET /api/v1/health` végpontja, CORS-konfigurációja, request ID-ja és generikus hibakerete implementált. A regisztráció, login/logout/me is implementált; file-, storage-, share- és MI-endpoint továbbra is terv; import-/processing-kiegészítésük későbbi szerződésfeladat. Futási ellenőrzés: [tesztriport](../04_quality/test_report.md).
+A scaffold `GET /api/v1/health` végpontja, CORS-konfigurációja, request ID-ja és generikus hibakerete implementált. A regisztráció, login/logout/me is implementált; a `POST /api/v1/files/uploads/init` is implementált; a confirm és a további file-, share- és MI-endpoint terv; import-/processing-kiegészítésük későbbi szerződésfeladat. Futási ellenőrzés: [tesztriport](../04_quality/test_report.md).
 
-A belső MinIO/S3 adapter már implementált; ez nem publikus endpoint. Az authorization, kvóta, init/confirm és cleanup továbbra is következő service-feladat; az in-flight íráslezárás bizonyítása nyitott.
+A belső MinIO/S3 adapter már implementált; ez nem publikus endpoint. Az init authorizationja, kvótafoglalása és tartós replay-je implementált; confirm és cleanup következő feladat; az in-flight íráslezárás bizonyítása nyitott.
 
 ## Hatókör és alapelvek
 
@@ -13,7 +13,7 @@ A belső MinIO/S3 adapter már implementált; ez nem publikus endpoint. Az autho
 - Minden időpont UTC ISO 8601 formátumú, minden azonosító átlátszatlan UUID.
 - A bájtértékek nem negatív egész számok.
 - A frontend `credentials: include` módban hívja a cookie-auth endpointokat.
-- Az alábbi táblában a health és a négy auth sor implementált; a többi endpoint tervezett. Megvalósításkor a controller- és DTO-szerződést e dokumentummal együtt kell frissíteni. OpenAPI-generálás még nincs.
+- Az alábbi táblában a health, a négy auth sor és az upload-init implementált; a többi endpoint tervezett. Megvalósításkor a controller- és DTO-szerződést e dokumentummal együtt kell frissíteni. OpenAPI-generálás még nincs.
 
 ## Hitelesítés, Origin és CORS
 
@@ -28,9 +28,9 @@ A register/login/logout végpontokon a backend ellenőrzi az `Origin` headert az
 
 Az ADR-010 szerinti `SameSite=Lax` és a szigorú Origin-ellenőrzés együtt adja a Core MVP CSRF-védelmét; külön CSRF-token nincs. Ha későbbi deployment topológia további CSRF-token mechanizmust vagy eltérő cookie-policyt igényel, azt implementáció előtt ADR-módosítással kell jóváhagyni.
 
-A jelenlegi scaffold a konfigurált `FRONTEND_PUBLIC_URL` origint credentiallel engedi, az eltérő Origint `403 ORIGIN_NOT_ALLOWED` hibával utasítja el. Origin nélküli kérést a publikus health eléréséhez enged. A register/login/logout külön Origin-guardja a hiányzó Origint is tiltja; a tervezett fájlműveleteknél ezt később szintén alkalmazni kell. A válaszok `X-Request-Id` headere CORS-on keresztül is olvasható. Register és login közös peer-guardot és külön explicit DTO-pipe-ot használ; logout Origin-guardot, `/me` JWT+DB-user guardot kapott. A többi termékvégpont még nincs.
+A jelenlegi scaffold a konfigurált `FRONTEND_PUBLIC_URL` origint credentiallel engedi, az eltérő Origint `403 ORIGIN_NOT_ALLOWED` hibával utasítja el. Origin nélküli kérést a publikus health eléréséhez enged. A register/login/logout külön Origin-guardja a hiányzó Origint is tiltja; az upload-init már ugyanilyen Origin-védelmet és SessionGuardot használ. A válaszok `X-Request-Id` headere CORS-on keresztül is olvasható. Register és login közös peer-guardot és külön explicit DTO-pipe-ot használ; logout Origin-guardot, `/me` JWT+DB-user guardot kapott. Az upload-init őrei sorrendben Origin → aktuális session/user → fejlécek/rate limit; utána a DTO következik. A további termékvégpontok még nincsenek.
 
-## Endpoint-összefoglaló: health és auth implementált, a többi tervezett
+## Endpoint-összefoglaló
 
 | Metódus és útvonal | Fázis | Auth | Cél |
 |---|---|---|---|
@@ -38,7 +38,7 @@ A jelenlegi scaffold a konfigurált `FRONTEND_PUBLIC_URL` origint credentiallel 
 | `POST /auth/login` | **Implementált Core-szelet** | publikus + Origin | JWT-cookie kiadása |
 | `POST /auth/logout` | **Implementált Core-szelet** | Origin; cookie törölhető hiányzó/lejárt állapotban is | Auth-cookie törlése |
 | `GET /auth/me` | **Implementált Core-szelet** | cookie | Aktuális felhasználó |
-| `POST /files/uploads/init` | **Tervezett első képszelet** | owner cookie + Origin + Idempotency-Key | Egyszeri pending/foglalás és rövid presigned PUT |
+| `POST /files/uploads/init` | **Implementált init-szelet** | owner cookie + Origin + Idempotency-Key | Egyszeri pending/foglalás és rövid presigned PUT |
 | `POST /files/{fileId}/confirm` | **Tervezett első képszelet** | owner cookie + Origin | Idempotens storage-validáció és aktiválás |
 | `GET /files` | Core MVP | owner cookie | Aktív saját fájlok cursor-lapozott listája |
 | `GET /files/trash` | Core MVP | owner cookie | Visszaállítható saját fájlok cursor-lapozott listája |
@@ -183,9 +183,11 @@ rm -f /tmp/cloudvault-auth.cookies
 
 Elvárt sorrend: 200 + cookie, 200 + user, 204 + törlés, 401. A terminál kimenete Set-Cookie-t tartalmazhat, ezért ne másold screenshotba/logba. A futtatási bizonyíték és korlátok a tesztriportban.
 
-## Upload – első képfeltöltési szelet (tervezett)
+<a id="upload--első-képfeltöltési-szelet-tervezett"></a>
 
-**2026-10-20-i dokumentációs szerződés; egyik upload-végpont sem implementált.** Ez az SZD2-2 előkészítése: egy init egy képet foglal, egy egyszeri presigned PUT után confirm következik. A teljes Core MVP videótámogatása és a kötelező SZD2 folytatható kötegimport ennél tágabb cél; az első szelet nem helyettesíti őket. Processor, thumbnail, import/session adatmodell és migráció külön feladat.
+## Upload – első képfeltöltési szelet
+
+**2026-10-24: az init végpont implementált; confirm, cleanup és frontend még tervezett.** Ez az SZD2-2 előkészítése: egy init egy képet foglal, egy egyszeri presigned PUT után confirm következik. A teljes Core MVP videótámogatása és a kötelező SZD2 folytatható kötegimport ennél tágabb cél; az első szelet nem helyettesíti őket. Processor, thumbnail, import/session adatmodell és migráció külön feladat.
 
 ### Közös jogosultság és reprezentáció
 
@@ -246,7 +248,7 @@ Rollbacknél sem új fájl, sem foglalás, sem sikeres műveletazonosság nem ma
 }
 ```
 
-Az URL szintetikus példa. A `headers` a ténylegesen alkalmazandó storage-headerek explicit listája. A `Content-Type` és `If-None-Match` értékei az aláíráshoz/feltételhez kötöttek: kihagyásuk vagy módosításuk storage-oldali elutasítást kell okozzon, különben az adatút nem felel meg a szerződésnek. Az `If-None-Match: *` aláírt, create-only PUT-védelem **elvárt, de a használt MinIO/S3 adapterrel még bizonyítandó képesség**, nem kész implementáció. Az alábbi storage-kapuk teljesítése előtt a presigned adatút nem tekinthető implementálhatónak/biztonságosan elfogadottnak.
+Az URL szintetikus példa. A `headers` a ténylegesen alkalmazandó storage-headerek explicit listája. A `Content-Type` és `If-None-Match` értékei az aláíráshoz/feltételhez kötöttek: kihagyásuk vagy módosításuk storage-oldali elutasítást kell okozzon, különben az adatút nem felel meg a szerződésnek. Az `If-None-Match: *` aláírt, create-only PUT-védelem a jelenlegi adapter implementált védelme, amelyet a helyi HTTP/MinIO-próba igazolt (tesztriport). Valódi browser-ellenőrzés és a késői in-flight írások lezárása még nyitott kapu: az init nem old fel foglalást, a teljes upload-életciklus nincs kész.
 
 ### Init idempotencia és hálózati retry
 
@@ -260,7 +262,7 @@ Az URL szintetikus példa. A `headers` a ténylegesen alkalmazandó storage-head
 | Határidős/invalid/cleanupra lezárt művelet | `410 UPLOAD_EXPIRED`, illetve a korábbi tartalmi végkód: `413 FILE_TOO_LARGE` vagy `422 UPLOAD_VALIDATION_FAILED`; nincs újraélesztés vagy új foglalás. |
 | Saját fájl később soft-deleted | `409 RESOURCE_STATE_CONFLICT`; init replay nem restore. |
 
-A normalizált payload-azonosság és a sikeresen létrehozott init tartós, újraindítást túlélő nyilvántartást igényel. **A kezdeti migrációt egy új UploadOperation-migráció egészíti ki**; az `UploadOperation`, egyediség, terminális receipt és megőrzés pontos szerződése az [első upload-adatmodellben](data_model.md#első-képfeltöltés-adatmodell-szerződése--2026-10-23) szerepel. A Prisma-séma/migráció implementált; az ezt használó init/confirm service még következő lépés. A sikeres művelet azonosságát legalább t0+24 óráig, és ezen túl is minden élő upload-jog, függő írás és lezáratlan cleanup megszűnéséig meg kell őrizni. A megőrzés nem növeli a PUT/confirm határidejét és nem őrizhet presigned URL-t. A garantált minimumablakon túl a kliens nem használhat újra régi kulcsot; egy kitakarított kulcs újrafelhasználására nincs deduplikációs garancia. Nem létező/idegen `fileId` publikus státuszából műveletazonosság nem következtethető ki; a belső receipt ownerhez kötött.
+A normalizált payload-azonosság és a sikeresen létrehozott init tartós, újraindítást túlélő nyilvántartást igényel. **A kezdeti migrációt egy új UploadOperation-migráció egészíti ki**; az `UploadOperation`, egyediség, terminális receipt és megőrzés pontos szerződése az [első upload-adatmodellben](data_model.md#első-képfeltöltés-adatmodell-szerződése--2026-10-23) szerepel. A Prisma-séma/migráció implementált; az init service implementált, a confirm service még következő lépés. A sikeres művelet azonosságát legalább t0+24 óráig, és ezen túl is minden élő upload-jog, függő írás és lezáratlan cleanup megszűnéséig meg kell őrizni. A megőrzés nem növeli a PUT/confirm határidejét és nem őrizhet presigned URL-t. A garantált minimumablakon túl a kliens nem használhat újra régi kulcsot; egy kitakarított kulcs újrafelhasználására nincs deduplikációs garancia. Nem létező/idegen `fileId` publikus státuszából műveletazonosság nem következtethető ki; a belső receipt ownerhez kötött.
 
 ### Bináris PUT és implementáció előtti storage-kapuk
 
@@ -330,7 +332,7 @@ Minden alábbi **tervezett backendhiba**, az implementált auth-kódok új végp
 | Magic-number validált eredeti, processor-siker ígérete nélkül. | Verziózott thumbnail és metadata processor, tartós job/result, független retry és worker-restart recovery; eredeti/derived kvóta és lifecycle. |
 | Nem szolgáltat batch-progress vagy import-level idempotencia garanciát. | Per-file progress/részleges hiba, import-level dedupe, ellenőrzött hálózati megszakítás és újraküldöttbájt-mérés. |
 
-A tus/Uppy és S3 multipart vizsgálandó alternatívák, nem kiválasztott implementációk. A [terv](../plan.md), [roadmap](../milestones.md) és [ADR-009](../02_architecture/adr/ADR-009-defer-multipart-upload.md) szerinti PoC/ADR előzi meg a választást. Ebben a dokumentációs körben nem jön létre új protokoll, függőség, Prisma-séma, migration, végpont vagy tesztkód. Az első upload részletes adatmodellje dokumentált a fenti hivatkozáson; a séma/migráció implementált; a storage adapter is elkészült, a processor és upload service-ek külön feladatok.
+A tus/Uppy és S3 multipart vizsgálandó alternatívák, nem kiválasztott implementációk. A [terv](../plan.md), [roadmap](../milestones.md) és [ADR-009](../02_architecture/adr/ADR-009-defer-multipart-upload.md) szerinti PoC/ADR előzi meg a választást. Ebben a dokumentációs körben nem jön létre új protokoll, függőség, Prisma-séma, migration, végpont vagy tesztkód. Az első upload részletes adatmodellje dokumentált a fenti hivatkozáson; a séma/migráció implementált; a storage adapter is elkészült, az init service is elkészült, a processor és confirm/cleanup service-ek külön feladatok.
 
 ## Fájllista és lifecycle
 
@@ -489,3 +491,13 @@ Minden hiba a [hibakezelési szerződés](error_handling.md) nested wrapperét h
 ## Abuse prevention
 
 Különösen a register, login, upload init, share-validáció és opcionális MI-request igényel rate limitet és visszaélés-figyelést. A regisztráció fenti fix korlátai konzervatív, kód- és unit-review-val ellenőrzött lokális védőkorlátok, nem mért kapacitásértékek; ez felváltja a korábbi, minden számértéket méréshez kötő tervet. Terhelési baseline és többprocesszes/proxy-s környezethez közös rate-limit store, topológiai review és mért konfiguráció később szükséges. A processz újraindítása nullázza a számlálókat; több processz szorozza a korlátot. A limiter nem általános hálózati DoS-védelem. A register/login limit közös. Logout csak Origin-checket használ és nem fogyaszt KDF-kapacitást. A többi endpoint korlátja továbbra is tervezett. A rate limit nem használhat raw emailt, tokent vagy presigned URL-t metrikacímkeként.
+
+## Upload-init implementációs részletek – 2026-10-24
+
+A `FilesController` az authból kapott ownerrel hívja a service-t. Az új init válasza 201, az azonos művelet replay-je 200; a válasz és minden HTTP-hiba `Cache-Control: no-store`. A JSON Content-Type kötelező (`application/json`, opcionális UTF-8 charset); a UUIDv4 kulcs kisbetűsre normalizált. Nincs új dependency, séma vagy migráció.
+
+A service az előzetesen ki nem adott URL-t DB-záron kívül készíti elő, majd ugyanabban a Prisma-tranzakcióban zárolja a User sort, ellenőrzi a kvótát BigInt aritmetikával, létrehozza a fájlt/receiptet és növeli a reservedet. Meglévő műveletnél User → FileObject → UploadOperation zárolás és újraolvasás történik. Külső presign után a zárolt állapot-/határidő-ellenőrzés ismét kötelező; konkurens új init vesztesének URL-je nem adható vissza. A szolgáltatás az adapter tényleges lejáratát tárolja, nem hosszabbít replaykor. A PostgreSQL tranzakcióban lokális lock_timeout 3s, statement_timeout 4s; Prisma maxWait és transaction timeout 5s. Konkurencia-/DB-hiba 503, nem új művelet.
+
+Az OPEN receipt confirm-határidején elért replay tartósan EXPIRED-re zár, és csak a commit után ad 410-et; sem used, sem reserved nem változik. A végleges 413/422/410 és az ACTIVE/SOFT_DELETED replay ágak új storage-aláírás nélkül működnek. Automatikus sweeper vagy kvótafelszabadítás nincs.
+
+Kezdeti visszaélésvédelem: hitelesített userenként 30 init/replay kérés / 60s, legfeljebb 4096 élő limiter-bejegyzéssel. Telített limitertábla vagy túllépés 429. Ez folyamatonkénti, újrainduláskor törlődő védelem, nem elosztott kvóta; a tartós bájtfoglalást a DB külön garantálja. A még nem implementált confirm végpontot a jelenlegi init után a kliens még nem használhatja.

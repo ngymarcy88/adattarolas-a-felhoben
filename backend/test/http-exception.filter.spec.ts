@@ -45,6 +45,7 @@ describe('HttpExceptionFilter', () => {
     expect(response.json).toHaveBeenCalledWith({ error: expect.objectContaining({ code, details: {}, requestId: 'test_123' }) });
     expect(JSON.stringify(response.json.mock.calls)).not.toContain('secret');
     expect(response.setHeader).toHaveBeenCalledWith('X-Request-Id', 'test_123');
+    expect(response.setHeader).toHaveBeenCalledWith('Cache-Control', 'no-store');
     if (status < 500) expect(log).not.toHaveBeenCalled();
     log.mockRestore();
   });

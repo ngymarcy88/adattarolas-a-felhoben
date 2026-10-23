@@ -1,6 +1,6 @@
 # ADR-011: Idempotent upload confirmation and quota reservation
 
-**Tervezett állapot – nem implementált funkcionalitás.**
+**Részben implementált: upload-init, tartós dedupe és kvótafoglalás; confirm és cleanup tervezett.**
 
 ## Status
 
@@ -12,7 +12,7 @@ Accepted
 
 ## Implementation status
 
-A kezdeti User/FileObject séma és migráció létezik, de nincs upload service/végpont. Init-dedupe receipt, terminális műveletlezárás és import/processor tárolás nincs a kezdeti sémában.
+A Core és UploadOperation séma/migráció létezik; a POST files/uploads/init service/végpont implementált user-szintű zárolással, atomikus reservationnel és tartós replay-jel. Init replay a confirm-határon tartós EXPIRED állapotot ír, foglalást nem old fel. Confirm/cleanup, receipt-pruning és import/processor továbbra is terv.
 
 ## Context
 
@@ -66,3 +66,5 @@ A sikeres confirm és a hibás/lejárt lezárás kölcsönösen kizáró, végle
 A receipt legalább 24 óráig, ezen túl is minden nyitott írás/foglalás lezárásáig él; a sikertelen FileObject metadata addig vele marad. A Restrict kapcsolat így nem veszti el a replay okát cleanup után. Sikeres fájlnál később csak a receipt törölhető, a fájl és used megmarad. A writesClosedAt csak bizonyított storage-lezárásról szól; nem helyettesíti a továbbra is nyitott provider-bizonyítást.
 
 Alternatívák: minden mező FileObjectre tétele összekeverné a fájl- és a műveletmegőrzést; csak folyamatmemóriás dedupe nem él túl restartot; új CLEANING állapot és worker lease a terminális, idempotens cleanuphoz most indokolatlan többlet. A választott companion tábla kis séma-/tranzakciós többletért cserébe külön receipt-életciklust ad. Ellenőrzés: állapotmátrix, dupla init/confirm/release és crash-esetek review-ja; majd külön implementációs unit és tényleges provider/DB-bizonyíték. Ez a döntés csak dokumentált, nincs séma- vagy runtime-változás.
+
+Az init presignje DB-záron kívül fut, de minden válasz tranzakciós állapot-/deadline-újraellenőrzés után adható ki. A 3s lock_timeout / 4s statement_timeout lokális tranzakciós beállítás; 5s Prisma transaction timeout mellett a feloldhatatlan konkurencia biztonságos 503. Valós párhuzamos és rollback-bizonyíték a tesztriportban. A writesClosedAt kapu változatlanul nyitott, nincs automatikus release.

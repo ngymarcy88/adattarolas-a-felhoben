@@ -1,6 +1,16 @@
 import { HttpException } from '@nestjs/common';
 
 const apiErrors = {
+  INVALID_FILE_NAME: { status: 400, message: 'A fájlnév érvénytelen.' },
+  UNSUPPORTED_MEDIA_TYPE: { status: 415, message: 'A fájl vagy a kérés tartalomtípusa nem támogatott.' },
+  FILE_TOO_LARGE: { status: 413, message: 'A fájl mérete meghaladja a megengedett határt.' },
+  QUOTA_EXCEEDED: { status: 409, message: 'Nincs elegendő szabad tárhely.' },
+  IDEMPOTENCY_CONFLICT: { status: 409, message: 'Ez a műveletkulcs már más feltöltéshez tartozik.' },
+  RESOURCE_STATE_CONFLICT: { status: 409, message: 'A művelet ebben az állapotban nem végezhető el.' },
+  UPLOAD_EXPIRED: { status: 410, message: 'A feltöltési művelet lejárt.' },
+  UPLOAD_VALIDATION_FAILED: { status: 422, message: 'A feltöltött fájl ellenőrzése sikertelen.' },
+  DATABASE_UNAVAILABLE: { status: 503, message: 'Az adatbázis átmenetileg nem érhető el.' },
+  STORAGE_UNAVAILABLE: { status: 503, message: 'A fájltároló átmenetileg nem érhető el.' },
   INVALID_CREDENTIALS: { status: 401, message: 'Hibás e-mail-cím vagy jelszó.' },
   AUTH_REQUIRED: { status: 401, message: 'A művelethez bejelentkezés szükséges.' },
   VALIDATION_ERROR: { status: 400, message: 'A megadott adatok érvénytelenek.' },
@@ -19,3 +29,5 @@ export class ApiError extends HttpException {
     this.code = code;
   }
 }
+
+export type ApiErrorCode = keyof typeof apiErrors;

@@ -1,5 +1,35 @@
 # Test report
 
+## Upload-init backend – 2026-10-24
+
+Verzió: `feature/upload-init`, `6294b6e` main baseline utáni init-szelet; a PR commitjai adják a végleges kódot. Környezet: WSL Bash, Linux Node 22.23.2/npm 10.9.8, Prisma 7.10.1, meglévő helyi PostgreSQL 17.9 és MinIO, Docker Linux engine 26.1.1. Nincs új dependency vagy migráció.
+
+Automatikus ellenőrzés: a teljes `npm test` 461 PASS (354 backend, 105 frontend, 2 container helper); három további határeset hozzáadása után az upload-init célzott újrafuttatása **74/74 PASS**. A végleges suite így 464 eset; a teljes végleges futást a PR CI-je ellenőrzi. A `npm run typecheck` és `npm run build` PASS mindkét workspace-re; a Prisma-generálás is sikeres. Nincs új telepítés/migráció.
+
+A `backend/test/upload-init.spec.ts` unit esetei a szigorú DTO/headereket, NFC/codepoint-határt, Python hashlib-fix fingerprintet, guard-sorrendet és limitert, új initet/replay-t, BigInt-kvótát, párhuzamos győztes visszaolvasását, sign közbeni állapot-/határidőváltozást, tartós terminális ágakat és DB/presign/commit hibákat ellenőrzik. A filter-unit az új no-store hibafejlécet is ellenőrzi. Mockolt tranzakció önmagában nem bizonyít PostgreSQL rollbacket vagy sorzárolást.
+
+**Kézi HTTP/DB-próba:** ideiglenes helyi harness az aktuálisan buildelt AppModule-t valódi NestFactory-val, request-ID middleware-rel és globális filterrel, véletlen loopback porton indította. Két saját szintetikus `.invalid` user, 150/1000 bájtos kvóta, 100 bájtos PNG-metaadat, véletlen owner/init UUID és a meglévő SessionService által csak memóriába kiadott cookie volt a bemenet. A frontend nem futott. Storage PUT nem történt, a presigned URL-ek/tokenek nem kerültek kimenetre vagy fájlba.
+
+| Lépés | Elvárt és tényleges eredmény |
+|---|---|
+| Valódi Nest indítás és DB-csatlakozás | PASS a lenti bekötési javítás után |
+| Hiányzó Origin/session, extra owner mező, SVG | PASS: rendre 403/401/400/415 |
+| Hat egyidejű, azonos owner+kulcs kérés | PASS: egy 201 és öt 200, egy fileId/receipt, azonos URL-lejárat, pontosan 100 reserved és 0 used |
+| Más payload ugyanazon kulccsal | PASS: IDEMPOTENCY_CONFLICT, új foglalás nélkül |
+| Új kulcs, elégtelen kvóta; öt ilyen kérés párhuzamosan | PASS: QUOTA_EXCEEDED; a reserved változatlanul 100 |
+| Más owner ugyanazzal a klienskulccsal | PASS: külön 201 és saját fájl/foglalás |
+| Új service-példányból ugyanazon kulcs replay | PASS: ugyanaz a tartós fileId, nincs új foglalás; ez nem teljes folyamat-újraindítási próba |
+| Kontrollált hiba a valódi DB-tranzakció file-create és receipt-create lépése között | PASS: DATABASE_UNAVAILABLE, PostgreSQL rollback; sem árva file, sem új reservation nem maradt |
+| Másik tranzakció által tartott User-lock | PASS: 3s lokális SQL lock_timeout után 503 DATABASE_UNAVAILABLE, reserved változatlan |
+
+A reprodukcióhoz indítsd a meglévő PostgreSQL-t, alkalmazd a commitolt migrációkat, buildeld a backendet. Az initet a fenti szintetikus bemenetekkel és a dokumentált cookie/Origin/JSON/Idempotency-Key fejlécekkel hívd; a válaszokat memóriában tartva ellenőrizd a státuszokat és a DB-ben a saját ownerhez tartozó counts/used/reserved értékeket. Párhuzamossághoz azonos időben indított hat HTTP-kérés kell. Rollbackhez kizárólag e próba service-példányában, a valódi transaction kliens receipt-create hívásánál injektálj hibát. A harness nincs a unit/CI suite-ba kötve. A próba vége minden elindított kérést megvárt, majd kizárólag saját szintetikus upload/file/user sorait távolította el. Mivel PUT nem történt és a jogok nem hagyták el a folyamatot, ez nem termék-cleanup vagy általános íráslezárási bizonyíték.
+
+**Talált és javított hibák:** a független forrásreview megfelelőnek ítélte a guard-exportot, de a tényleges Nest indítás `UnknownDependenciesException` hibát jelzett: a FilesModule guardjához SessionService/AuthService export is kell. Ezt javítottuk. Az installed Nest forráskódja igazolta, hogy passthrough válasznál az alap POST 201 felülírhatja a kézzel beállított 200-at; ezért a controller explicit státusz+JSON választ küld. A tényleges párhuzamos HTTP-próba a 201/200 különbséget is igazolta. A DB-lock várakozás külön lokális SQL-határidőt kapott a Prisma timeout mellett.
+
+A helyi Markdown-link/secret/diff ellenőrzés szintén sikeres.
+
+**Nyitott:** confirm, magic-number, automatikus expiry/cleanup/release, valódi browser/file PUT, galéria és resumable import nem része ennek a szeletnek. A foglalás lejárattal nem szabadul fel. A `writesClosedAt` bizonyítási kapu továbbra is nyitott; az init és e szintetikus próba nem zárja le.
+
 ## Upload Prisma-séma és migráció – 2026-10-23
 
 Verzió: `feature/upload-schema-migration`, `4be1b7c` main baseline utáni sémaszelet; a végleges kódot a PR commitjai azonosítják. A sémaszelet eredetileg mainről külön készült; a végső ellenőrzés előtt a #21-es adaptert tartalmazó `b20f14d` mainnel össze lett fésülve. Környezet: WSL Bash, Linux Node 22.23.2/npm 10.9.8, Prisma 7.10.1, Docker Linux engine 26.1.1 és a Compose PostgreSQL **17.9** service-e. Nem futott új integration/e2e suite vagy böngészőteszt; ez explicit kézi SQL-migrációpróba és meglévő unit regresszió.
