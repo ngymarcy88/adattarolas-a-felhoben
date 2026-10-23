@@ -6,6 +6,8 @@ S3-kompatibilis objektumtárolóra épülő személyes médiafájl-kezelő BSc s
 
 Elkészült a **lokális technikai alap**: Vue/Vite frontend, NestJS backend, validált konfiguráció, PostgreSQL–MinIO Docker Compose és a négy alapentitás Prisma-sémája/kezdeti migrációja. A kezdőoldal a backend liveness végpontját ellenőrzi. A backend regisztráció (`POST /api/v1/auth/register`) elkészült: validált adatok, scrypt hash, szerveroldali kezdőkvóta, Origin- és kezdeti terhelésvédelem; JWT/cookie kiadása nélkül. A login/logout és az aktuális user (`GET /api/v1/auth/me`) HttpOnly JWT-cookie-val is implementált, unit tesztekkel; a fájlfeltöltés, galéria, megosztás, restore, folytatható import és képfeldolgozás még nem implementált. A frontend `/register` és `/login` űrlapja mezőhibákkal, loading/disabled állapottal, biztonságos hibaüzenetekkel és sikeres regisztrációs visszajelzéssel, valamint a `/app` védett fiókútvonal is implementált; minden belépéskor a backend `/auth/me` végpontját ellenőrzi, külön loading/401/elérhetetlenségi állapottal. A health válasza nem folyamatos DB/storage readiness-vizsgálat. Az auth végpontok pontos request/response és hibaszerződése az [API-ban](docs/03_design/api.md#post-authregister) található; a pozitív auth-folyamat szerzői visszaigazolását a tesztriport rögzíti; a részletes negatív auth-, cookie- és közvetlen DB-ellenőrzés még szükséges.
 
+Az első uploadhoz az `UploadOperation` Prisma-modell és SQL-migráció is elkészült: tartós dedupe-azonosság, állapotok és foglaláslezárási mezők. Ez adatbázis-alap; init/confirm/cleanup végpontot még nem biztosít.
+
 A backend S3/MinIO adaptere is implementált: create-only presigned PUT, HEAD, korlátozott feltételes range-read, törlés és biztonságos read URL. Ez belső infrastruktúra; a feltöltési API és felület még nem kész.
 
 A kötelező SZD2 cél a teljes alkalmazás, a folytatható kötegelt képimport, két verziózott processor és restart recovery, valamint összehasonlító mérés/UAT és dolgozat. A részletes import-/processing-szerződés és átviteli technológia kiválasztása külön feladat; a termék-MI opcionális.
@@ -115,6 +117,14 @@ Vue 3 / Vite / TypeScript / Tailwind CSS / Vue Router; NestJS / Prisma / Postgre
 ```
 
 Belépési pontok: [dokumentációs index](docs/00_index.md), [terv](docs/plan.md), [mérföldkövek](docs/milestones.md), [API](docs/03_design/api.md), [adatmodell](docs/03_design/data_model.md), [AI-naplók](docs/07_ai/ai_manifest.md). A részletes dokumentáció a megvalósított alapot és a tervezett termékfunkciókat külön jelöli.
+
+## Upload-séma migráció
+
+A normál `docker compose up -d --build --wait` a `db-migrate` service-en keresztül alkalmazza a `20261023000100_upload_operations` migrációt is. Hoston futó Node-fejlesztésnél a szokásos `npm run db:migrate` használandó. Nincs volume-reset vagy új credential.
+
+A migráció írásblokkoló User → FileObject zárolással, egyetlen tranzakcióban fut; korábbi `PENDING_UPLOAD` sor vagy bármely nem nulla `reservedStorageBytes` esetén biztonságosan leáll. Nem talál ki régi idempotenciakulcsot és nem enged el foglalást. Ilyenkor az érintett állományokat és a storage-állapotot külön, kézzel jóváhagyott rendezésnek kell tisztáznia; a hiba miatt ne töröld az adatbázist vagy a köteteket.
+
+Ha a Prisma hibás migrációként rögzítette ezt a leállást, csak az ok rendezése **és a teljes SQL-rollback ellenőrzése után** jelöld visszagörgetettnek a `prisma migrate resolve --rolled-back 20261023000100_upload_operations` paranccsal (a backend workspace-ben), majd ismételd a normál deployt. A resolve önmagában nem javít adatot, és nem jogosít az ellenőrzés megkerülésére. A sémában nem leírt SQL CHECK-eket őrizd meg későbbi migrációknál is.
 
 ## Storage adapter kézi ellenőrzése
 

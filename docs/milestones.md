@@ -94,7 +94,7 @@ A történeti MVP-0–MVP-7 helyett az alábbi **SZD2-0–SZD2-7** az aktuális 
 
 - [ ] A hat meglévő alapstory kiegészítési terve import/processing acceptance criteriával és a két belső ütem eltérésével.
 - [x] Az első képfeltöltés init/confirm API-szerződése: owner/Origin, validáció, foglalás, init/confirm idempotencia, lejárat, hibák és storage-bizonyítási kapuk dokumentálva; nem implementáció.
-- [x] Az első egyképes upload adatmodell-szerződése: UploadOperation, tartós dedupe, végleges hiba/expiry, egyszeri foglalás/release és receipt-megőrzés dokumentálva; séma/migráció és storage-bizonyítás még külön feladat.
+- [x] Az első egyképes upload adatmodell-szerződése: UploadOperation, tartós dedupe, végleges hiba/expiry, egyszeri foglalás/release és receipt-megőrzés dokumentálva; a séma/migráció elkészült; a storage-bizonyítás és runtime-kezelés külön kapu.
 - [ ] Az első slice-hoz szükséges API/adatmodell/state-machine kiegészítés: import- és fájlazonosság, processor/job/result, egyediség és ownership.
 - [ ] Az első derived preview kvótafoglalásának, finalizálásának és sikertelen cleanupjának policyja; eredeti/derived delete/restore összhang.
 - [ ] Uppy/tus és más meglévő S3-kompatibilis folytatható mechanizmus szűk PoC-terve; jogosultság, részleges resume és tényleges tárolási eredmény ellenőrzése.
@@ -129,6 +129,7 @@ A történeti MVP-0–MVP-7 helyett az alábbi **SZD2-0–SZD2-7** az aktuális 
 
 - [ ] Belépés után kis képköteg indítása, fájlonként azonosítható progress, siker és hiba; egy fájl hibája nem ejti el a többit.
 - [x] Belső MinIO/S3 adapter: presign, HEAD, bounded read és törlés; unit és kézi provider-próba. A késői íráslezárás és valódi böngészős upload még nyitott.
+- [x] Az első upload Prisma-sémája és tranzakciós migrációja: UploadOperation, dedupe/owner FK, NULL-biztos CHECK-ek és biztonságos legacy-preflight.
 - [ ] Backend-kontrollált privát upload, méret/MIME/magic-number validáció, foglalás és idempotens confirm.
 - [ ] Saját galéria és jogosult előnézet/letöltés; betöltési, üres és hibaállapotok.
 - [ ] Közös processor-interfész és első beépített processor, verziózott eredménnyel. Elsőként az előnézetkészítő javasolt; ez végrehajtási javaslat, a tanár általánosan első processort kér.

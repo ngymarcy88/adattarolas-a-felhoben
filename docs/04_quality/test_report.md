@@ -1,5 +1,33 @@
 # Test report
 
+## Upload Prisma-séma és migráció – 2026-10-23
+
+Verzió: `feature/upload-schema-migration`, `4be1b7c` main baseline utáni sémaszelet; a végleges kódot a PR commitjai azonosítják. A sémaszelet eredetileg mainről külön készült; a végső ellenőrzés előtt a #21-es adaptert tartalmazó `b20f14d` mainnel össze lett fésülve. Környezet: WSL Bash, Linux Node 22.23.2/npm 10.9.8, Prisma 7.10.1, Docker Linux engine 26.1.1 és a Compose PostgreSQL **17.9** service-e. Nem futott új integration/e2e suite vagy böngészőteszt; ez explicit kézi SQL-migrációpróba és meglévő unit regresszió.
+
+| Ellenőrzés | Elvárt és tényleges eredmény |
+|---|---|
+| `npm run db:validate`, `npm run db:generate` | PASS: séma valid, kliens generálható |
+| `npm test` | Első sémaszelet: 328 PASS; a #21-et tartalmazó friss main integrálása után **390 PASS** (2 helper + 283 backend + 105 frontend) |
+| `npm run typecheck`, `npm run build` | PASS: mindkét workspace és Prisma-generálás |
+| Új migráció friss, elkülönített sémán | PASS: a kezdeti és az upload-migráció együtt alkalmazható |
+| Upgrade meglévő szintetikus user/ACTIVE fájl/share mellett | PASS: teljes sor-JSON összehasonlítás szerint minden korábbi adat változatlan |
+| Dedupe, ownership és állapotkényszerek | PASS: a lent felsorolt 26 SQL-állítás elvárt eredménye teljesült |
+| Legacy pending / orphan reservation | PASS: mindkét eset visszagörget; sor és foglalás megmarad, új tábla/enum nem marad |
+| Normál helyi `npm run db:migrate`, majd ismétlés | PASS: migráció alkalmazva; ismételve nincs függő migráció. Az előzetes read-only ellenőrzés 0 pendinget és 0 nem nulla reserved számlálójú usert talált |
+| `prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code` | PASS: No difference detected. Ez nem vizsgálja a Prisma DSL-ben nem reprezentálható CHECK-eket; azokat a SQL-próba fedte |
+
+Bemenet: csak szintetikus, `.invalid` emailes fiókok, UUID-k, 100 bájtos fájlmetaadat, 1000 bájtos kvóta, `v1:` + 64 hex fingerprint és rögzített UTC időpontok. Nincs bináris feltöltés vagy object-storage művelet. A SQL-próba ideiglenes helyi harnessből Docker `compose exec -T postgres` → `psql -X -v ON_ERROR_STOP=1` útvonalon futott, a konténer meglévő DB-azonosságával, credentialkiírás nélkül. A harness nincs bekötve npm/CI alá.
+
+Reprodukciós lépések: hozz létre négy véletlen nevű, kizárólag a próbához tartozó PostgreSQL-sémát; minden kapcsolaton állítsd a `search_path`-ot erre. Alkalmazd a változatlan `20261018000100_initial_core/migration.sql`-t, majd a [20261023000100_upload_operations migrációt](../../backend/prisma/migrations/20261023000100_upload_operations/migration.sql). Az egyik séma üres, a másodikban meglévő aktív fájl/share, a harmadikban pending+100 reserved, a negyedikben fájl nélküli 100 reserved legyen a migráció előtt. Utóbbi kettőn a migráció hibája után külön kapcsolatról ellenőrizd a rollbacket. A validált sémán tranzakciós savepoint/PLpgSQL exception subtransaction alatt próbáld a negatív írásokat, ellenőrizve a tényleges SQLSTATE/constraint-et. Végül kizárólag e saját próbasémákat távolítsd el; alkalmazásadat vagy kötet nem törölhető.
+
+A 26 PASS: friss lánc; aktív upgrade-adatmegőrzés; azonos owner+kulcs 23505; második file-operation 23505; más owner fájlja 23503; eltérő owner azonos init-kulccsal megengedett; nem v4 UUID; hibás UUID-variant; hibás fingerprint; OPEN closedAt-tal; REJECTED és EXPIRED null hibakóddal; FINALIZED hibakóddal; REJECTED expiry-kóddal; release bizonyíték nélkül; release a bizonyíték előtt; 24 óránál rövidebb receipt; infinity-bizonyíték; létrehozás előtti closedAt; file/user Restrict törlés; korábbi quota- és size-CHECK megtartása; szabályos finalized/rejected/released sorok; kétféle legacy-preflight rollback.
+
+Az első Prisma-validálás az összetett one-to-one relációnál a teljes `(fileObjectId, ownerId)` unique kulcsot is megkövetelte; ezt a sémába és SQL-be is felvettük a külön `fileObjectId` unique mellé. Újabb validálás/generálás és független séma/SQL-review PASS. Ez nem új termékkövetelmény.
+
+A végső 183 helyi Markdown-link, a tényleges credentialértékek repo/frontend-bundle ellenőrzése, `git diff --check` és a kezdeti SQL-migráció változatlansága PASS.
+
+**Korlát:** a SQL sor-CHECK-ek nem igazolják a cross-row kvótakönyvelést, tranzakciós állapotátmenetet, fingerprint-képzést, automatikus pruningot vagy storage-quiescence-t. A `writesClosedAt` csak nullable bizonyítékmező; a migráció nem tölti ki. Init/confirm/cleanup és a következő üzleti unit tesztek külön lépések.
+
 ## MinIO/S3 storage adapter – 2026-10-23
 
 Verzió: `feature/minio-storage-adapter`, a `4be1b7c` main baseline utáni adapterváltozás; a PR commitjai azonosítják a végleges kódot. Környezet: WSL Bash, Node 22.23.2/npm 10.9.8, Windows Docker Desktop Linux engine 26.1.1, a repóban rögzített MinIO `9e49d5e7a648f00e26f2246f4dc28e6b07f8c84a`, privát bucket és bucketre korlátozott alkalmazáscredential. Csak MinIO indult el; a próbához PostgreSQL, backend HTTP-szerver és frontend nem szükséges. Ez fejlesztői provider-próba, nem UAT vagy teljes user flow.

@@ -10,7 +10,7 @@ Accepted
 
 ## Implementation status
 
-Prisma 7 schema és kezdeti SQL-migráció implementálva a `User`, `FileObject`, `ShareLink`, `AuditEvent` modellekkel; PostgreSQL 17.9 Compose-konfiguráció és Prisma pg adapter létezik. A CommonJS-kliens generált, nem commitolt kód. A migráció tényleges alkalmazásának és a környezet indításának ellenőrzése a tesztriportban követhető. Import/processing és opcionális MI entitás még nincs.
+Prisma 7 schema és kezdeti SQL-migráció implementálva a `User`, `FileObject`, `ShareLink`, `AuditEvent` modellekkel; PostgreSQL 17.9 Compose-konfiguráció és Prisma pg adapter létezik. A CommonJS-kliens generált, nem commitolt kód. A migráció tényleges alkalmazásának és a környezet indításának ellenőrzése a tesztriportban követhető. Az első upload `UploadOperation` sémája és külön migrációja is implementált; a soron belüli invariánsok SQL CHECK-ek, ownership és dedupe FK/unique korlátok. A migráció meglévő pending/foglalás esetén automatikus backfill nélkül megáll. Import/processing és opcionális MI entitás még nincs.
 
 ## Context
 
