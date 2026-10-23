@@ -6,6 +6,8 @@ S3-kompatibilis objektumtárolóra épülő személyes médiafájl-kezelő BSc s
 
 Elkészült a **lokális technikai alap**: Vue/Vite frontend, NestJS backend, validált konfiguráció, PostgreSQL–MinIO Docker Compose és a négy alapentitás Prisma-sémája/kezdeti migrációja. A kezdőoldal a backend liveness végpontját ellenőrzi. A backend regisztráció (`POST /api/v1/auth/register`) elkészült: validált adatok, scrypt hash, szerveroldali kezdőkvóta, Origin- és kezdeti terhelésvédelem; JWT/cookie kiadása nélkül. A login/logout és az aktuális user (`GET /api/v1/auth/me`) HttpOnly JWT-cookie-val is implementált, unit tesztekkel; a fájlfeltöltés, galéria, megosztás, restore, folytatható import és képfeldolgozás még nem implementált. A frontend `/register` és `/login` űrlapja mezőhibákkal, loading/disabled állapottal, biztonságos hibaüzenetekkel és sikeres regisztrációs visszajelzéssel, valamint a `/app` védett fiókútvonal is implementált; minden belépéskor a backend `/auth/me` végpontját ellenőrzi, külön loading/401/elérhetetlenségi állapottal. A health válasza nem folyamatos DB/storage readiness-vizsgálat. Az auth végpontok pontos request/response és hibaszerződése az [API-ban](docs/03_design/api.md#post-authregister) található; a pozitív auth-folyamat szerzői visszaigazolását a tesztriport rögzíti; a részletes negatív auth-, cookie- és közvetlen DB-ellenőrzés még szükséges.
 
+A backend S3/MinIO adaptere is implementált: create-only presigned PUT, HEAD, korlátozott feltételes range-read, törlés és biztonságos read URL. Ez belső infrastruktúra; a feltöltési API és felület még nem kész.
+
 A kötelező SZD2 cél a teljes alkalmazás, a folytatható kötegelt képimport, két verziózott processor és restart recovery, valamint összehasonlító mérés/UAT és dolgozat. A részletes import-/processing-szerződés és átviteli technológia kiválasztása külön feladat; a termék-MI opcionális.
 
 ## Előfeltételek
@@ -113,3 +115,15 @@ Vue 3 / Vite / TypeScript / Tailwind CSS / Vue Router; NestJS / Prisma / Postgre
 ```
 
 Belépési pontok: [dokumentációs index](docs/00_index.md), [terv](docs/plan.md), [mérföldkövek](docs/milestones.md), [API](docs/03_design/api.md), [adatmodell](docs/03_design/data_model.md), [AI-naplók](docs/07_ai/ai_manifest.md). A részletes dokumentáció a megvalósított alapot és a tervezett termékfunkciókat külön jelöli.
+
+## Storage adapter kézi ellenőrzése
+
+Az `S3_ENDPOINT` a backend által elérhető cím (Compose-ban `http://minio:9000`); az `S3_PUBLIC_ENDPOINT` a böngésző által elérhető origin (helyben `http://127.0.0.1:9000`). Hiányzó publikus változó host fejlesztésben az endpointot örökli; Compose külön állítja. Az aláírt URL hostját utólag átírni tilos. Távoli gépen a publikus címet és a CORS-origint is a valós eléréshez kell igazítani.
+
+Működő MinIO és lefuttatott `minio-init`, root `.env`, valamint telepített workspace dependencyk mellett:
+
+```bash
+npm run storage:verify
+```
+
+Ez explicit kézi provider-próba, nem része az `npm test`/CI futásnak. Backend build után szintetikus PNG-t tölt fel véletlen kulcsokra, ellenőrzi a tiltott felülírást, méret/header módosításának elutasítását, HEAD/range/download, bucket-hozzáférés és CORS működését; végül csak a saját próbaobjektumait törli. A parancs nem módosít DB-t vagy kvótát, és nem naplóz hozzáférési URL-t. Az in-flight PUT-ok biztos lezárását és a valódi böngészős uploadot nem bizonyítja. Részletek: [tesztriport](docs/04_quality/test_report.md).

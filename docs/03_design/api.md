@@ -4,6 +4,8 @@
 
 A scaffold `GET /api/v1/health` végpontja, CORS-konfigurációja, request ID-ja és generikus hibakerete implementált. A regisztráció, login/logout/me is implementált; file-, storage-, share- és MI-endpoint továbbra is terv; import-/processing-kiegészítésük későbbi szerződésfeladat. Futási ellenőrzés: [tesztriport](../04_quality/test_report.md).
 
+A belső MinIO/S3 adapter már implementált; ez nem publikus endpoint. Az authorization, kvóta, init/confirm és cleanup továbbra is következő service-feladat; az in-flight íráslezárás bizonyítása nyitott.
+
 ## Hatókör és alapelvek
 
 - Implementált API prefix: `/api/v1`; helyi alapcím: `http://127.0.0.1:3000/api/v1`.

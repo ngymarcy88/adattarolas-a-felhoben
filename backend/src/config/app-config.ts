@@ -17,6 +17,7 @@ export interface AppConfig {
   defaultUserStorageLimitBytes: number;
   storage: {
     endpoint: string;
+    publicEndpoint: string;
     region: string;
     bucket: string;
     accessKeyId: string;
