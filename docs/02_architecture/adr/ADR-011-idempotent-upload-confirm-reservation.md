@@ -51,7 +51,7 @@ Presigned feltöltésnél az init és a bináris upload között idő telik el. 
 
 ## Első képszelet kiegészítése – 2026-10-20
 
-Az [API-szerződés](../../03_design/api.md#upload--első-képfeltöltési-szelet-tervezett) az initet is idempotenssé teszi: kötelező ownerhez és init művelethez kötött UUIDv4 kulcs, normalizált payload-azonosság, konfliktusnál 409. A dedupe, a kvótafeltétel, pending létrehozás és foglalás ugyanazon DB-tranzakció invariánsai. A presign előkészítése után csak sikeres commitra adható ki URL; ismeretlen commit-kimenetel ugyanazzal a kulccsal tisztázható. A sikeres művelet tartós azonossága legalább 24 óráig, és minden nyitott upload-jog/írás/cleanup lezárásáig megmarad. A pontos entitás-/állapotszerződés a 2026-10-23-i adatmodell-kiegészítésben szerepel; a migráció továbbra is külön feladat.
+Az [API-szerződés](../../03_design/api.md#upload--első-képfeltöltési-szelet-tervezett) az initet is idempotenssé teszi: kötelező ownerhez és init művelethez kötött UUIDv4 kulcs, normalizált payload-azonosság, konfliktusnál 409. A dedupe, a kvótafeltétel, pending létrehozás és foglalás ugyanazon DB-tranzakció invariánsai. A presign előkészítése után csak sikeres commitra adható ki URL; ismeretlen commit-kimenetel ugyanazzal a kulccsal tisztázható. A sikeres művelet tartós azonossága legalább 24 óráig, és minden nyitott upload-jog/írás/cleanup lezárásáig megmarad. A pontos entitás-/állapotszerződés a 2026-10-23-i adatmodell-kiegészítésben szerepel; a séma és SQL-migráció implementált, a tranzakciós service továbbra is külön feladat.
 
 Replay nem hosszabbítja meg az 5 perces PUT-jogot vagy 15 perces confirm-ablakot; aktív fájl nem kap új PUT-jogot. Confirm végső tranzakciójában is pending és `now < confirmBy` feltétel szükséges. Saját ACTIVE no-op, SOFT_DELETED nem reaktiválható. Konkurens confirmokból csak egy mozgathatja a reserved bájtokat a used számlálóba; a cleanup előbb kizárja az aktiválást.
 
@@ -59,7 +59,7 @@ A korábbi object-not-found/delete utáni release szabály **szükséges, de nem
 
 ## Első upload-adatmodell döntése – 2026-10-23
 
-A [részletes szerződés](../../03_design/data_model.md#első-képfeltöltés-adatmodell-szerződése--tervezett-2026-10-23) egy tervezett UploadOperation companion rekordot választ. A fájl életciklusa és a feltöltési művelet OPEN/FINALIZED/REJECTED/EXPIRED állapota külön marad. A normalizált payload verziózott fingerprintje, unique owner+init-kulcs és owner/file FK köti a retry-t ugyanahhoz a fájlhoz. A foglalás élő, amíg OPEN, vagy sikertelenül lezárt és release-ideje null; a PENDING_UPLOAD státusz önmagában nem bájtelszámolás.
+A [részletes szerződés](../../03_design/data_model.md#első-képfeltöltés-adatmodell-szerződése--2026-10-23) egy UploadOperation companion rekordot választ; a séma/migráció implementált, az alkalmazási műveletek még tervezettek. A fájl életciklusa és a feltöltési művelet OPEN/FINALIZED/REJECTED/EXPIRED állapota külön marad. A normalizált payload verziózott fingerprintje, unique owner+init-kulcs és owner/file FK köti a retry-t ugyanahhoz a fájlhoz. A foglalás élő, amíg OPEN, vagy sikertelenül lezárt és release-ideje null; a PENDING_UPLOAD státusz önmagában nem bájtelszámolás.
 
 A sikeres confirm és a hibás/lejárt lezárás kölcsönösen kizáró, végleges átmenet. A cleanup a terminális hiba után futhat; a release-jelző és a reserved-levonás egy commit, ezért ismételt delete/cleanup nem számol kétszer. Külön queue/lease/foglalástábla nem kell ehhez a szelethez. A tranzakciók user→file→operation zárolási rendet követnek, storage I/O nem fut SQL-zár alatt.
 

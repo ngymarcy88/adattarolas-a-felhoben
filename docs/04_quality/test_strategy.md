@@ -134,3 +134,7 @@ A részletes kísérleti protokoll és metrikák a [metrics.md](../01_product/me
 A korábbi v1.2 rubric 30+ tesztet, tesztmixet és CI-t tárgyal, az új Coospace érdemi bizonyítékot kér. A végső kapu pontos alkalmazása egyeztetendő; egyik követelmény sem tekinthető automatikusan eltöröltnek. A tesztdarabszám önmagában nem bizonyít minőséget.
 
 Minden futás jelentése tartalmazzon dátumot, commitot, környezetet/verziókat, inputot, lépéseket, elvárt/tényleges eredményt és bizonyítékot. A végső app, kézirat, screenshot, riport és telepítési leírás ugyanazt a verziót mutassa. A tesztriport csak ténylegesen lefuttatott eredményeket nevezhet sikeresnek; jelenleg nincs futtatási baseline.
+
+## Upload-séma ellenőrzési határa
+
+Az UploadOperation tárolási invariánsait SQL CHECK/unique/FK korlátok védik; ezekhez a sémafeladat elkülönített PostgreSQL-sémákon végzett kézi migrációpróbát alkalmazott, nem mintaszöveget visszaellenőrző unit tesztet. A meglévő unit suite regresszióként lefutott. A következő init/confirm/cleanup service-ek üzleti viselkedése külön unit teszteket igényel; a teljes integration/e2e fázis és CI változatlanul külön engedélyezésű. Reprodukciós lépések és tényleges eredmény a tesztriportban.

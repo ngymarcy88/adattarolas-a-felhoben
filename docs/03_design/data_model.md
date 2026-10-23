@@ -1,6 +1,6 @@
 # Adatmodell
 
-**Részben implementált adatbázis-alap; az első upload kiegészítése dokumentált, nem implementált.**
+**A Core adatbázis és az első upload UploadOperation-sémája/migrációja implementált; az upload üzleti műveletei még tervezettek.**
 
 A kezdeti [Prisma-séma](../../backend/prisma/schema.prisma) és [SQL migráció](../../backend/prisma/migrations/20261018000100_initial_core/migration.sql) létrehozza a `User`, `FileObject`, `ShareLink`, `AuditEvent` modelleket. Az auth API már implementált; a séma önmagában nem jelent működő upload/sharing/lifecycle API-t. Az alábbi táblák az alapmezők mellett későbbi mezőket és opcionális MI-t is terveznek; az implementált határ az alábbi külön szakaszban szerepel. A migráció tényleges futtatási eredménye a [tesztriport](../04_quality/test_report.md) része.
 
@@ -15,9 +15,9 @@ A kezdeti [Prisma-séma](../../backend/prisma/schema.prisma) és [SQL migráció
 - User→file/share törlés `Restrict`; file→share törlés `Cascade`; audit actor törlés `SetNull`. Ez FK-védelem, nem megvalósított account-delete vagy purge termékfunkció.
 - `AiMetadataSuggestion`, import/session, processing job és derived result táblák nincsenek ebben a migrációban. A folytatható importhoz a [terv](../plan.md) szerint még külön szerződésfrissítés kell.
 
-## Első képfeltöltés adatmodell-szerződése – tervezett, 2026-10-23
+## Első képfeltöltés adatmodell-szerződése – 2026-10-23
 
-Az [API Upload szerződését](api.md#upload--első-képfeltöltési-szelet-tervezett) kiszolgáló **tervezett** kiegészítés. A kezdeti Prisma-séma és migráció változatlan; az alábbi `UploadOperation` entitás/állapotok még nem léteznek az adatbázisban. Ez az egyképes single-PUT baseline adatmodellje; nem import/session-, processor/job- vagy derived-object modell.
+Az [API Upload szerződését](api.md#upload--első-képfeltöltési-szelet-tervezett) kiszolgáló **implementált séma**, [új SQL-migrációval](../../backend/prisma/migrations/20261023000100_upload_operations/migration.sql). A kezdeti migráció változatlan maradt; az alábbi `UploadOperation` entitás és enumok létrejöttek. Az init/confirm, állapotátmenetek, cleanup és receipt-karbantartás viszont továbbra is tervezett service-viselkedés, nem működő API. Ez az egyképes single-PUT baseline adatmodellje; nem import/session-, processor/job- vagy derived-object modell.
 
 ### Fájl és feltöltési művelet szétválasztása
 
@@ -25,7 +25,7 @@ A `FileObject.status` megmarad `PENDING_UPLOAD`, `ACTIVE`, `SOFT_DELETED` érté
 
 Egy új init pontosan egy `FileObject` és egy `UploadOperation` rekordot hoz létre ugyanabban a tranzakcióban. Egy fájlnak legfeljebb egy ilyen művelete van; új, tudatos feltöltési kísérlet új init-kulcsot **és új fileId/storageKey-t** kap. Nem írjuk felül ugyanazon művelet payloadját. Régebbi/sikeres fájlnál a megőrzési ablak után a műveletrekord már hiányozhat; `ACTIVE` confirm ilyenkor is 200 no-op.
 
-### `UploadOperation` – javasolt következő séma
+### `UploadOperation` – implementált séma
 
 | Mező | Típus / korlát | Jelentés |
 |---|---|---|
@@ -84,11 +84,13 @@ Példa: `limit=1000`, `used=200`, `reserved=100`, új kép 300 bájt → init ut
 - A receipt-karbantartó sikeres FINALIZED műveletnél is kérheti a storage-adapter íráslezárási bizonyítékát, és a User→FileObject→UploadOperation zárolási rendben idempotensen rögzítheti a writesClosedAt-ot. Ez nem töröl aktív objektumot és nem változtat számlálót. A bizonyíték rögzítése minden esetben az érintett, változatlan file/storageKey-hez kötött; a closedAt és a terminális hibakód ilyenkor is változatlan.
 - Törlés feltétele: `now >= replayUntil`, bizonyított writesClosedAt és FINALIZED vagy már released terminális állapot. A pruner ugyanabban a user/fájl/művelet zárolási rendben újból ellenőrzi a feltételeket. Sikeres fájlnál csak a műveletrekord törlődik, FileObject és used megmarad. Sikertelennél a művelet és a hozzá tartozó pending metadata együtt törölhető, mert nincs objektum/foglalás; a fájlt védő Restrict FK előtt a receipt törlése történik. Ez nem aktív fájl retention-purge implementáció.
 - Receipt törléséig init replay és saját terminális confirm stabil 410/413/422-t kap. A sikertelen fájl és receipt szabályos törlése után confirm 404; ugyanazon régi init-kulcsra a garantált megőrzésen túl nincs dedupe-garancia. A kliens régi kulcsot nem használhat új kísérlethez. Aktív fájl confirmja a receipt törlése után is 200 no-op.
-- Kötelező unique `(ownerId, idempotencyKey)` és `fileObjectId`; composite owner/file FK; index `UploadOperation(state, replayUntil)` a megőrzéshez, `UploadOperation(state, reservationReleasedAt)` a cleanuphoz, valamint a meglévő `FileObject(status, confirmBy)` és retry-idő szerinti cleanup-kiválasztás. Konkrét SQL-indexterv a későbbi migráció review-jának része; nincs általános queue-indexcsomag.
+- Kötelező unique `(ownerId, idempotencyKey)` és `fileObjectId`; composite owner/file FK; index `UploadOperation(state, replayUntil)` a megőrzéshez, `UploadOperation(state, reservationReleasedAt)` a cleanuphoz, valamint a meglévő `FileObject(status, confirmBy)` és retry-idő szerinti cleanup-kiválasztás. A migráció ezeket létrehozza, a retry-kiválasztáshoz `FileObject(status, cleanupRetryAfter)` indexszel. A Prisma összetett one-to-one relációja külön unique `(fileObjectId, ownerId)` indexet is igényel a már egyedi `fileObjectId` mellett; ez ORM-megkötés, nem új termékszabály. Nincs általános queue-indexcsomag.
 - Azonos táblán belüli CHECK-ek: OPEN ↔ closedAt/error/release null; FINALIZED → closedAt kitöltött, error/release null; REJECTED/EXPIRED → megfelelő allowlistelt ok és closedAt; kitöltött release → terminális hibás állapot, writesClosedAt kitöltött, release ideje nem korábbi egyik bizonyítékánál; replayUntil legalább createdAt+24 óra. A fingerprint alakja és az azonosítók is korlátozottak. A cross-row FileObject-állapot és User-összeg összhangját nem állítjuk egyszerű SQL CHECK-kel garantáltnak: a tranzakciós service, zárolási rend és külön tesztek felelőssége.
-- A következő séma/migráció feladatnak meg kell őriznie a jelenlegi SQL-kvóta-, bájt-, életciklus- és share-owner constraint-eket. Előzetesen ellenőrizni kell a meglévő PENDING_UPLOAD sorokat: receipt nélküli korábbi pendinghez nem található ki kliens-idempotenciakulcs, és foglalás nem engedhető el automatikusan. Ha ilyen adat van, a migráció megáll és külön egyeztetett rendezés szükséges; nincs volume-reset vagy feltételezett üres adatbázis.
+- Az új migráció megőrzi a jelenlegi SQL-kvóta-, bájt-, életciklus- és share-owner constraint-eket. A migráció a User → FileObject írásblokkoló zárolása után ellenőrzi a meglévő PENDING_UPLOAD sorokat és a nem nulla reserved számlálókat: receipt nélküli korábbi pendinghez nem található ki kliens-idempotenciakulcs, és foglalás nem engedhető el automatikusan. Ha bármelyik előfordul, a migráció egyetlen tranzakcióját visszagörgetve megáll és külön egyeztetett rendezés szükséges; nincs volume-reset vagy feltételezett üres adatbázis.
 
-**Következő kapu:** storage adapter és bizonyítási feltételei, majd külön engedélyezett Prisma-séma/migráció és backend implementáció. Import-/transfer-session, processor/job/result, thumbnail és derived quota továbbra is másik szerződésfeladat.
+A SQL CHECK-ek NULL-biztos állapot/hibakód/release párokat, UUIDv4-et, fingerprint-alakot, legalább 24 órás receiptet, véges időpontokat és időrendet védenek. Nem garantálják a rekordok közötti állapot-/számlálóegyezést, az immutabilitást vagy az átmenetek sorrendjét; ez továbbra is a következő service és tesztjeinek feladata. A nullable `writesClosedAt` mezőt a migráció nem tölti ki, és nem bizonyít storage-íráslezárást.
+
+**Következő kapu:** upload-init backend implementáció. Confirm/release előtt a storage-íráslezárási bizonyítási feltétel továbbra is rendezendő. Import-/transfer-session, processor/job/result, thumbnail és derived quota továbbra is másik szerződésfeladat.
 
 ## Modellezési határ
 
@@ -96,7 +98,7 @@ Példa: `limit=1000`, `used=200`, `reserved=100`, új kép 300 bájt → init ut
 - PostgreSQL az identity, ownership, fájlállapot, kvóta, share link, audit és opcionális MI-javaslat metaadatát tárolja.
 - A tárolási kulcs belső adat; API-válaszban nem jelenik meg.
 - Minden bájtszámláló nem negatív `BigInt`, minden időpont UTC.
-- A kezdeti `Core MVP` entitásai: `User`, `FileObject`, `ShareLink`, `AuditEvent`; az első uploadhoz a fent részletezett `UploadOperation` külön tervezett kiegészítés.
+- A kezdeti `Core MVP` entitásai: `User`, `FileObject`, `ShareLink`, `AuditEvent`; az első uploadhoz a fent részletezett `UploadOperation` implementált kiegészítés.
 - Az `AiMetadataSuggestion` kizárólag `MVP+`; hiánya nem akadályozhat core migrációt vagy működést.
 
 ## ERD
@@ -350,7 +352,7 @@ Retry új, explicit javaslatkérést hoz létre; korábbi `FAILED` vagy `REJECTE
 
 ### Upload init, confirm és cleanup
 
-A részletes első szelet állapotmátrixa és zárolási rendje az [upload-adatmodellben](#első-képfeltöltés-adatmodell-szerződése--tervezett-2026-10-23) szerepel. Összefoglalva:
+A részletes első szelet állapotmátrixa és zárolási rendje az [upload-adatmodellben](#első-képfeltöltés-adatmodell-szerződése--2026-10-23) szerepel. Összefoglalva:
 
 - Init: a sikeres dedupe-kulcs, FileObject, OPEN UploadOperation és reserved-növelés egy tranzakció. Egyező replay nem foglal újra; eltérő fingerprint stabil 409.
 - Confirm: változatlan objektum storage-validációja után csak OPEN + pending + határidőn belüli feltételes átmenet könyvelhet egyszer; FileObject ACTIVE, művelet FINALIZED, reserved→used és a korábban tervezett minimális siker-audit egy commitban. A no-op nem hoz új auditot/számlálót.

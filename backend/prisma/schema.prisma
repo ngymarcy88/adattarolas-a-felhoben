@@ -18,6 +18,19 @@ enum FileVisibility {
   PRIVATE
 }
 
+enum UploadOperationState {
+  OPEN
+  FINALIZED
+  REJECTED
+  EXPIRED
+}
+
+enum UploadTerminalErrorCode {
+  FILE_TOO_LARGE
+  UPLOAD_VALIDATION_FAILED
+  UPLOAD_EXPIRED
+}
+
 model User {
   id                   String       @id @default(uuid()) @db.Uuid
   email                String       @unique @db.VarChar(254)
@@ -28,6 +41,7 @@ model User {
   storageLimitBytes    BigInt
   createdAt            DateTime     @default(now()) @db.Timestamptz(3)
   updatedAt            DateTime     @updatedAt @db.Timestamptz(3)
+  uploadOperations     UploadOperation[]
   files                FileObject[]
   shareLinks           ShareLink[]
   auditEvents          AuditEvent[]
@@ -54,11 +68,38 @@ model FileObject {
   updatedAt            DateTime       @updatedAt @db.Timestamptz(3)
   owner                User           @relation(fields: [ownerId], references: [id], onDelete: Restrict)
   shareLinks           ShareLink[]
+  uploadOperation      UploadOperation?
 
   @@unique([id, ownerId])
   @@index([ownerId, status, createdAt(sort: Desc), id(sort: Desc)])
   @@index([status, confirmBy])
+  @@index([status, cleanupRetryAfter])
   @@index([status, purgeAfter])
+}
+
+// State/shape checks live in SQL. Cross-row accounting and transitions belong to services.
+model UploadOperation {
+  id                    String                   @id @default(uuid()) @db.Uuid
+  ownerId               String                   @db.Uuid
+  fileObjectId          String                   @unique @db.Uuid
+  idempotencyKey        String                   @db.Uuid
+  requestFingerprint    String                   @db.VarChar(67)
+  state                 UploadOperationState     @default(OPEN)
+  terminalErrorCode     UploadTerminalErrorCode?
+  closedAt              DateTime?                @db.Timestamptz(3)
+  reservationReleasedAt DateTime?                @db.Timestamptz(3)
+  writesClosedAt        DateTime?                @db.Timestamptz(3)
+  replayUntil           DateTime                 @db.Timestamptz(3)
+  createdAt             DateTime                 @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime                 @updatedAt @db.Timestamptz(3)
+  owner                 User                     @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  fileObject            FileObject               @relation(fields: [fileObjectId, ownerId], references: [id, ownerId], onDelete: Restrict)
+
+  // Prisma requires the full defining key unique for this compound one-to-one relation.
+  @@unique([fileObjectId, ownerId])
+  @@unique([ownerId, idempotencyKey])
+  @@index([state, replayUntil])
+  @@index([state, reservationReleasedAt])
 }
 
 model ShareLink {
