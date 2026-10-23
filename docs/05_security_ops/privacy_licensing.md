@@ -97,3 +97,7 @@ Dependency hozzáadásakor rögzítendő:
 - backup és restore adatkezelése;
 - konkrét dependency licencek;
 - esetleges MI-provider teljes privacy/licensing go/no-go.
+
+## Storage SDK – 2026-10-23
+
+Az adapter közvetlen dependencyjei `@aws-sdk/client-s3` és `@aws-sdk/s3-request-presigner` 3.1156.0, Apache-2.0 licenccel; a root lockfile rögzíti a feloldást. Az SDK normál helyi használatban kizárólag a konfigurált MinIO-val kommunikál; nem szükséges AWS-fiók. Presigned URL hozzáférési képesség, nem naplózható. A kézi storage-próba kizárólag szintetikus képet és véletlen UUID-kat használ. A telepítés npm auditja 0 ismert sérülékenységet jelzett; ez nem teljes tranzitív licenc- vagy image-audit.

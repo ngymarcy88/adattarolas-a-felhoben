@@ -18,7 +18,7 @@ describe('validateEnvironment', () => {
     expect(config).toMatchObject({
       environment: 'local', host: '127.0.0.1', port: 3000, jwtExpiresIn: '1h', jwtTtlSeconds: 3600, defaultUserStorageLimitBytes: 1073741824,
       maxUploadBytes: 104857600, presignedUrlTtlSeconds: 300,
-      storage: { forcePathStyle: true },
+      storage: { forcePathStyle: true, publicEndpoint: 'http://localhost:9000' },
       allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'video/mp4', 'video/webm'],
     });
   });
@@ -28,6 +28,11 @@ describe('validateEnvironment', () => {
       S3_FORCE_PATH_STYLE: 'false', MAX_UPLOAD_BYTES: '1000', JWT_EXPIRES_IN: '30m', DEFAULT_USER_STORAGE_LIMIT_BYTES: '2048' }))
       .toMatchObject({ environment: 'test', host: '0.0.0.0', port: 3001, maxUploadBytes: 1000,
         jwtExpiresIn: '30m', jwtTtlSeconds: 1800, defaultUserStorageLimitBytes: 2048, storage: { forcePathStyle: false } });
+  });
+
+  it('separates the internal storage address from the public signing address', () => {
+    expect(validateEnvironment({ ...validEnvironment(), S3_ENDPOINT: 'http://minio:9000', S3_PUBLIC_ENDPOINT: 'http://127.0.0.1:9000' }).storage)
+      .toMatchObject({ endpoint: 'http://minio:9000', publicEndpoint: 'http://127.0.0.1:9000' });
   });
 
   it('allows a configured safe subset and trims separator whitespace', () => {
@@ -52,7 +57,7 @@ describe('validateEnvironment', () => {
     ['JWT_EXPIRES_IN', 'forever'], ['JWT_EXPIRES_IN', '25h'], ['JWT_EXPIRES_IN', '999999999999999999d'],
     ['JWT_EXPIRES_IN', '0s'], ['DATABASE_URL', 'mysql://user:pass@localhost/db'],
     ['DATABASE_URL', 'postgresql://localhost/db'], ['DATABASE_URL', 'invalid'],
-    ['S3_ENDPOINT', 'ftp://localhost'], ['S3_ENDPOINT', 'http://user:pass@localhost:9000'],
+    ['S3_PUBLIC_ENDPOINT', 'http://user:pass@localhost:9000'], ['S3_PUBLIC_ENDPOINT', 'http://localhost:9000/path'], ['S3_PUBLIC_ENDPOINT', ''], ['S3_ENDPOINT', 'ftp://localhost'], ['S3_ENDPOINT', 'http://user:pass@localhost:9000'],
     ['FRONTEND_PUBLIC_URL', 'https://localhost/app'], ['FRONTEND_PUBLIC_URL', 'https://localhost?x=1'],
     ['BACKEND_PUBLIC_URL', 'https://localhost/#secret'], ['S3_BUCKET', 'Bad Bucket'],
     ['S3_REGION', ''], ['S3_SECRET_ACCESS_KEY', 'short'], ['S3_ACCESS_KEY_ID', ''],

@@ -24,6 +24,7 @@
     "build": "npm run db:generate && npm run build --workspaces",
     "typecheck": "npm run db:generate && npm run typecheck --workspaces",
     "test": "npm run test:container && npm run test --workspaces",
-    "test:container": "node --test scripts/container-environment.test.mjs"
+    "test:container": "node --test scripts/container-environment.test.mjs",
+    "storage:verify": "npm run build --workspace backend && node scripts/verify-storage.mjs"
   }
 }

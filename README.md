@@ -8,6 +8,8 @@ Elkészült a **lokális technikai alap**: Vue/Vite frontend, NestJS backend, va
 
 Az első uploadhoz az `UploadOperation` Prisma-modell és SQL-migráció is elkészült: tartós dedupe-azonosság, állapotok és foglaláslezárási mezők. Ez adatbázis-alap; init/confirm/cleanup végpontot még nem biztosít.
 
+A backend S3/MinIO adaptere is implementált: create-only presigned PUT, HEAD, korlátozott feltételes range-read, törlés és biztonságos read URL. Ez belső infrastruktúra; a feltöltési API és felület még nem kész.
+
 A kötelező SZD2 cél a teljes alkalmazás, a folytatható kötegelt képimport, két verziózott processor és restart recovery, valamint összehasonlító mérés/UAT és dolgozat. A részletes import-/processing-szerződés és átviteli technológia kiválasztása külön feladat; a termék-MI opcionális.
 
 ## Előfeltételek
@@ -123,3 +125,15 @@ A normál `docker compose up -d --build --wait` a `db-migrate` service-en keresz
 A migráció írásblokkoló User → FileObject zárolással, egyetlen tranzakcióban fut; korábbi `PENDING_UPLOAD` sor vagy bármely nem nulla `reservedStorageBytes` esetén biztonságosan leáll. Nem talál ki régi idempotenciakulcsot és nem enged el foglalást. Ilyenkor az érintett állományokat és a storage-állapotot külön, kézzel jóváhagyott rendezésnek kell tisztáznia; a hiba miatt ne töröld az adatbázist vagy a köteteket.
 
 Ha a Prisma hibás migrációként rögzítette ezt a leállást, csak az ok rendezése **és a teljes SQL-rollback ellenőrzése után** jelöld visszagörgetettnek a `prisma migrate resolve --rolled-back 20261023000100_upload_operations` paranccsal (a backend workspace-ben), majd ismételd a normál deployt. A resolve önmagában nem javít adatot, és nem jogosít az ellenőrzés megkerülésére. A sémában nem leírt SQL CHECK-eket őrizd meg későbbi migrációknál is.
+
+## Storage adapter kézi ellenőrzése
+
+Az `S3_ENDPOINT` a backend által elérhető cím (Compose-ban `http://minio:9000`); az `S3_PUBLIC_ENDPOINT` a böngésző által elérhető origin (helyben `http://127.0.0.1:9000`). Hiányzó publikus változó host fejlesztésben az endpointot örökli; Compose külön állítja. Az aláírt URL hostját utólag átírni tilos. Távoli gépen a publikus címet és a CORS-origint is a valós eléréshez kell igazítani.
+
+Működő MinIO és lefuttatott `minio-init`, root `.env`, valamint telepített workspace dependencyk mellett:
+
+```bash
+npm run storage:verify
+```
+
+Ez explicit kézi provider-próba, nem része az `npm test`/CI futásnak. Backend build után szintetikus PNG-t tölt fel véletlen kulcsokra, ellenőrzi a tiltott felülírást, méret/header módosításának elutasítását, HEAD/range/download, bucket-hozzáférés és CORS működését; végül csak a saját próbaobjektumait törli. A parancs nem módosít DB-t vagy kvótát, és nem naplóz hozzáférési URL-t. Az in-flight PUT-ok biztos lezárását és a valódi böngészős uploadot nem bizonyítja. Részletek: [tesztriport](docs/04_quality/test_report.md).

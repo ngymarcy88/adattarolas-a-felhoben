@@ -1009,3 +1009,5 @@ For large changes, ask subagents to inspect independently, then consolidate thei
 Do not spawn subagents for small, simple edits such as typo fixes or a single small function.
 
 Because subagents consume more tokens, use them when the expected quality gain is worth the cost.
+
+The optional `npm run storage:verify` builds the backend and explicitly probes a running local MinIO using synthetic random objects, then removes only those probe objects. It is outside unit tests/CI; requires root `.env`, installed dependencies and initialized MinIO. Never treat its HTTP CORS probe as browser evidence or object deletion as proof of in-flight write closure. `S3_PUBLIC_ENDPOINT` is the browser-accessible signing origin; Compose keeps internal `S3_ENDPOINT` separate.

@@ -4,6 +4,8 @@
 
 A scaffold `GET /api/v1/health` végpontja, CORS-konfigurációja, request ID-ja és generikus hibakerete implementált. A regisztráció, login/logout/me is implementált; file-, storage-, share- és MI-endpoint továbbra is terv; import-/processing-kiegészítésük későbbi szerződésfeladat. Futási ellenőrzés: [tesztriport](../04_quality/test_report.md).
 
+A belső MinIO/S3 adapter már implementált; ez nem publikus endpoint. Az authorization, kvóta, init/confirm és cleanup továbbra is következő service-feladat; az in-flight íráslezárás bizonyítása nyitott.
+
 ## Hatókör és alapelvek
 
 - Implementált API prefix: `/api/v1`; helyi alapcím: `http://127.0.0.1:3000/api/v1`.
@@ -328,7 +330,7 @@ Minden alábbi **tervezett backendhiba**, az implementált auth-kódok új végp
 | Magic-number validált eredeti, processor-siker ígérete nélkül. | Verziózott thumbnail és metadata processor, tartós job/result, független retry és worker-restart recovery; eredeti/derived kvóta és lifecycle. |
 | Nem szolgáltat batch-progress vagy import-level idempotencia garanciát. | Per-file progress/részleges hiba, import-level dedupe, ellenőrzött hálózati megszakítás és újraküldöttbájt-mérés. |
 
-A tus/Uppy és S3 multipart vizsgálandó alternatívák, nem kiválasztott implementációk. A [terv](../plan.md), [roadmap](../milestones.md) és [ADR-009](../02_architecture/adr/ADR-009-defer-multipart-upload.md) szerinti PoC/ADR előzi meg a választást. Ebben a dokumentációs körben nem jön létre új protokoll, függőség, Prisma-séma, migration, végpont vagy tesztkód. Az első upload részletes adatmodellje dokumentált a fenti hivatkozáson; a séma/migráció implementált; a processor, storage-illesztés és upload service-ek külön feladatok.
+A tus/Uppy és S3 multipart vizsgálandó alternatívák, nem kiválasztott implementációk. A [terv](../plan.md), [roadmap](../milestones.md) és [ADR-009](../02_architecture/adr/ADR-009-defer-multipart-upload.md) szerinti PoC/ADR előzi meg a választást. Ebben a dokumentációs körben nem jön létre új protokoll, függőség, Prisma-séma, migration, végpont vagy tesztkód. Az első upload részletes adatmodellje dokumentált a fenti hivatkozáson; a séma/migráció implementált; a storage adapter is elkészült, a processor és upload service-ek külön feladatok.
 
 ## Fájllista és lifecycle
 

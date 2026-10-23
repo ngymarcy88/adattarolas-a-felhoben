@@ -10,7 +10,7 @@ Accepted
 
 ## Implementation status
 
-Tervezett upload/download – a health/auth API létezik, de nincs implementált upload/download végpont vagy storage adapter.
+A belső storage adapter implementált; upload/download API-végpont továbbra is tervezett. Az adapter nem végez authorizationt, DB-állapotváltást vagy kvótakönyvelést.
 
 ## Context
 
@@ -60,3 +60,13 @@ A kanonikus request/response és hibaút az [API Upload részében](../../03_des
 A szokásos presigned PUT többször használható és felülírhatja a már ellenőrzött objektumot; a korábbi egyszerű HEAD→ACTIVE leírás ezt önmagában nem zárja ki. Az API elvárt create-only iránya az aláírt `If-None-Match: *`, de a tényleges MinIO/S3 kompatibilitás, megkerülhetetlenség, méretkikényszerítés és a HEAD/range objektumazonosság még implementáció előtti bizonyítási kapu. Belső storage URL nem helyettesíthet böngészőből elérhető, helyesen aláírt publikus URL-t; CORS szükséges.
 
 A késői in-flight PUT és cleanup versenyénél puszta URL-lejárat/HEAD 404 nem elég a reservation felszabadításához. Biztonságos íráslezárás és confirm/cleanup kizárás szükséges; ennek adapteres bizonyítéka külön feladat. Amíg a kapuk nem teljesülnek, ez dokumentált követelmény, nem igazolt biztonsági képesség. A teljes képintegritás/processor eredményét a magic-number ellenőrzés nem garantálja.
+
+## Adapter implementáció – 2026-10-23
+
+AWS SDK v3 (`@aws-sdk/client-s3`, `@aws-sdk/s3-request-presigner`, 3.1156.0), Nest `OBJECT_STORAGE` provider. Belső és publikus endpoint külön konfiguráció; rövid, abszolút lejáratot nem hosszabbító hozzáférés. Csak JPEG/PNG/WebP/GIF eredeti objektumkulcsok, UUID-alapú owner/fájlútvonal; a kulcsformátum nem helyettesít ownership-vizsgálatot. A PUT aláírás köti a Content-Type, Content-Length és If-None-Match headereket; a böngésző a Blob méretéből állítja a tiltott kézi Content-Length headert.
+
+A HEAD 404 után külön bucketellenőrzés előzi meg az objektumhiány kimondását (ListBucket jogosultság kell); a hibás/hiányzó bucket nem takarítási siker. Az ETag átlátszatlan feltétel, nem integritási checksum. A maximum 64 KiB-os prefixolvasás If-Match-et, pontos 206/range/length választ és határidőt követel, eltérésnél lezárja a streamet. Nem teljes képfeldolgozás vagy magic-number detektor. Download csak a kép-allowlisttel, biztonságos Content-Dispositionnel és no-store-ral. A hibaobjektum nem tartalmaz providerüzenetet, URL-t vagy credentialt.
+
+A DeleteObject csak fizikai művelet. Az adapter `writeClosureEvidence = 'unproven'` jelzése szándékos: sem a törlés, sem a 404, sem a presign lejárata nem bizonyítja a már elindított írások befejeződését. `writesClosedAt` nem állítható ezekből; automatikus reservation-release nem implementált. A késői PUT/cleanup kapu továbbra is nyitott, ezért teljes upload-életciklus késznek nem tekinthető.
+
+Provider-próba: `npm run storage:verify`, [eredmények és korlátok](../../04_quality/test_report.md). Elsődleges háttér: [AWS conditional writes](https://docs.aws.amazon.com/AmazonS3/latest/userguide/conditional-writes.html), [presigned URL érvényesség](https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-presigned-url.html), [HEAD hiba-szemantika](https://docs.aws.amazon.com/AmazonS3/latest/API/API_HeadObject.html). Más S3 providerre a kompatibilitást külön ellenőrizni kell.

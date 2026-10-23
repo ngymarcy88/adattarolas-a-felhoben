@@ -89,6 +89,7 @@ services:
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1h}
       DEFAULT_USER_STORAGE_LIMIT_BYTES: ${DEFAULT_USER_STORAGE_LIMIT_BYTES:-1073741824}
       S3_ENDPOINT: http://minio:9000
+      S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-http://127.0.0.1:9000}
       S3_REGION: ${S3_REGION:?Run node scripts/init-env.mjs first}
       S3_BUCKET: ${S3_BUCKET:?Run node scripts/init-env.mjs first}
       S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?Run node scripts/init-env.mjs first}
