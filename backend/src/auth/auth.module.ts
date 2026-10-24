@@ -13,6 +13,7 @@ import { RegistrationGuard } from './registration.guard';
 @Module({
   imports: [PrismaModule],
   controllers: [AuthController],
+  exports: [SessionGuard, OriginGuard, SessionService, AuthService],
   providers: [AuthService, PasswordService, RegisterValidationPipe, RegistrationGuard, SessionService, SessionGuard, OriginGuard, LoginValidationPipe],
 })
 export class AuthModule {}

@@ -1,3 +1,4 @@
+import { FilesModule } from './files/files.module';
 import { Module } from '@nestjs/common';
 import { AuthModule } from './auth/auth.module';
 import { AppConfigModule } from './config/app-config.module';
@@ -5,5 +6,5 @@ import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { StorageModule } from './storage/storage.module';
 
-@Module({ imports: [AppConfigModule, PrismaModule, HealthModule, AuthModule, StorageModule] })
+@Module({ imports: [AppConfigModule, PrismaModule, HealthModule, AuthModule, StorageModule, FilesModule] })
 export class AppModule {}

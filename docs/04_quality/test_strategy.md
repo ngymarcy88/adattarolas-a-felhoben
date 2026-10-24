@@ -142,3 +142,7 @@ Az UploadOperation tárolási invariánsait SQL CHECK/unique/FK korlátok védik
 ## Storage adapter szelet
 
 A `backend/test/storage.spec.ts` izolált SDK/stream unit tesztjei a kulcsokat, MIME/mérethatárt, aláírt headereket és fix lejáratot, hibamaszkolást, bucket/objektumhiány megkülönböztetését, feltételes és korlátozott olvasást, timeout-streamlezárást és download-headereket ellenőrzik. Egy offline valódi SigV4-aláíráspróba mock nélkül ellenőrzi a hostot és signed-header listát. Nem igazolják a provider kikényszerítését. A külön explicit `storage:verify` kézi provider-próba szintetikus adatokkal ezt részben vizsgálja; nincs új integration/e2e suite vagy CI-szolgáltatás. Valódi browser és in-flight cleanup bizonyíték továbbra is külön kapu.
+
+## Upload-init üzleti szelet
+
+Az upload-init külön unit teszteli a DTO/guard/controller mellett a zárolási/számláló paramétereket, canonical fingerprintet, fix határidőket, státusz szerinti replay-t és safe hibatérképet. A korábbi hipotetikus init-esetekből ezek implementáltak; confirm/cleanup/import/processing esetei továbbra is tervezettek. A valódi SQL-zárolást és rollbacket külön dokumentált, szintetikus kézi HTTP/DB-próba vizsgálta; nincs új integration/e2e suite vagy CI-szolgáltatás.

@@ -40,6 +40,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     if (status >= 500) {
       this.logger.error({ event: 'http_request_failed', requestId, status, code: safe.code });
     }
+    response.setHeader('Cache-Control', 'no-store');
     response.setHeader('X-Request-Id', requestId);
     response.status(status).json({ error: { ...safe, details: {}, requestId } });
   }
