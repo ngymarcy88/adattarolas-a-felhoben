@@ -10,7 +10,7 @@ Accepted
 
 ## Implementation status
 
-Tervezett állapot – nincs file validation implementáció.
+A confirm méret-/signature-validációja implementált, legfeljebb 16 bájtos feltételes range-olvasással; teljes képdekóder nincs.
 
 ## Context
 
@@ -50,3 +50,9 @@ Invalid objektum cleanupot igényel. A reservation csak akkor oldható fel, ha a
 - Security review ellenőrzi az inline allowlistet és a safe `Content-Disposition` logikát.
 
 A 2026-10-20-i első [képfeltöltési API](../../03_design/api.md#upload--első-képfeltöltési-szelet-tervezett) csak JPEG/PNG/WebP/GIF típusokra szűkíti ezt a lépést; video későbbi Core-szelet. A HEAD és bounded read ugyanazt a változatlan objektumot vizsgálja, a korábban kiadott PUT-jog aktívvá tétel után sem írhatja át. A storage-védelem és a detektor konkrét byte-korlátja külön implementáció előtti döntés/ellenőrzés.
+
+## Implementált első detektor – 2026-10-24
+
+Az első négy képtípushoz tiszta, függőség nélküli, 16 bájtos prefixosztályozó készült: JPEG FF D8 FF, PNG teljes 8 bájtos signature, GIF87a/GIF89a, WebP RIFF + WEBP + VP8/VP8L/VP8X FourCC. Az adapter az ETag-hez kötött range-ből legfeljebb 16 bájtot ad át. Tetszőleges fájltípus-parser vagy dekóder helyett ez a szűk döntés a meglévő CommonJS/Jest környezetet és négyformátumos scope-ot szolgálja, új csomag nélkül.
+
+A minősítés csak a signature-t igazolja, nem a teljes formátumot, CRC-t, dekódolhatóságot, malware-mentességet vagy minden polyglot hiányát. A későbbi képfeldolgozó dekódolása külön hibaág; initkor a MIME továbbra is csak deklaráció. Elsődleges formátumforrások: [PNG signature](https://www.w3.org/TR/png-3/#5PNG-file-signature), [GIF specifikáció](https://www.w3.org/Graphics/GIF/spec-gif89a.txt), [WebP konténer](https://developers.google.com/speed/webp/docs/riff_container).

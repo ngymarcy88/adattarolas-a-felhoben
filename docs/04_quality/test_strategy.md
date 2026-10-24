@@ -146,3 +146,7 @@ A `backend/test/storage.spec.ts` izolált SDK/stream unit tesztjei a kulcsokat, 
 ## Upload-init üzleti szelet
 
 Az upload-init külön unit teszteli a DTO/guard/controller mellett a zárolási/számláló paramétereket, canonical fingerprintet, fix határidőket, státusz szerinti replay-t és safe hibatérképet. A korábbi hipotetikus init-esetekből ezek implementáltak; confirm/cleanup/import/processing esetei továbbra is tervezettek. A valódi SQL-zárolást és rollbacket külön dokumentált, szintetikus kézi HTTP/DB-próba vizsgálta; nincs új integration/e2e suite vagy CI-szolgáltatás.
+
+## Confirm és őrzött cleanup
+
+A signature, confirm-guard, owner-check, friss terminális állapot elsőbbsége, konkurens egyszeri könyvelés/audit, DB-írás alatt elért határidő és rollback, valamint cleanup-proof/backoff/idempotencia külön unit tesztelt. A shared fixture a hibás mock-tranzakció írómódosításait visszagörgeti, de ez nem SQL-bizonyíték. A proof-függő release ág csak szintetikus bizonyítékkal unit tesztelt; valós proofot a provider nem szolgáltat. A valódi MinIO/DB confirm és a késleltetett PUT külön, explicit helyi próba, nem új integration/e2e suite.

@@ -1,10 +1,10 @@
 # API-szerződés
 
-**Részben implementált szerződés: health, register/login/logout/me és upload-init létezik; a többi végpont tervezett.**
+**Részben implementált szerződés: health, register/login/logout/me és upload-init/confirm létezik; a többi végpont tervezett.**
 
-A scaffold `GET /api/v1/health` végpontja, CORS-konfigurációja, request ID-ja és generikus hibakerete implementált. A regisztráció, login/logout/me is implementált; a `POST /api/v1/files/uploads/init` is implementált; a confirm és a további file-, share- és MI-endpoint terv; import-/processing-kiegészítésük későbbi szerződésfeladat. Futási ellenőrzés: [tesztriport](../04_quality/test_report.md).
+A scaffold `GET /api/v1/health` végpontja, CORS-konfigurációja, request ID-ja és generikus hibakerete implementált. A regisztráció, login/logout/me is implementált; a `POST /api/v1/files/uploads/init` is implementált; a confirm is implementált; a további file-, share- és MI-endpoint terv; import-/processing-kiegészítésük későbbi szerződésfeladat. Futási ellenőrzés: [tesztriport](../04_quality/test_report.md).
 
-A belső MinIO/S3 adapter már implementált; ez nem publikus endpoint. Az init authorizationja, kvótafoglalása és tartós replay-je implementált; confirm és cleanup következő feladat; az in-flight íráslezárás bizonyítása nyitott.
+A belső MinIO/S3 adapter már implementált; ez nem publikus endpoint. Az init authorizationja, kvótafoglalása és tartós replay-je implementált; a confirm is implementált; a cleanup csak igazolt íráslezárás mellett törölhet és oldhat fel foglalást; az in-flight íráslezárás bizonyítása nyitott.
 
 ## Hatókör és alapelvek
 
@@ -13,7 +13,7 @@ A belső MinIO/S3 adapter már implementált; ez nem publikus endpoint. Az init 
 - Minden időpont UTC ISO 8601 formátumú, minden azonosító átlátszatlan UUID.
 - A bájtértékek nem negatív egész számok.
 - A frontend `credentials: include` módban hívja a cookie-auth endpointokat.
-- Az alábbi táblában a health, a négy auth sor és az upload-init implementált; a többi endpoint tervezett. Megvalósításkor a controller- és DTO-szerződést e dokumentummal együtt kell frissíteni. OpenAPI-generálás még nincs.
+- Az alábbi táblában a health, a négy auth sor és az upload-init/confirm implementált; a többi endpoint tervezett. Megvalósításkor a controller- és DTO-szerződést e dokumentummal együtt kell frissíteni. OpenAPI-generálás még nincs.
 
 ## Hitelesítés, Origin és CORS
 
@@ -39,7 +39,7 @@ A jelenlegi scaffold a konfigurált `FRONTEND_PUBLIC_URL` origint credentiallel 
 | `POST /auth/logout` | **Implementált Core-szelet** | Origin; cookie törölhető hiányzó/lejárt állapotban is | Auth-cookie törlése |
 | `GET /auth/me` | **Implementált Core-szelet** | cookie | Aktuális felhasználó |
 | `POST /files/uploads/init` | **Implementált init-szelet** | owner cookie + Origin + Idempotency-Key | Egyszeri pending/foglalás és rövid presigned PUT |
-| `POST /files/{fileId}/confirm` | **Tervezett első képszelet** | owner cookie + Origin | Idempotens storage-validáció és aktiválás |
+| `POST /files/{fileId}/confirm` | **Implementált confirm-szelet** | owner cookie + Origin | Idempotens storage-validáció és aktiválás |
 | `GET /files` | Core MVP | owner cookie | Aktív saját fájlok cursor-lapozott listája |
 | `GET /files/trash` | Core MVP | owner cookie | Visszaállítható saját fájlok cursor-lapozott listája |
 | `GET /files/{fileId}` | Core MVP | owner cookie | Saját fájl biztonságos metaadata |
@@ -187,7 +187,7 @@ Elvárt sorrend: 200 + cookie, 200 + user, 204 + törlés, 401. A terminál kime
 
 ## Upload – első képfeltöltési szelet
 
-**2026-10-24: az init végpont implementált; confirm, cleanup és frontend még tervezett.** Ez az SZD2-2 előkészítése: egy init egy képet foglal, egy egyszeri presigned PUT után confirm következik. A teljes Core MVP videótámogatása és a kötelező SZD2 folytatható kötegimport ennél tágabb cél; az első szelet nem helyettesíti őket. Processor, thumbnail, import/session adatmodell és migráció külön feladat.
+**2026-10-24: az init és confirm implementált; a cleanup őrzött és retry-képes, de a jelenlegi adapter íráslezárási bizonyítéka hiányzik, ezért fizikai felszabadításra még nem képes. A frontend tervezett.** Ez az SZD2-2 előkészítése: egy init egy képet foglal, egy egyszeri presigned PUT után confirm következik. A teljes Core MVP videótámogatása és a kötelező SZD2 folytatható kötegimport ennél tágabb cél; az első szelet nem helyettesíti őket. Processor, thumbnail, import/session adatmodell és migráció külön feladat.
 
 ### Közös jogosultság és reprezentáció
 
@@ -262,7 +262,7 @@ Az URL szintetikus példa. A `headers` a ténylegesen alkalmazandó storage-head
 | Határidős/invalid/cleanupra lezárt művelet | `410 UPLOAD_EXPIRED`, illetve a korábbi tartalmi végkód: `413 FILE_TOO_LARGE` vagy `422 UPLOAD_VALIDATION_FAILED`; nincs újraélesztés vagy új foglalás. |
 | Saját fájl később soft-deleted | `409 RESOURCE_STATE_CONFLICT`; init replay nem restore. |
 
-A normalizált payload-azonosság és a sikeresen létrehozott init tartós, újraindítást túlélő nyilvántartást igényel. **A kezdeti migrációt egy új UploadOperation-migráció egészíti ki**; az `UploadOperation`, egyediség, terminális receipt és megőrzés pontos szerződése az [első upload-adatmodellben](data_model.md#első-képfeltöltés-adatmodell-szerződése--2026-10-23) szerepel. A Prisma-séma/migráció implementált; az init service implementált, a confirm service még következő lépés. A sikeres művelet azonosságát legalább t0+24 óráig, és ezen túl is minden élő upload-jog, függő írás és lezáratlan cleanup megszűnéséig meg kell őrizni. A megőrzés nem növeli a PUT/confirm határidejét és nem őrizhet presigned URL-t. A garantált minimumablakon túl a kliens nem használhat újra régi kulcsot; egy kitakarított kulcs újrafelhasználására nincs deduplikációs garancia. Nem létező/idegen `fileId` publikus státuszából műveletazonosság nem következtethető ki; a belső receipt ownerhez kötött.
+A normalizált payload-azonosság és a sikeresen létrehozott init tartós, újraindítást túlélő nyilvántartást igényel. **A kezdeti migrációt egy új UploadOperation-migráció egészíti ki**; az `UploadOperation`, egyediség, terminális receipt és megőrzés pontos szerződése az [első upload-adatmodellben](data_model.md#első-képfeltöltés-adatmodell-szerződése--2026-10-23) szerepel. A Prisma-séma/migráció implementált; az init service implementált, a confirm service is implementált, a cleanup release-kapuja továbbra is nyitott. A sikeres művelet azonosságát legalább t0+24 óráig, és ezen túl is minden élő upload-jog, függő írás és lezáratlan cleanup megszűnéséig meg kell őrizni. A megőrzés nem növeli a PUT/confirm határidejét és nem őrizhet presigned URL-t. A garantált minimumablakon túl a kliens nem használhat újra régi kulcsot; egy kitakarított kulcs újrafelhasználására nincs deduplikációs garancia. Nem létező/idegen `fileId` publikus státuszából műveletazonosság nem következtethető ki; a belső receipt ownerhez kötött.
 
 ### Bináris PUT és implementáció előtti storage-kapuk
 
@@ -281,11 +281,11 @@ A kérésnek **nincs bodyja**, és nem fogad kliensoldali méret-, MIME-, hash-,
 2. Saját `ACTIVE` fájl esetén azonnal `200` no-op; a régi `confirmBy` lejárata ilyenkor nem hiba. Saját `SOFT_DELETED` fájl `409 RESOURCE_STATE_CONFLICT`; confirm nem restore.
 3. Tartalmi hibával már lezárt pending nem validálható újra; az eredeti terminális ok szerinti `413 FILE_TOO_LARGE` vagy `422 UPLOAD_VALIDATION_FAILED` marad érvényes. Egyéb pending esetén `now >= confirmBy` már `410 UPLOAD_EXPIRED`, akkor is, ha az objektum jelen van. Cleanup által lefoglalt vagy lezárt művelet nem versenyezhet aktiválással.
 4. `HEAD`: létezés és tényleges méret; határ előtt hiányzó objektum `409 UPLOAD_NOT_READY`. Provider-access-denied/timeout nem tekinthető hiánynak. A tényleges méretnek pozitívnak, a deklarálttal azonosnak és a konfigurált limiten belülinek kell lennie. Túllépés `413 FILE_TOO_LARGE`; egyéb méreteltérés `422 UPLOAD_VALIDATION_FAILED`.
-5. Bounded range-read és magic-number detektálás. A korlátot a választott detektor/adapter későbbi döntése dokumentálja; korlátlan teljes letöltés nem fallback. A detektált típusnak a fenti kép-allowlisten kell lennie és egyeznie kell a deklarált MIME-mal. Ismeretlen, hiányos signature vagy eltérés `422`. A storage metadata `Content-Type` önmagában nem bizonyíték; `ETag` nem hitelesített end-to-end checksum.
+5. Bounded range-read és magic-number detektálás. A detektor az első 16 bájtot vizsgálja; az adapter If-Match feltételt és pontos range-választ követel; korlátlan teljes letöltés nem fallback. A detektált típusnak a fenti kép-allowlisten kell lennie és egyeznie kell a deklarált MIME-mal. Ismeretlen, hiányos signature vagy eltérés `422`. A storage metadata `Content-Type` önmagában nem bizonyíték; `ETag` nem hitelesített end-to-end checksum.
 6. A `HEAD` és range alapján ellenőrzött objektum változatlanságának biztosítása után egy DB-tranzakció újból ellenőrzi a pending/cleanup állapotot és a határidőt, majd feltételesen `ACTIVE`-vá teszi a fájlt, elmenti a detektált MIME-ot és **ugyanannyi** bájtot visz át a reservedből a usedba. Az aktiválás és mindkét számláló együtt commitol/rollbackel. A tranzakció közben elért határidő már nem aktiválható.
 7. Két párhuzamos confirmnál legfeljebb egy könyvelhet; a vesztes az aktuális állapot újraolvasásával ugyanazt az aktív fájlt adja vissza, vagy a közben lezárt/lejárt művelet stabil hibáját. DB-hibánál `503 DATABASE_UNAVAILABLE`, retry ugyanarra a `fileId`-ra. Sikeresen aktivált fájl API-timeout után is no-opként kérdezhető újra.
 
-**Első és ismételt siker: `200 OK`, `{"file": <aktuális ACTIVE FileObject>}`**, a fent definiált, storage key és PUT URL nélküli reprezentációval. A siker a tárolási és típusvalidáció lezárása, **nem thumbnail-/processor-siker**. A magic number nem bizonyítja egy teljes kép sértetlenségét/dekódolhatóságát vagy malware-mentességét; a későbbi dekódolási/processor-hibát külön kell kezelni. Ebben a feladatban nem választunk könyvtárat, processor-végpontot vagy derived kvótát.
+**Első és ismételt siker: `200 OK`, `{"file": <aktuális ACTIVE FileObject>}`**, a fent definiált, storage key és PUT URL nélküli reprezentációval. A siker a tárolási és típusvalidáció lezárása, **nem thumbnail-/processor-siker**. A magic number nem bizonyítja egy teljes kép sértetlenségét/dekódolhatóságát vagy malware-mentességét; a későbbi dekódolási/processor-hibát külön kell kezelni. A négy formátum szűk szignatúra-detektora implementált, teljes dekóder és új függőség nélkül; processor-végpont és derived kvóta továbbra is külön feladat.
 
 ### Lejárat, invalid tartalom és cleanup
 
@@ -299,7 +299,7 @@ A kérésnek **nincs bodyja**, és nem fogad kliensoldali méret-, MIME-, hash-,
 
 ### Első szelet hibaválaszai és kliensreakció
 
-Minden alábbi **tervezett backendhiba**, az implementált auth-kódok új végpontokra történő alkalmazása is későbbi munka. `details: {}`; a táblázat a stabil kódra épülő reakciót rögzíti, nem providerüzenetet.
+Az init/confirm által használt alábbi hibák implementáltak; a további fájlműveletek hibái tervezettek. `details: {}`; a táblázat a stabil kódra épülő reakciót rögzíti, nem providerüzenetet.
 
 | HTTP | Kód | Mikor / kliensreakció |
 |---:|---|---|
@@ -332,7 +332,7 @@ Minden alábbi **tervezett backendhiba**, az implementált auth-kódok új végp
 | Magic-number validált eredeti, processor-siker ígérete nélkül. | Verziózott thumbnail és metadata processor, tartós job/result, független retry és worker-restart recovery; eredeti/derived kvóta és lifecycle. |
 | Nem szolgáltat batch-progress vagy import-level idempotencia garanciát. | Per-file progress/részleges hiba, import-level dedupe, ellenőrzött hálózati megszakítás és újraküldöttbájt-mérés. |
 
-A tus/Uppy és S3 multipart vizsgálandó alternatívák, nem kiválasztott implementációk. A [terv](../plan.md), [roadmap](../milestones.md) és [ADR-009](../02_architecture/adr/ADR-009-defer-multipart-upload.md) szerinti PoC/ADR előzi meg a választást. Ebben a dokumentációs körben nem jön létre új protokoll, függőség, Prisma-séma, migration, végpont vagy tesztkód. Az első upload részletes adatmodellje dokumentált a fenti hivatkozáson; a séma/migráció implementált; a storage adapter is elkészült, az init service is elkészült, a processor és confirm/cleanup service-ek külön feladatok.
+A tus/Uppy és S3 multipart vizsgálandó alternatívák, nem kiválasztott implementációk. A [terv](../plan.md), [roadmap](../milestones.md) és [ADR-009](../02_architecture/adr/ADR-009-defer-multipart-upload.md) szerinti PoC/ADR előzi meg a választást. Ebben a dokumentációs körben nem jön létre új protokoll, függőség, Prisma-séma, migration, végpont vagy tesztkód. Az első upload részletes adatmodellje dokumentált a fenti hivatkozáson; a séma/migráció implementált; a storage adapter is elkészült, az init service is elkészült, a confirm service is elkészült; processor és a cleanup íráslezárási kapujának feloldása külön feladat.
 
 ## Fájllista és lifecycle
 
@@ -498,6 +498,20 @@ A `FilesController` az authból kapott ownerrel hívja a service-t. Az új init 
 
 A service az előzetesen ki nem adott URL-t DB-záron kívül készíti elő, majd ugyanabban a Prisma-tranzakcióban zárolja a User sort, ellenőrzi a kvótát BigInt aritmetikával, létrehozza a fájlt/receiptet és növeli a reservedet. Meglévő műveletnél User → FileObject → UploadOperation zárolás és újraolvasás történik. Külső presign után a zárolt állapot-/határidő-ellenőrzés ismét kötelező; konkurens új init vesztesének URL-je nem adható vissza. A szolgáltatás az adapter tényleges lejáratát tárolja, nem hosszabbít replaykor. A PostgreSQL tranzakcióban lokális lock_timeout 3s, statement_timeout 4s; Prisma maxWait és transaction timeout 5s. Konkurencia-/DB-hiba 503, nem új művelet.
 
-Az OPEN receipt confirm-határidején elért replay tartósan EXPIRED-re zár, és csak a commit után ad 410-et; sem used, sem reserved nem változik. A végleges 413/422/410 és az ACTIVE/SOFT_DELETED replay ágak új storage-aláírás nélkül működnek. Automatikus sweeper vagy kvótafelszabadítás nincs.
+Az OPEN receipt confirm-határidején elért replay tartósan EXPIRED-re zár, és csak a commit után ad 410-et; sem used, sem reserved nem változik. A végleges 413/422/410 és az ACTIVE/SOFT_DELETED replay ágak új storage-aláírás nélkül működnek. A későbbi cleanup-kiegészítés már sweepert futtat; a proof nélküli kvótafelszabadítás továbbra is tiltott.
 
-Kezdeti visszaélésvédelem: hitelesített userenként 30 init/replay kérés / 60s, legfeljebb 4096 élő limiter-bejegyzéssel. Telített limitertábla vagy túllépés 429. Ez folyamatonkénti, újrainduláskor törlődő védelem, nem elosztott kvóta; a tartós bájtfoglalást a DB külön garantálja. A még nem implementált confirm végpontot a jelenlegi init után a kliens még nem használhatja.
+Kezdeti visszaélésvédelem: hitelesített userenként 30 init/replay kérés / 60s, legfeljebb 4096 élő limiter-bejegyzéssel. Telített limitertábla vagy túllépés 429. Ez folyamatonkénti, újrainduláskor törlődő védelem, nem elosztott kvóta; a tartós bájtfoglalást a DB külön garantálja. A confirm már használható a sikeres PUT után.
+
+## Confirm és cleanup implementáció – 2026-10-24
+
+A `POST /api/v1/files/{fileId}/confirm` az Origin → aktuális cookie/session → bodyless/rate guard → UUID → ownership sorrendet követi. Nem igényel JSON Content-Type-ot vagy Idempotency-Key-t. Üres POST támogatott; minden pozitív Content-Length, Transfer-Encoding és parsed body (az üres JSON objektum is) 400. A kezdeti limiter 60 kérés/user/perc, legfeljebb 4096 élő bejegyzéssel, folyamatonként. Siker és ACTIVE replay egyaránt explicit 200, no-store.
+
+A service előbb zároltan ellenőrzi az owner/állapot/határidőt, majd SQL-záron kívül HEAD és ETag-hez kötött, maximum 16 bájtos prefixolvasás történik. A MIME-ot a szignatúra és a konfiguráció alapján ellenőrzi; a provider Content-Type-ja nem bizonyíték. A végső User → FileObject → UploadOperation tranzakció újraellenőrzi a friss állapotot és a változatlan méret/MIME/key/művelet/deadline adatokat. Egyetlen commit aktivál, FINALIZED-re zár, reservedből used-ba könyvel és `UPLOAD_CONFIRMED` auditot ír. Nincs automatikus processorindítás. ACTIVE replay receipt nélkül is működik, storage-I/O és új audit nélkül.
+
+Szignatúra-/mérethiba tartós REJECTED 413/422, átmeneti HEAD/range hiba 503 és OPEN marad. Hiányzó objektum határidő előtt 409. A provider-I/O vagy az utolsó DB-írás alatt elért határidőnél a frissebb terminális állapot dönt; a még nyitott művelet EXPIRED 410-re zár. SQL-rollback és új ellenőrzés akadályozza meg a késői aktiválást/hibakódot.
+
+A cleanup belső worker, nincs nyilvános cleanup-végpont. Percenként legfeljebb 50 esedékes pending műveletet vizsgál, egy folyamatban átfedés nélkül. Az OPEN lejár, a REJECTED ok változatlan. Hiányzó/jövőbeli `writesClosedAt` esetén **nincs HEAD vagy DELETE**, a reservation és objektum megmarad; `cleanupLastErrorCode = WRITE_CLOSURE_UNPROVEN`, kezdetben 60s, duplázódó, maximum 1h retry-idő kerül mentésre. A current adapter ezt a bizonyítékot nem állítja elő: URL-lejáratból vagy 404-ből a worker sem gyártja le.
+
+Csak korábban, megbízható backend/storage-tényből rögzített íráslezárás után érhető el a védett delete/absence/egyszeri release ág. A bizonyítékmezőhöz nincs admin/user setter. Az ág unit tesztjei szintetikus bizonyítékot használnak; ez nem valós provider-proof. Aktív/finalizált vagy már released fájl kimarad, objecthiba retry-t és változatlan foglalást jelent. A release tranzakció ismét ellenőrzi a bizonyítékot és az objektumazonosságot, egyetlen lépésben módosítva a reservedet és release-jelzőt. Receipt-pruning és aktív fájl purge nincs. Leállításkor új batch/fájl nem indul, az aktuális fájl próbájának végét megvárja.
+
+Operátori egyköteges futtatás: `npm run uploads:cleanup`, aggregált számlálókkal. A jelenlegi proof nélküli pendingeknél a blocked kimenet elvárt, nem sikeres fizikai takarítás.

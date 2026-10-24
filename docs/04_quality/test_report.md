@@ -1,5 +1,34 @@
 # Test report
 
+## Confirm és őrzött cleanup – 2026-10-24
+
+Verzió: `feature/upload-confirm-cleanup`, a merge-elt initet tartalmazó `38cbd80` main után. Környezet: WSL Bash, Linux Node 22.23.2/npm 10.9.8, Prisma 7.10.1, PostgreSQL 17.9, Docker Linux engine 26.1.1 és a repóban rögzített MinIO-forrásbuild. Nincs új dependency, séma/migráció, frontend vagy integration/e2e suite.
+
+**Automatikus ellenőrzés:** `npm test` PASS: 429 backend (12 suite) + 105 frontend (5 fájl) + 2 container-helper = **536 unit eset**. Az új confirm/cleanup/signature/guard/worker esetek száma 72. Workspace typecheck/build és Prisma-generálás PASS. A buildelt egyköteges cleanup CLI valódi AppModule-lal sikeresen lefutott: selected/released/blocked/retry/skip/failed mind 0, nem volt esedékes pending rekord a kontrollált fixture-ek eltávolítása után. A proof-függő release ág csak szintetikus, megbízható proof-fixture-rel unit tesztelt; **nem valós provider-bizonyíték és nem aktív produkciós képesség**.
+
+**Helyi HTTP/DB/MinIO-próba:** az aktuális buildből valódi AppModule/NestFactory, request-ID middleware és globális filter indult véletlen loopback porton. Két szintetikus `.invalid` fiók, 2000 bájtos kvótával; véletlen UUID-k, memóriában tartott session-cookie-k és egy 68 bájtos 1×1 PNG volt a bemenet. A kliens tényleges presigned Blob PUT-ot küldött a privát MinIO-ba. A válaszok/tokenek/URL-ek nem kerültek logba vagy fájlba.
+
+| Lépések | Elvárt és tényleges eredmény |
+|---|---|
+| Hiányzó Origin/session, hibás UUID, JSON body | PASS: 403/401/400/400 |
+| Idegen és hiányzó fileId | PASS: mindkettő FILE_NOT_FOUND 404, nincs ownership-szivárgás |
+| Confirm a PUT előtt | PASS: UPLOAD_NOT_READY 409, OPEN/foglalás megmarad |
+| Valódi PNG PUT, majd hat egyidejű confirm | PASS: mind 200 ACTIVE, pontosan egy 68 bájtos reserved→used átvezetés és egy UPLOAD_CONFIRMED audit |
+| Ismételt ACTIVE confirm | PASS: 200, nincs új könyvelés/audit |
+| PNG-ként deklarált, azonos méretű ismeretlen tartalom | PASS: tartós 422 REJECTED, ismételve ugyanaz; foglalás megmarad |
+| Cleanup a REJECTED műveletre proof nélkül | PASS: blocked, WRITE_CLOSURE_UNPROVEN és retry-idő; az objektum HEAD-del még jelen, reserved változatlan, writesClosedAt/release null |
+| Szintetikus, már lejárt OPEN fixture | PASS: confirm 410 EXPIRED; cleanup blocked; az 1 bájtos foglalás megmarad |
+| Kontrollált range-read hiba, majd egészséges retry | PASS: 503 UPLOAD_VERIFICATION_UNAVAILABLE és OPEN, majd sikeres 200 |
+| Kontrollált audit-create hiba a valódi tranzakció utolsó lépésénél | PASS: 503 DATABASE_UNAVAILABLE; file PENDING/receipt OPEN és mindkét számláló változatlan; normál HTTP retry sikeres |
+
+A reprodukció: működő helyi PostgreSQL/MinIO, alkalmazott commitolt migrációk és backend build mellett indítsd az API-t, két saját szintetikus userrel. Az API-szerződés szerinti initből kapott URL-re küldj Blob PUT-ot, majd body nélküli confirmot. Párhuzamossághoz hat egyidejű HTTP-kérés kell; a DB-ben ownerhez kötve ellenőrizd a FileObject/UploadOperation/User és audit darabszámot/állapotot. A hibás tartalom ugyanolyan hosszú, signature nélküli bájtsorozat. Az expiry-eset kizárólag saját fixture-en, konzisztens múltbeli t0/+5/+15 perces időkkel készült. A provider-/audit-hibák csak az ideiglenes harness saját service-példányába injektálva futottak. A harness nincs bekötve a unit/CI suite-ba. Végül minden ismert PUT befejeződését megvárva csak a saját szintetikus objektumok, sorok és auditok törlődtek; alkalmazásadat/volume nem. Ez a kontrollált fixture-takarítás nem általános cleanup-proof.
+
+**Késleltetett PUT kísérlet:** külön véletlen objektumkulcson 2 másodperces presigned joggal indult HTTP PUT. A kliens az első 4 PNG-bájtot elküldte, majd 3 másodpercet várt; az URL lejárta után HEAD és DELETE indult. Egy másodperc múlva mindkettő még várt. A PUT maradékának elküldése után a PUT **200** lett; HEAD jelenlétet látott, DELETE sikerült, a végső objektum hiányzott. Következtetés: a lejárat nem zárja le a már elfogadott PUT-ot. A megfigyelt MinIO-zárolás egyetlen ismert kérésnél nem bizonyítja az összes lehetséges in-flight írás végét; ebből sem készült writesClosedAt. A próba csak saját kulcsot érintett és végül takarított.
+
+**Review-javítások:** a REJECTED végső írásánál is ellenőrizni kell a közben elért határidőt: rollback után külön zárolt körben EXPIRED az eredmény. A success-ágnál ugyanilyen végső deadline és rollback védi a könyvelést. A mock SQL-tranzakció fixture ezért snapshotból visszaállítja a hibás callback módosításait; ez nem helyettesíti a fenti valós rollback-próbát. Leállításkor a worker AbortSignal-lel megszünteti a batch további elemeit, az aktuális fájl próbáját megvárja. Mindkettő új unit regresszióval ellenőrzött.
+
+**Nyitott kapu:** a jelenlegi adapter nem állít elő megbízható íráslezárási bizonyítékot, ezért valós automatikus fizikai pending-delete/reservation-release még **blokkolt**. A cleanup őrzött mechanizmusa és retry-ja kész, a teljes 5. pont fizikai felszabadítási feltétele nincs lezárva. Receipt-pruning, aktív purge, browser-flow és teljes képintegritás/processor továbbra is külön feladat.
+
 ## Upload-init backend – 2026-10-24
 
 Verzió: `feature/upload-init`, `6294b6e` main baseline utáni init-szelet; a PR commitjai adják a végleges kódot. Környezet: WSL Bash, Linux Node 22.23.2/npm 10.9.8, Prisma 7.10.1, meglévő helyi PostgreSQL 17.9 és MinIO, Docker Linux engine 26.1.1. Nincs új dependency vagy migráció.
