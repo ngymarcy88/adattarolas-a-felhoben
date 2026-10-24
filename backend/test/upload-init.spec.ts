@@ -225,7 +225,7 @@ describe('Upload init guard and controller', () => {
   it.each([true, false])('returns 201 only for new operations: %s', async (created) => {
     const result = { created, body: { file: { id: fileId }, upload: null } }; const service = { initiate: jest.fn().mockResolvedValue(result) };
     const response = { status: jest.fn(), json: jest.fn() }; response.status.mockReturnValue(response); const request = { user: { id: owner } };
-    await new FilesController(service as unknown as UploadInitService).initiate(request as never, key, input, response as never);
+    await new FilesController(service as unknown as UploadInitService, undefined as never).initiate(request as never, key, input, response as never);
     expect(service.initiate).toHaveBeenCalledWith(owner, key, input); expect(response.status).toHaveBeenCalledWith(created ? 201 : 200); expect(response.json).toHaveBeenCalledWith(result.body);
   });
 });

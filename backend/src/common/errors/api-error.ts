@@ -1,6 +1,9 @@
 import { HttpException } from '@nestjs/common';
 
 const apiErrors = {
+  FILE_NOT_FOUND: { status: 404, message: 'A fájl nem található.' },
+  UPLOAD_NOT_READY: { status: 409, message: 'A fájl még nem érkezett meg a tárolóba.' },
+  UPLOAD_VERIFICATION_UNAVAILABLE: { status: 503, message: 'A feltöltés ellenőrzése átmenetileg nem érhető el.' },
   INVALID_FILE_NAME: { status: 400, message: 'A fájlnév érvénytelen.' },
   UNSUPPORTED_MEDIA_TYPE: { status: 415, message: 'A fájl vagy a kérés tartalomtípusa nem támogatott.' },
   FILE_TOO_LARGE: { status: 413, message: 'A fájl mérete meghaladja a megengedett határt.' },

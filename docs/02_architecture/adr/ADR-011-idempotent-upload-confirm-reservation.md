@@ -1,6 +1,6 @@
 # ADR-011: Idempotent upload confirmation and quota reservation
 
-**Részben implementált: upload-init, tartós dedupe és kvótafoglalás; confirm és cleanup tervezett.**
+**Részben implementált: upload-init, tartós dedupe és kvótafoglalás; confirm és őrzött cleanup implementált, de íráslezárási proof nélkül nincs fizikai release.**
 
 ## Status
 
@@ -12,7 +12,7 @@ Accepted
 
 ## Implementation status
 
-A Core és UploadOperation séma/migráció létezik; a POST files/uploads/init service/végpont implementált user-szintű zárolással, atomikus reservationnel és tartós replay-jel. Init replay a confirm-határon tartós EXPIRED állapotot ír, foglalást nem old fel. Confirm/cleanup, receipt-pruning és import/processor továbbra is terv.
+A Core és UploadOperation séma/migráció létezik; a POST files/uploads/init service/végpont implementált user-szintű zárolással, atomikus reservationnel és tartós replay-jel. Init replay a confirm-határon tartós EXPIRED állapotot ír, foglalást nem old fel. A confirm és őrzött cleanup is implementált; a fizikai release provider-proofja, receipt-pruning és import/processor továbbra is nyitott.
 
 ## Context
 
@@ -59,7 +59,7 @@ A korábbi object-not-found/delete utáni release szabály **szükséges, de nem
 
 ## Első upload-adatmodell döntése – 2026-10-23
 
-A [részletes szerződés](../../03_design/data_model.md#első-képfeltöltés-adatmodell-szerződése--2026-10-23) egy UploadOperation companion rekordot választ; a séma/migráció implementált, az alkalmazási műveletek még tervezettek. A fájl életciklusa és a feltöltési művelet OPEN/FINALIZED/REJECTED/EXPIRED állapota külön marad. A normalizált payload verziózott fingerprintje, unique owner+init-kulcs és owner/file FK köti a retry-t ugyanahhoz a fájlhoz. A foglalás élő, amíg OPEN, vagy sikertelenül lezárt és release-ideje null; a PENDING_UPLOAD státusz önmagában nem bájtelszámolás.
+A [részletes szerződés](../../03_design/data_model.md#első-képfeltöltés-adatmodell-szerződése--2026-10-23) egy UploadOperation companion rekordot választ; a séma/migráció implementált, az init/confirm implementált, a fizikai cleanup/release továbbra is bizonyítási kapu mögött marad. A fájl életciklusa és a feltöltési művelet OPEN/FINALIZED/REJECTED/EXPIRED állapota külön marad. A normalizált payload verziózott fingerprintje, unique owner+init-kulcs és owner/file FK köti a retry-t ugyanahhoz a fájlhoz. A foglalás élő, amíg OPEN, vagy sikertelenül lezárt és release-ideje null; a PENDING_UPLOAD státusz önmagában nem bájtelszámolás.
 
 A sikeres confirm és a hibás/lejárt lezárás kölcsönösen kizáró, végleges átmenet. A cleanup a terminális hiba után futhat; a release-jelző és a reserved-levonás egy commit, ezért ismételt delete/cleanup nem számol kétszer. Külön queue/lease/foglalástábla nem kell ehhez a szelethez. A tranzakciók user→file→operation zárolási rendet követnek, storage I/O nem fut SQL-zár alatt.
 
@@ -68,3 +68,7 @@ A receipt legalább 24 óráig, ezen túl is minden nyitott írás/foglalás lez
 Alternatívák: minden mező FileObjectre tétele összekeverné a fájl- és a műveletmegőrzést; csak folyamatmemóriás dedupe nem él túl restartot; új CLEANING állapot és worker lease a terminális, idempotens cleanuphoz most indokolatlan többlet. A választott companion tábla kis séma-/tranzakciós többletért cserébe külön receipt-életciklust ad. Ellenőrzés: állapotmátrix, dupla init/confirm/release és crash-esetek review-ja; majd külön implementációs unit és tényleges provider/DB-bizonyíték. Ez a döntés csak dokumentált, nincs séma- vagy runtime-változás.
 
 Az init presignje DB-záron kívül fut, de minden válasz tranzakciós állapot-/deadline-újraellenőrzés után adható ki. A 3s lock_timeout / 4s statement_timeout lokális tranzakciós beállítás; 5s Prisma transaction timeout mellett a feloldhatatlan konkurencia biztonságos 503. Valós párhuzamos és rollback-bizonyíték a tesztriportban. A writesClosedAt kapu változatlanul nyitott, nincs automatikus release.
+
+A confirm 2026-10-24-én implementált: provider-I/O a DB-zárakon kívül, majd User→FileObject→UploadOperation újraellenőrzés, ACTIVE/FINALIZED és reserved→used + egyetlen audit egy tranzakcióban. A cleanup OPEN-t lejárttá tesz, de writesClosedAt nélkül sem objektumot, sem számlálót nem érint, csak retry-metaadatot ment. A proof-függő delete/HEAD/release út kizárólag szintetikus proof-fixture-rel unit tesztelt; a jelenlegi adapterrel ténylegesen blokkolt. A single-PUT íráslezárási kapu nem oldódott meg ettől az implementációtól.
+
+A jövőbeli provider-proofnak a bucket verziózását is rendeznie kell: ez a modell az eredeti, nem verziózott helyi bucketre épül. Verziózott S3 bucketben egy egyszerű DeleteObject/HEAD404 nem igazolja a korábbi verziók fizikai eltűnését; ilyen targetre nincs verzióérzékeny cleanup implementálva. A jelenlegi proof nélküli worker erre sem ad release-jogot.

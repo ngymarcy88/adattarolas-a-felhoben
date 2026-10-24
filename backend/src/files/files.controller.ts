@@ -1,4 +1,6 @@
-import { Body, Controller, Header, Headers, Post, Res, Req, UseGuards } from '@nestjs/common';
+import { UploadConfirmService } from './upload-confirm.service';
+import { FileIdPipe, UploadConfirmGuard } from './upload-confirm.guard';
+import { Body, Param, Controller, Header, Headers, Post, Res, Req, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { OriginGuard } from '../auth/origin.guard';
 import { SessionGuard, type AuthenticatedRequest } from '../auth/session.guard';
@@ -8,7 +10,14 @@ import { UploadInitService } from './upload-init.service';
 
 @Controller('files')
 export class FilesController {
-  constructor(private readonly uploads: UploadInitService) {}
+  constructor(private readonly uploads: UploadInitService, private readonly confirmation: UploadConfirmService) {}
+  @Post(':fileId/confirm')
+  @Header('Cache-Control', 'no-store')
+  @UseGuards(OriginGuard, SessionGuard, UploadConfirmGuard)
+  async confirm(@Req() request: AuthenticatedRequest & { requestId?: string }, @Param('fileId', FileIdPipe) id: string, @Res() response: Response) {
+    response.status(200).json(await this.confirmation.confirm(request.user.id, id, request.requestId));
+  }
+
   @Post('uploads/init')
   @Header('Cache-Control', 'no-store')
   @UseGuards(OriginGuard, SessionGuard, UploadInitGuard)

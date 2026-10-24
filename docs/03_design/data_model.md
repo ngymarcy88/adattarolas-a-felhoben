@@ -1,6 +1,6 @@
 # Adatmodell
 
-**A Core adatbázis és az első upload UploadOperation-sémája/migrációja implementált; az init implementált, a confirm és cleanup még tervezett.**
+**A Core adatbázis és az első upload UploadOperation-sémája/migrációja implementált; az init és confirm implementált, a cleanup fizikai release-ága íráslezárási bizonyítékra vár.**
 
 A kezdeti [Prisma-séma](../../backend/prisma/schema.prisma) és [SQL migráció](../../backend/prisma/migrations/20261018000100_initial_core/migration.sql) létrehozza a `User`, `FileObject`, `ShareLink`, `AuditEvent` modelleket. Az auth API már implementált; a séma önmagában nem jelent működő upload/sharing/lifecycle API-t. Az alábbi táblák az alapmezők mellett későbbi mezőket és opcionális MI-t is terveznek; az implementált határ az alábbi külön szakaszban szerepel. A migráció tényleges futtatási eredménye a [tesztriport](../04_quality/test_report.md) része.
 
@@ -17,7 +17,7 @@ A kezdeti [Prisma-séma](../../backend/prisma/schema.prisma) és [SQL migráció
 
 ## Első képfeltöltés adatmodell-szerződése – 2026-10-23
 
-Az [API Upload szerződését](api.md#upload--első-képfeltöltési-szelet-tervezett) kiszolgáló **implementált séma**, [új SQL-migrációval](../../backend/prisma/migrations/20261023000100_upload_operations/migration.sql). A kezdeti migráció változatlan maradt; az alábbi `UploadOperation` entitás és enumok létrejöttek. Az init új fájl/receipt/foglalás tranzakciója és replay-je implementált; a confirm, cleanup és receipt-karbantartás továbbra is tervezett. Ez az egyképes single-PUT baseline adatmodellje; nem import/session-, processor/job- vagy derived-object modell.
+Az [API Upload szerződését](api.md#upload--első-képfeltöltési-szelet-tervezett) kiszolgáló **implementált séma**, [új SQL-migrációval](../../backend/prisma/migrations/20261023000100_upload_operations/migration.sql). A kezdeti migráció változatlan maradt; az alábbi `UploadOperation` entitás és enumok létrejöttek. Az init új fájl/receipt/foglalás tranzakciója és replay-je implementált; a confirm és az őrzött cleanup is implementált; tényleges íráslezárási proof és receipt-karbantartás továbbra sincs. Ez az egyképes single-PUT baseline adatmodellje; nem import/session-, processor/job- vagy derived-object modell.
 
 ### Fájl és feltöltési művelet szétválasztása
 
@@ -60,7 +60,7 @@ A fingerprint képzése: a már validált és normalizált `(originalName, mimeT
 
 ### Tranzakciók és versengő kérések
 
-Az összes érintett user/fájl/művelet-írás azonos zárolási sorrendet követjen: **User → FileObject → UploadOperation**. Initkor a user zárolása után kereshető a tulajdonos dedupe-kulcsa; a user-szintű szerializálás megakadályozza az azonos owner két initjének és számlálóváltozásainak versenyét. Az init Prisma-tranzakciójának paraméterezett SELECT FOR UPDATE zárolása implementált; a többi állapotváltás még tervezett. Puszta előzetes SELECT nem helyettesíti az atomikus tranzakciót. Storage I/O alatt nem tartunk DB-zárat.
+Az összes érintett user/fájl/művelet-írás azonos zárolási sorrendet követjen: **User → FileObject → UploadOperation**. Initkor a user zárolása után kereshető a tulajdonos dedupe-kulcsa; a user-szintű szerializálás megakadályozza az azonos owner két initjének és számlálóváltozásainak versenyét. Az init Prisma-tranzakciójának paraméterezett SELECT FOR UPDATE zárolása implementált; a confirm és cleanup is ezt a sorrendet alkalmazza. Puszta előzetes SELECT nem helyettesíti az atomikus tranzakciót. Storage I/O alatt nem tartunk DB-zárat.
 
 1. **Új init:** validáció/fingerprint és a még ki nem adott presign előkészítése után a tranzakció a user zárolásával ellenőrzi a dedupe-kulcsot. Ha nincs receipt, ellenőrzi `used + reserved + size <= limit`, és együtt menti a pending fájlt, OPEN műveletet, fix határidőket, `replayUntil` értéket és a reserved-növelést. Sikeres commit előtt PUT-jog nem adható ki. Rollback esetén egyik sem marad; elutasított, nem commitolt kérés kulcsa nem foglalt. Bizonytalan commitnál ugyanaz a kulcs oldja fel az eredményt.
 2. **Init replay:** a megőrzött saját receipt fingerprint-eltérése 409 IDEMPOTENCY_CONFLICT, változtatás nélkül. Egyezésnél ugyanaz a fileId, payload-azonosság és foglalás; nincs új határidő vagy t0. OPEN és élő URL esetén legfeljebb az eredeti abszolút lejáratig újraaláírható; lejárt URL mellett csak `upload: null`. Terminális receiptből stabil eredmény/hiba jön; FINALIZED esetén az aktuális fájl állapota dönt (ACTIVE 200, SOFT_DELETED 409). Más owner kulcsa külön névtér, nem szivárog ki.
@@ -90,7 +90,7 @@ Példa: `limit=1000`, `used=200`, `reserved=100`, új kép 300 bájt → init ut
 
 A SQL CHECK-ek NULL-biztos állapot/hibakód/release párokat, UUIDv4-et, fingerprint-alakot, legalább 24 órás receiptet, véges időpontokat és időrendet védenek. Nem garantálják a rekordok közötti állapot-/számlálóegyezést, az immutabilitást vagy az átmenetek sorrendjét; ez továbbra is a következő service és tesztjeinek feladata. A nullable `writesClosedAt` mezőt a migráció nem tölti ki, és nem bizonyít storage-íráslezárást.
 
-**Következő kapu:** confirm és cleanup backend implementáció. Confirm/release előtt a storage-íráslezárási bizonyítási feltétel továbbra is rendezendő. Import-/transfer-session, processor/job/result, thumbnail és derived quota továbbra is másik szerződésfeladat.
+**Nyitott kapu:** a cleanup/release előtti storage-íráslezárási bizonyíték. A confirm másik feltétele, az immutable create-only objektum és HEAD/range egyezése implementált és külön ellenőrzött; a confirmnak nem kell az összes régi PUT befejeződését feltételeznie, amíg nem törli az objektumot. Import-/transfer-session, processor/job/result, thumbnail és derived quota továbbra is másik szerződésfeladat.
 
 ## Modellezési határ
 
@@ -236,7 +236,7 @@ Az utolsó feltételt az upload init tranzakciójának versengő kéréseknél i
 | `uploadUrlExpiresAt` | timestamp | Core MVP | A kiadott PUT URL tervezett, alapértelmezetten 5 perces lejárata |
 | `confirmBy` | timestamp | Core MVP | Init után 15 perc: 5 perces upload URL és további 10 perces confirm-grace vége |
 | `cleanupRetryAfter` | nullable timestamp | Core MVP | Invalid/abandoned cleanup következő lehetséges próbája |
-| `cleanupAttemptCount` | integer, default 0 | Core MVP | Operációs retry-számláló; backoff technológia nincs kiválasztva |
+| `cleanupAttemptCount` | integer, default 0 | Core MVP | Operációs retry-számláló; 60s-ról induló duplázódó backoff, maximum 1h |
 | `cleanupLastErrorCode` | nullable string | Core MVP | Biztonságos, belső hibakategória, providerüzenet vagy URL nélkül |
 | `deletedAt` | nullable timestamp | Core MVP | Soft delete időpontja |
 | `purgeAfter` | nullable timestamp | Core MVP | Restore-jogosultság vége, `deletedAt + 30 nap` |
@@ -253,7 +253,7 @@ Tervezett `FileStatus`:
 - `PURGE_FAILED`: `Later` állapot, ha a retention purge object delete lépése hibázott.
 - `PURGED`: nem kötelezően perzisztált rekordállapot, hanem terminális audit/domain esemény; a későbbi stratégia a rekord törlését vagy minimális tombstone-ját választhatja.
 
-Invalid és abandoned upload cleanup-hibánál a fájl `PENDING_UPLOAD` marad, élő foglalással és retry metadata-val; a terminális REJECTED/EXPIRED ok külön, az UploadOperationben van. Sikeres release után a pending metadata a receipt-megőrzés végéig megmaradhat, már foglalás nélkül. Új FileStatus vagy queue nincs; az új művelet-enum csak a fent jelölt tervezett modell része.
+Invalid és abandoned upload cleanup-hibánál a fájl `PENDING_UPLOAD` marad, élő foglalással és retry metadata-val; a terminális REJECTED/EXPIRED ok külön, az UploadOperationben van. Sikeres release után a pending metadata a receipt-megőrzés végéig megmaradhat, már foglalás nélkül. Új FileStatus vagy queue nincs; a művelet-enum a fent részletezett implementált séma része.
 
 ### `ShareLink`
 
@@ -399,3 +399,5 @@ A Core MVP pontos allowlistje: `image/jpeg`, `image/png`, `image/webp`, `image/g
 - Share-link nem fér hozzá nem aktív fájlhoz.
 - A felhasználói fiók végleges törlése és a relációk cascade/restrict policyja nincs a Core MVP scope-ban; bevezetése előtt privacy és lifecycle döntés szükséges.
 - Audit- és MI-javaslat-retention konkrét időtartama implementáció előtti privacy döntés; addig production adatkezelés nem indítható.
+
+A cleanup worker most már tartósan EXPIRED-re zár és proof hiányában WRITE_CLOSURE_UNPROVEN/backoff metaadatot ment. Nem tölti ki a writesClosedAt-ot. A confirmed upload egyetlen tranzakciója a FileObject/UploadOperation/User mellett egy UPLOAD_CONFIRMED auditot is ír; ismételt confirm nem ír új eseményt. A state-CHECK-ek és a séma változatlanok, új migráció nem szükséges.

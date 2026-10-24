@@ -95,3 +95,7 @@ Minden incidensnél:
 ## Runbook érettségi kapu
 
 Egy scenario csak akkor jelölhető kipróbáltnak, ha létezik futó környezet, konkrét végrehajtási evidence, dátum, eredmény és utóellenőrzés. Jelenleg minden scenario planned.
+
+## Pending upload cleanup blokkolva
+
+A `WRITE_CLOSURE_UNPROVEN` azt jelenti, hogy az objektum és reservation szándékosan megmaradt: a worker nem tudja bizonyítani az összes kiadott PUT végét. Az URL lejárata vagy HEAD404 nem oldja fel. A `npm run uploads:cleanup` legfeljebb 50 jelöltet dolgoz fel, aggregált eredménnyel; korai retry a retryAfter-ig kimarad, a következő próbák maximum 1 órás backoffra kerülnek. Ne nullázd a reservedet, ne tölts ki proof-időpontot és ne törölj volume-ot. A provider/protokoll bizonyítási kapuját kell megoldani; receipt-pruning és aktív fájl purge továbbra is külön feladat. Storage-/DB-hibánál az objektum/marker és könyvelés részállapotából idempotens retry következik, nem kézi dupla decrement.

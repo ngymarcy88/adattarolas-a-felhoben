@@ -1011,3 +1011,5 @@ Do not spawn subagents for small, simple edits such as typo fixes or a single sm
 Because subagents consume more tokens, use them when the expected quality gain is worth the cost.
 
 The optional `npm run storage:verify` builds the backend and explicitly probes a running local MinIO using synthetic random objects, then removes only those probe objects. It is outside unit tests/CI; requires root `.env`, installed dependencies and initialized MinIO. Never treat its HTTP CORS probe as browser evidence or object deletion as proof of in-flight write closure. `S3_PUBLIC_ENDPOINT` is the browser-accessible signing origin; Compose keeps internal `S3_ENDPOINT` separate.
+
+`npm run uploads:cleanup` generates Prisma Client, builds the backend and runs one bounded cleanup batch against the configured local services. It prints aggregate counts only. The app also runs a 60-second, non-overlapping worker (50 files/batch); shutdown stops before the next candidate. With the current adapter, missing write-closure proof means blocked/retry, retaining objects and reservations. Never set writesClosedAt from URL expiry/HEAD404 or manually bypass the proof gate.

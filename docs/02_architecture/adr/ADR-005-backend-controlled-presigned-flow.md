@@ -10,7 +10,7 @@ Accepted
 
 ## Implementation status
 
-A belső storage adapter implementált; upload/download API-végpont továbbra is tervezett. Az adapter nem végez authorizationt, DB-állapotváltást vagy kvótakönyvelést.
+A belső storage adapter implementált; az upload-init/confirm API implementált, a read/download endpoint még tervezett. Az adapter nem végez authorizationt, DB-állapotváltást vagy kvótakönyvelést.
 
 ## Context
 
@@ -70,3 +70,5 @@ A HEAD 404 után külön bucketellenőrzés előzi meg az objektumhiány kimond�
 A DeleteObject csak fizikai művelet. Az adapter `writeClosureEvidence = 'unproven'` jelzése szándékos: sem a törlés, sem a 404, sem a presign lejárata nem bizonyítja a már elindított írások befejeződését. `writesClosedAt` nem állítható ezekből; automatikus reservation-release nem implementált. A késői PUT/cleanup kapu továbbra is nyitott, ezért teljes upload-életciklus késznek nem tekinthető.
 
 Provider-próba: `npm run storage:verify`, [eredmények és korlátok](../../04_quality/test_report.md). Elsődleges háttér: [AWS conditional writes](https://docs.aws.amazon.com/AmazonS3/latest/userguide/conditional-writes.html), [presigned URL érvényesség](https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-presigned-url.html), [HEAD hiba-szemantika](https://docs.aws.amazon.com/AmazonS3/latest/API/API_HeadObject.html). Más S3 providerre a kompatibilitást külön ellenőrizni kell.
+
+Az init→PUT→confirm backend-adatút implementált; sikeres confirm nem követel cleanup-quiescence-t, mert az aktív objektumot nem törli, és a régi create-only PUT nem írhatja felül. A quiescence külön törlési/release kapu, jelenleg nincs igazolva. A worker ezért csak a lejárati és retry-kezelést teljesíti ténylegesen; writesClosedAt nélkül nincs delete vagy reservation-release.

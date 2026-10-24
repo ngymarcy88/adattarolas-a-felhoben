@@ -10,7 +10,7 @@ Accepted
 
 ## Implementation status
 
-A kezdeti számlálómezők és SQL-invariánsok léteznek, upload-könyvelési logika még nincs.
+Az init reserved-foglalása és az idempotens confirm reserved→used könyvelése implementált, user-szintű zárolással. A cleanup release kódja proof-függő: a jelenlegi adapter nem igazolja a writesClosedAt-ot, így valós pending-release továbbra sincs.
 
 ## Context
 
