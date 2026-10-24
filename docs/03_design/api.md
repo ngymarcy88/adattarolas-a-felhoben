@@ -322,6 +322,16 @@ Az init/confirm által használt alábbi hibák implementáltak; a további fáj
 | 503 | `DATABASE_UNAVAILABLE` | Átmeneti DB-/konkurenciahiba; ugyanaz a kulcs/fileId, nem új foglalás. |
 | 500 | `INTERNAL_ERROR` | Ismeretlen hiba, biztonságos generikus válasz és request ID. |
 
+### Implementált első frontend-illesztés – 2026-10-24
+
+A `/app` képfeltöltő panel legfeljebb 20 fájlt, két párhuzamos munkafolyamatot kezel. Fájlonként memóriában megtartott UUIDv4 az init Idempotency-Key; az első sikeres init fileId-ja a confirm azonossága. A kliens pontosan a File méretét/típusát és trim+NFC nevet küldi; a backend validációja marad az irányadó. API fetch: credentials include, no-store, redirect error, 10 másodperces időkorlát a body olvasására is; confirm body és Content-Type nélkül.
+
+A teljes File külön originre menő XHR PUT-tal kerül a kapott URL-re, kizárólag Content-Type/If-None-Match headerekkel, withCredentials=false és 120 másodperces kliens időkorláttal. Content-Length-et a browser állít. A frontenddel azonos storage origin tiltott: XHR ott withCredentials=false esetén is használna same-origin cookie-kat ([XHR standard](https://xhr.spec.whatwg.org/#the-withcredentials-attribute)). Az upload progress nem storage- vagy alkalmazásoldali sikerbizonyíték ([XHR upload](https://xhr.spec.whatwg.org/#the-upload-attribute)); csak ACTIVE confirm után kész a sor. Nyers XML/providertext, URL és credential nem jelenik meg/logolódik; File/capability nincs tartós browser-storage-ban.
+
+Nincs automatikus újrafoglalás. Bizonytalan init ugyanazzal a kulccsal ismételhető; bármely megkísérelt PUT után előbb confirm következik, ideértve a 412-t és hálózati hibát. Csak UPLOAD_NOT_READY után, élő eredeti joggal indulhat új teljes PUT. Lejárt/null upload mellett is előbb confirm ellenőrzi a korábbi sikert. Az átmeneti hiba kézi retry-t kap növekvő 1–30 másodperces várakozással; 429 legalább 60 másodperc és a CORS-on át olvasható Retry-After szerinti hosszabb várakozás. AUTH_REQUIRED megállítja az új sorok indítását.
+
+A köteg állapota oldalmemória; navigáció után nem állítható vissza, a reservation nem oldódik fel. Ez nem tartós import-szerződés vagy valódi resume. Az API nem kap új batch/resume/renew/cancel végpontot. A felület teljes valós böngészős/DB/storage próbája és a 7. pont tesztriportja még nyitott.
+
 ### Első szelet és a későbbi valódi folytatható import határa
 
 | Első képfeltöltési szerződés | Kötelező későbbi SZD2-kiegészítés |

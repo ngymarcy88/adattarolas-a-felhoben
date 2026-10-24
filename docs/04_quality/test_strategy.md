@@ -150,3 +150,9 @@ Az upload-init külön unit teszteli a DTO/guard/controller mellett a zárolási
 ## Confirm és őrzött cleanup
 
 A signature, confirm-guard, owner-check, friss terminális állapot elsőbbsége, konkurens egyszeri könyvelés/audit, DB-írás alatt elért határidő és rollback, valamint cleanup-proof/backoff/idempotencia külön unit tesztelt. A shared fixture a hibás mock-tranzakció írómódosításait visszagörgeti, de ez nem SQL-bizonyíték. A proof-függő release ág csak szintetikus bizonyítékkal unit tesztelt; valós proofot a provider nem szolgáltat. A valódi MinIO/DB confirm és a késleltetett PUT külön, explicit helyi próba, nem új integration/e2e suite.
+
+## Első képköteg UI unit ellenőrzése
+
+`frontend/tests/upload-api.spec.ts`: credentialed init/bodyless confirm, response/payload/UUID validáció, biztonságos hibakód-whitelist, Retry-After, API-timeout és abort; fake XHR-rel pontos File/headerek, cookie-mentes cross-origin PUT, progress és storage-hibák. `upload-batch.spec.ts`: név/MIME/méret, legfeljebb 20 sor/két worker, elszigetelt hibák, stabil init-kulcs, uncertain PUT → confirm, csak hiánynál élő joggal resend, ACTIVE replay, terminális/átmeneti különbség, munkamenet és dispose. `upload-panel.spec.ts`: izolált Vue SSR template, escape, címkék, üres/progress/confirm/részleges siker/hiba/retry/login és disabled állapotok.
+
+Ezek mockolt unit/template próbák, nem browser-CORS vagy valódi storage-méretkikényszerítési bizonyítékok. A teljes UI → DB/object és screenshot ellenőrzés külön 7. pont. Nem került be integration/e2e runner vagy új dependency.
