@@ -128,6 +128,7 @@ A történeti MVP-0–MVP-7 helyett az alábbi **SZD2-0–SZD2-7** az aktuális 
 **Függőség:** SZD2-1 és az első processor kvóta-/eredményszerződése. **Tanári cél:** október 23.
 
 - [ ] Belépés után kis képköteg indítása, fájlonként azonosítható progress, siker és hiba; egy fájl hibája nem ejti el a többit.
+- [x] Első képköteg UI-kód: `/app`, legfeljebb 20 kép/két párhuzamos átvitel, init → PUT → confirm, fájlonkénti progress/hiba és azonos műveletre retry; unit/template ellenőrzéssel. A teljes kézi browser → DB/storage elfogadás külön 7. pont.
 - [x] Belső MinIO/S3 adapter: presign, HEAD, bounded read és törlés; unit és kézi provider-próba. A késői íráslezárás és valódi böngészős upload még nyitott.
 - [x] Az első upload Prisma-sémája és tranzakciós migrációja: UploadOperation, dedupe/owner FK, NULL-biztos CHECK-ek és biztonságos legacy-preflight.
 - [x] Upload-init backend: Origin/session és DTO, tartós owner+kulcs replay, tranzakciós kvótafoglalás, rövid presigned URL és unit tesztek.

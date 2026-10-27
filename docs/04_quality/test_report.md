@@ -1,5 +1,64 @@
 # Test report
 
+## Szerzői kézi feltöltési próba – visszaigazolva 2026-10-27
+
+**Eredmény: PASS a felületen megfigyelt sikeres feltöltésre, a szerző visszajelzése alapján.** A formátumkorrekció elkészülte után a szerző manuálisan tesztelte a feltöltést, és ezt jelezte: „sikeresen teszteltem a feltoltest”. Ez a korábbi, kizárólag unit/SSR és helyi fájl-előkészítési bizonyítékot pozitív kézi alkalmazáspróbával egészíti ki.
+
+| Jegyzőkönyvi mező | Rögzített adat |
+|---|---|
+| Ellenőrző és bizonyíték | A szakdolgozat szerzője; közvetlen visszajelzés ebben a projektbeszélgetésben. Nem az AI saját böngészős futtatása és nem külső UAT. |
+| Dátum | A visszajelzés dátuma 2026-10-27; külön tesztidőpont nem lett megadva. |
+| Kapcsolódó verzió | Formátumjavítás: `9073970`, [PR #26](https://github.com/ngymarcy88/adattarolas-a-felhoben/pull/26). A ténylegesen tesztelt build/commit külön nem lett megadva; nem állítjuk, hogy már mainre merge-elt verzió. |
+| Környezet | A szerző saját alkalmazáskörnyezete; böngészőverzió és indítási mód nem lett külön rögzítve. |
+| Bemenet és előzmény | Képfeltöltés újrapróbálása a javítás után. Az előző hibajegy két JPEG-tartalmú, PNG-kiterjesztésű fájlra vonatkozott; az új próba pontos fájllistája/darabszáma nincs külön megerősítve. |
+| Lépés, elvárt és tényleges eredmény | A feltöltési felület manuális kipróbálása; elvárt a sikeres feltöltés, ténylegesen a szerző sikeres feltöltést igazolt vissza. Részletes kattintássorozat vagy külön mezőnkénti megfigyelés nem került átadásra. |
+| Képernyőkép | Ehhez a sikeres próbához új képernyőkép nem érkezett; a korábbi kép a javítás előtti hibát mutatja. |
+
+**A 7. pont állapota: részben igazolt.** A pozitív kézi feltöltési út visszaigazolt. A közvetlen PostgreSQL-/MinIO-állapot, tényleges MIME/fájlnév, fájl-/audit-darabszám és pontos tárhelyelszámolás külön ellenőrzése még nincs e próba részeként dokumentálva. Hálózatmegszakítás/retry, ismételt confirm miatti duplikációmentesség, negatív fájlesetek és munkamenet-lejárat kézi próbájáról sem érkezett most eredmény; az ezekre meglévő unit bizonyíték külön szerepel lent. A teljes 7. pont és a cleanup fizikai release-proofja ettől nem zárult le.
+
+## Tartalom alapján javított képformátum – 2026-10-27
+
+Verzió: `fix/detect-upload-image-format`, `63b5331` main baseline és a `8fa3fd2` ágon merge-elt #25 UI átvezetése után. A #25 az előző feature ágba került, ezért a mainhez a UI-függőséget is be kellett emelni. Környezet: WSL Bash, Linux Node 22.23.2/npm 10.9.8, meglévő Jest/Vitest/TypeScript. Nincs új dependency, backend endpoint vagy migráció.
+
+**Unit:** `npm test` PASS: 429 backend + 220 frontend + 2 container helper = **651 eset** (47 új frontend formátum/batch/template regresszió). A kezdeti 218-as frontend futás is PASS volt; a TS-ellenőrzésben a tesztfixture Uint8Array általános ArrayBufferLike típusa DOM BlobPart-hoz túl tág volt, ArrayBuffer-paraméterrel pontosítva. A végleges `npm run typecheck` és `npm run build` mindkét workspace-re PASS. A helyi Markdown-linkek és a tényleges környezeti credentialök repó-/frontendbundle-ellenőrzése is PASS.
+
+| Bemenet/lépés | Elvárt és tényleges eredmény |
+|---|---|
+| JPEG/PNG/GIF87a/GIF89a/WebP VP8/VP8L/VP8X prefix, hiányos/ismeretlen/HTML/SVG/XML fejléc | PASS: négy támogatott MIME, ismeretlen tartalom init nélkül elutasítva |
+| JPEG-bájtok PNG-névvel/browser MIME-mal | PASS: image/jpeg és .jpg név; változatlan bájt/méret/lastModified; eredeti File érintetlen |
+| Érvényes PNG üres vagy hibás browser MIME-mal | PASS: tartalom alapján image/png, megfelelő név |
+| Hiányzó/többszörös/hidden/nagybetűs suffix és 255 kódpontos Unicode név | PASS: típushelyes kiterjesztés, felső határ és Unicode-pár megőrzése |
+| Slice/arrayBuffer spy, név-/mérethiba | PASS: legfeljebb 16 fejlécbájt; nem olvassuk a teljes forrást; lokális név-/mérethibánál fejléc és init sem indul |
+| Ismeretlen init-kimenetel javított metadata után | PASS: ugyanaz a key/payload/File, nem ismételt fejléc-felismerés |
+| Dispose vagy másik worker AUTH_REQUIRED válasza fejléc-olvasás közben | PASS: az olvasás után nem indul init, nincs hamis siker |
+| Korrekciós notice HTML-szerű névvel | PASS: eredeti név + magyarázat, Vue escape |
+
+**Helyi reprodukció az érintett két képpel:** a felhasználó által megadott két `.png` fájl tényleges tartalma JPEG/JFIF, egyenként 120396 bájt. A Vite SSR-rel betöltött valódi `prepareImage` függvény mindkettőt image/jpeg és megfelelő .jpg névvel adta vissza. A visszaadott teljes bájtsor `assert.deepEqual` szerint egyezett a forrással. Ez hálózat/DB/object-storage nélküli célzott regresszió: a képek csak helyben lettek olvasva, nem módosultak, nem kerültek a repóba vagy CI-fixture-be, és feltöltés nem történt. Reprodukció: az adott fájlt File-ként PNG MIME-mal átadni a prepareImage-nak, ellenőrizni a JPEG MIME-ot, .jpg suffixet és teljes byteazonosságot.
+
+**Review/korlát:** a független review az új async header-read mellett egy session-race-et jelzett; init előtt új authRequired ellenőrzés és külön regresszió készült. A backend signature/MIME egyezést továbbra is szigorúan ellenőrzi, frontend-korrekcióval sem kerülhető meg. Magic number nem teljes dekódolás vagy sértetlenségi bizonyíték. A letöltési végpont és a 7. pont teljes böngészős/DB/MinIO tesztje továbbra is külön feladat; a helyes név most display/download metaadatként tárolható. A cleanup-proof és régi REJECTED foglalások kezelése nem változott.
+
+## Első képköteg-felület – 2026-10-24
+
+Verzió: `feature/batch-upload-ui`, a `893bd0c` confirm/cleanup commitra építve (függőség: PR #24). Környezet: WSL Bash, Linux Node 22.23.2/npm 10.9.8, meglévő workspace dependencyk, Vitest Node-környezet és Vue SSR template render. Nincs új dependency, adatmodell/migráció, backend endpoint vagy integration/e2e suite.
+
+**Unit eredmény:** 429 backend + 173 frontend + 2 container helper = **604 sikeres eset**; 68 új frontend eset. A frontend kezdeti fixture-jét javítani kellett: a File konstruktor USVString-ként helyettesíti a pár nélküli surrogate-et, ezért a hibás Unicode-metaadatot közvetlen szintetikus objektummal ellenőrizzük. A típusellenőrzés két fejlesztés közbeni hibát jelzett (ES2022-ben nem deklarált isWellFormed, felesleges constructor-spy); a megoldás codepoint-alapú regexp, illetve a felesleges spy eltávolítása. A végleges `npm run typecheck` és `npm run build` mindkét workspace-re PASS; a frontend ismételt 173-as tesztfutása is PASS. A lokális Markdown-linkek és a valódi környezeti credentialök repó-/frontendbundle-ellenőrzése PASS.
+
+| Bemenet és lépések | Elvárt és tényleges unit/template eredmény |
+|---|---|
+| Támogatott/nem támogatott MIME, üres/100 MiB/limit+1 méret, Unicode/útvonal/vezérlő fájlnév | PASS: helyi korai hiba; invalid fájl nem indít API-t, érvényes testvér továbbhalad |
+| Több mint 20 fájl, ismételt picker-választás, három jó fájl két elakított PUT-tal | PASS: 20-as limit/dedupe, legfeljebb két aktív folyamat; a harmadik vár, majd elindul |
+| API init/confirm request és szigorú response-ellenőrzés | PASS: include/no-store/redirect error, azonos init-kulcs; confirm body/Content-Type nélkül, csak saját ACTIVE válasz siker |
+| Fake XHR File-küldés és 25%/100% progress | PASS: pontos két header, nincs kézi Content-Length/auth, cross-origin withCredentials=false; 100% után confirm állapot, nem korai siker |
+| Init-timeout, elveszett PUT-válasz/412, átmeneti confirm-hiba | PASS: azonos key/fileId, előbb confirm; csak UPLOAD_NOT_READY és élő eredeti access után teljes resend |
+| Lejárt/null access, ACTIVE init replay | PASS: korábbi siker confirmálható, kész fájl nem kerül újra PUT-ra; nincs credential-megújítás/új kvótafoglalás |
+| 422/410/kvótahiba, 429 és Retry-After, ismeretlen/prototípuskulcs-hibakód | PASS: terminális/átmeneti különbség, biztonságos magyar üzenet, kézi késleltetett retry, nincs nyers provideradat |
+| AUTH_REQUIRED, dispose aktív PUT közben, késői callback | PASS: további queued fájl nem indul, abort, nincs késői progress/siker vagy confirm |
+| Vue SSR: üres picker, átvitel/confirm, siker+hiba, XSS-név, login/disabled | PASS: címkék, progress/status/alert, escape és külön fájlonkénti állapot |
+
+**Független review:** nem talált blokkoló hibát; az error-whitelist `in` vizsgálata helyett Object.hasOwn és külön prototype-key regresszió került be. Az oldalhagyás/foglalásmegtartás és a teljes-file retry korlátja a UI-ban és a README/API/UX dokumentációban is szerepel.
+
+**Böngészős korlát:** a beépített Node/browser-runtime környezeti inicializálási hibával leállt, a fallback Playwrightból hiányzik a Chrome; nem történt sikeres böngészős fájlkiválasztás vagy feltöltés. A tesztek mockolt logikát és SSR HTML-t igazolnak; nem bizonyítják a valódi CORS-t, browser által küldött content-length kikényszerítését vagy az objektum/kvóta tényleges együttműködését. **A 7. pont teljes kézi UI → API → DB/MinIO tesztriportja, képernyőképei és külső UAT továbbra is nyitott.** A jelenlegi cleanup proof-korlátja változatlan.
+
 ## Confirm és őrzött cleanup – 2026-10-24
 
 Verzió: `feature/upload-confirm-cleanup`, a merge-elt initet tartalmazó `38cbd80` main után. Környezet: WSL Bash, Linux Node 22.23.2/npm 10.9.8, Prisma 7.10.1, PostgreSQL 17.9, Docker Linux engine 26.1.1 és a repóban rögzített MinIO-forrásbuild. Nincs új dependency, séma/migráció, frontend vagy integration/e2e suite.

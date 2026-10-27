@@ -1,6 +1,6 @@
 # Fő UX-folyamatok
 
-**Részben implementált: login/logout, védett fiókoldal és backend auth; regisztrációs UI loading/hiba/siker állapotokkal is létezik; az upload és többi termékfolyamat tervezett.**
+**Részben implementált: login/logout, védett fiókoldal és backend auth; regisztrációs UI loading/hiba/siker állapotokkal is létezik; az első képköteg init/PUT/confirm felülete is implementált; a galéria, valódi resume és többi termékfolyamat tervezett.**
 
 ## Közös UX-szabályok
 
@@ -16,6 +16,14 @@
 A publikus kezdőlap „Saját fiók” linkje `/app`-ra vezet. Az alkalmazás munkamenet-ellenőrzési állapotot mutat, fiókadat nélkül, és `GET /auth/me`-t kér. 401 esetén `/login`; a belépés hibáját az űrlap jelzi, jelszóürítéssel és újrapróbálással. Siker után új `/me` ellenőrzés igazolja a szerveroldali állapotot, majd megjelenik a saját név/email és logout. A név szövegként renderelt, nem HTML. A publikus `/register` oldalon név, email, jelszó és megerősítés adható meg. Legalább 15 Unicode-karakter és legfeljebb 1024 UTF-8 bájt a regisztrációs jelszó. Mezőhiba helyben, 409/400/429/kiesés biztonságos üzenettel javítható; pending alatt az inputok és submit tiltottak, státuszüzenet jelenik meg. Siker esetén az űrlap helyén visszajelzés és login link van, auto-login nélkül. Login és regisztráció egymásról és a kezdőlapról is elérhető; nincs személyes adat a navigáció URL-jében.
 
 Hálózati/szerverhiba esetén `/auth-unavailable` oldal jelenik meg „Újrapróbálás” linkkel; ez nem hitelesítési elutasítás. Logout sikertelen kérése hibát hagy a fiókoldalon; csak 204 után navigálunk loginra és ürül a publikus profil memóriája. Minden védett navigáció új szerveres ellenőrzés; nincs tartós kliensoldali login flag vagy token. A tétlen oldal nem pollol/cross-tab szinkronizál, a backend minden kérésnél önállóan véd. E szelet nem galéria, usage vagy teljes UX-01 upload.
+
+## Megvalósított első képköteg-felület – 2026-10-24
+
+A védett `/app` oldalon legfeljebb 20 JPEG/PNG/WebP/GIF választható (100 MiB/fájl, szigorítható szerverlimittel), majd explicit indítás után két párhuzamos worker dolgozik. A fájlsorok állapota: várakozik → előkészítés → feltöltés/progress → ellenőrzés és véglegesítés → siker vagy hiba. Csak a backend ACTIVE eredménye siker; 100% csak átviteli információ. Az összesítő külön mutatja a kész és hibás sorokat. Fájlnév szövegként renderelt; a hiba biztonságos magyar üzenet. Egy hibás fájl mellett a többi dolgozik tovább.
+
+Az átmeneti hiba kézi, 1–30 másodpercig növekvő várakozású retry-t kap; 429 legalább 60 másodperc, elérhető Retry-After esetén annál hosszabb is lehet. Ismeretlen init-kimenetel ugyanazon kulccsal ismétlődik. Ismeretlen PUT-kimenetel és confirm-hiba után előbb az eredeti fileId confirmja történik; teljes újraküldés csak UPLOAD_NOT_READY és élő eredeti PUT-jog esetén. A kész fájl nem indul újra, terminális hiba nem retry-képes. AUTH_REQUIRED után új fájl nem indul és login link látszik. Aktív kérés alatt a kijelentkezés tiltott, folyamatjelzéssel; hibás logout nem tünteti el a helyi köteget.
+
+Ez az első képszelet, nem tartós import. Az állapot csak az oldal memóriájában él, frissítés/navigáció elveszíti. Komponenselhagyás abortálja a klienshívásokat, nem ígér szerveroldali cancel-t vagy kvótafelszabadítást. A UI figyelmeztet a megmaradó reservationre. A storage upload kizárólag másik originre, cookie nélkül történik. Galéria, preview, processor és bájtszintű resume nincs ebben a szeletben. A lenti UX-01 teljes célfolyamata és a böngészős/DB/storage bizonyítás még nyitott.
 
 ## UX-01 – Regisztráció, bejelentkezés és megbízható feltöltés
 
@@ -124,3 +132,7 @@ Hálózati/szerverhiba esetén `/auth-unavailable` oldal jelenik meg „Újrapr�
 - Elutasított javaslat később sem alkalmazható automatikusan.
 
 **Sikeres végállapot:** a felhasználó tudatos döntéssel elfogadta vagy elutasította az opcionális javaslatot; jóváhagyás nélkül nem történt végleges metaadat-változás.
+
+## Hibás kiterjesztés javítása az első képszeletben – 2026-10-27
+
+A kiválasztott kép típusa a tartalom fejlécéből dől el. Az eredeti név a sorban marad; szükség esetén külön szöveg jelzi például: „A felismert formátum JPEG. Feltöltési név: kep.jpg. A képtartalom nem változik.” A feltöltés a javított névvel/típussal megy tovább, átnevezést vagy konvertálást nem kér a felhasználótól. Ismeretlen tartalom vagy nem olvasható fájl helyi hibát kap, a többi fájlt nem állítja le. Ez nem teljes képintegritás-ellenőrzés; a backend az aktiválás előtt önállóan validál.
