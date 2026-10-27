@@ -157,3 +157,9 @@ Belépés után a `/app` oldalon válassz legfeljebb 20 JPEG/PNG/WebP/GIF képet
 A köteg memóriában, egyetlen megnyitott oldalon él; legfeljebb 20 sor, ugyanazon kiválasztott fájl ismételt hozzáadását kihagyja. Frissítés/navigáció után nincs helyi állapot-visszaállítás; a korábbi reservation nem szűnik meg ettől. A futó kéréseket komponenselhagyáskor megszakítjuk, de ez nem bizonyítja a szerver/storage írásainak végét. Nincs cancel endpoint, galéria, processor vagy bájtszintű resume. A teljes kézi UI → DB/storage ellenőrzés a 7. pont feladata.
 
 A storage PUT XHR-rel ad átviteli progress-t, `withCredentials=false` mellett, a frontendtől eltérő storage originre; ugyanazon origint elutasítja, mert ott ez a beállítás nem zárná ki a cookie-t. Az API cookie-s kérései ettől elkülönülnek. Capability/File csak memóriában marad, nem kerül renderelt sorba vagy localStorage-ba.
+
+### Eltérő kiterjesztésű képek kezelése
+
+A feltöltés indításakor a frontend legfeljebb 16 fejlécbájtból ismeri fel a JPEG/PNG/GIF/WebP típust; a böngésző MIME-jelzése és a kiterjesztés nem döntő. Például JPEG-tartalmú `kep.png` automatikusan `kep.jpg` feltöltési nevet és `image/jpeg` típust kap, a sorban magyarázó jelzéssel. A bájtok, méret és a helyi fájl változatlanok; nem történik konvertálás. A helyes `.jpg`/`.jpeg` és más támogatott kiterjesztés megmarad (kis-/nagybetűtől függetlenül). Hiányzó vagy hibás kiterjesztés javítható; az új név legfeljebb 255 Unicode-kódpont.
+
+A név-/méretellenőrzés a fejléc olvasása előtt történik, ismeretlen fejlécnél nincs init/kvótafoglalás. A korrigált metaadat ugyanazon init-kulcs mellett retry során is változatlan. A backend továbbra is saját HEAD/signature ellenőrzést végez és a deklarált/detektált eltérést elutasítja. A felismerés nem teljes képdekódolás. A javított display/download név `originalName`-ként tárolódik; a galéria/letöltési végpont továbbra is külön feladat.

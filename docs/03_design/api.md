@@ -324,7 +324,7 @@ Az init/confirm által használt alábbi hibák implementáltak; a további fáj
 
 ### Implementált első frontend-illesztés – 2026-10-24
 
-A `/app` képfeltöltő panel legfeljebb 20 fájlt, két párhuzamos munkafolyamatot kezel. Fájlonként memóriában megtartott UUIDv4 az init Idempotency-Key; az első sikeres init fileId-ja a confirm azonossága. A kliens pontosan a File méretét/típusát és trim+NFC nevet küldi; a backend validációja marad az irányadó. API fetch: credentials include, no-store, redirect error, 10 másodperces időkorlát a body olvasására is; confirm body és Content-Type nélkül.
+A `/app` képfeltöltő panel legfeljebb 20 fájlt, két párhuzamos munkafolyamatot kezel. Fájlonként memóriában megtartott UUIDv4 az init Idempotency-Key; az első sikeres init fileId-ja a confirm azonossága. A kliens a változatlan File méretét, a legfeljebb 16 fejlécbájtból felismert MIME-t és az ehhez illesztett trim+NFC feltöltési nevet küldi; a backend validációja marad az irányadó. API fetch: credentials include, no-store, redirect error, 10 másodperces időkorlát a body olvasására is; confirm body és Content-Type nélkül.
 
 A teljes File külön originre menő XHR PUT-tal kerül a kapott URL-re, kizárólag Content-Type/If-None-Match headerekkel, withCredentials=false és 120 másodperces kliens időkorláttal. Content-Length-et a browser állít. A frontenddel azonos storage origin tiltott: XHR ott withCredentials=false esetén is használna same-origin cookie-kat ([XHR standard](https://xhr.spec.whatwg.org/#the-withcredentials-attribute)). Az upload progress nem storage- vagy alkalmazásoldali sikerbizonyíték ([XHR upload](https://xhr.spec.whatwg.org/#the-upload-attribute)); csak ACTIVE confirm után kész a sor. Nyers XML/providertext, URL és credential nem jelenik meg/logolódik; File/capability nincs tartós browser-storage-ban.
 
@@ -525,3 +525,11 @@ A cleanup belső worker, nincs nyilvános cleanup-végpont. Percenként legfelje
 Csak korábban, megbízható backend/storage-tényből rögzített íráslezárás után érhető el a védett delete/absence/egyszeri release ág. A bizonyítékmezőhöz nincs admin/user setter. Az ág unit tesztjei szintetikus bizonyítékot használnak; ez nem valós provider-proof. Aktív/finalizált vagy már released fájl kimarad, objecthiba retry-t és változatlan foglalást jelent. A release tranzakció ismét ellenőrzi a bizonyítékot és az objektumazonosságot, egyetlen lépésben módosítva a reservedet és release-jelzőt. Receipt-pruning és aktív fájl purge nincs. Leállításkor új batch/fájl nem indul, az aktuális fájl próbájának végét megvárja.
 
 Operátori egyköteges futtatás: `npm run uploads:cleanup`, aggregált számlálókkal. A jelenlegi proof nélküli pendingeknél a blocked kimenet elvárt, nem sikeres fizikai takarítás.
+
+## Kliensoldali formátumkorrekció – 2026-10-27
+
+Az init HTTP-szerződése változatlan. A frontend név/méret után, init előtt csak az első 16 bájtot olvassa, az ADR-008 négy szűk signature-jével egyező osztályozással. A browser MIME üres/hibás értéke és az eltérő kiterjesztés nem elutasítási ok, ha a fejléc támogatott képet jelez. JPEG esetén `.jpg`/`.jpeg`, más típusnál a saját kiterjesztése marad; eltérő/hiányzó suffix kanonikus `.jpg`/`.png`/`.gif`/`.webp` lesz. A stem szükség esetén Unicode-kódpontok mentén rövidül a 255-ös névhatárig. A korábbi veszélyesnév-validáció nincs megkerülve.
+
+A File új név/MIME-metaadatot kap változatlan bájtokkal/mérettel/lastModified-dal; az eredeti kliensfájl érintetlen. Ez a korrigált példány és az init payload cache-elt, ezért egy hálózati init-retry nem változtat a fingerprinten ugyanazon kulcs mellett. A UI az eredeti kiválasztott nevet és a korrekciós jelzést is mutatja. Olvasási hiba helyi FILE_READ_FAILED, ismeretlen fejléc helyi UNSUPPORTED_MEDIA_TYPE: egyik sem indít API-kérést vagy foglalást; FILE_READ_FAILED nem új backend hibakód. A fejléc olvasása után is újra ellenőrizzük a dispose/session állapotot.
+
+A backend az új deklarációt sem tekinti hitelesnek: confirmnál saját tárolóolvasással továbbra is egyezést követel. Közvetlen API-kliens téves MIME-deklarációja továbbra is 422. A korrekció nem konvertálás, teljes dekódolás vagy végleges sértetlenségi bizonyíték.

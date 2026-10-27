@@ -1,5 +1,26 @@
 # Test report
 
+## Tartalom alapján javított képformátum – 2026-10-27
+
+Verzió: `fix/detect-upload-image-format`, `63b5331` main baseline és a `8fa3fd2` ágon merge-elt #25 UI átvezetése után. A #25 az előző feature ágba került, ezért a mainhez a UI-függőséget is be kellett emelni. Környezet: WSL Bash, Linux Node 22.23.2/npm 10.9.8, meglévő Jest/Vitest/TypeScript. Nincs új dependency, backend endpoint vagy migráció.
+
+**Unit:** `npm test` PASS: 429 backend + 220 frontend + 2 container helper = **651 eset** (47 új frontend formátum/batch/template regresszió). A kezdeti 218-as frontend futás is PASS volt; a TS-ellenőrzésben a tesztfixture Uint8Array általános ArrayBufferLike típusa DOM BlobPart-hoz túl tág volt, ArrayBuffer-paraméterrel pontosítva. A végleges `npm run typecheck` és `npm run build` mindkét workspace-re PASS. A helyi Markdown-linkek és a tényleges környezeti credentialök repó-/frontendbundle-ellenőrzése is PASS.
+
+| Bemenet/lépés | Elvárt és tényleges eredmény |
+|---|---|
+| JPEG/PNG/GIF87a/GIF89a/WebP VP8/VP8L/VP8X prefix, hiányos/ismeretlen/HTML/SVG/XML fejléc | PASS: négy támogatott MIME, ismeretlen tartalom init nélkül elutasítva |
+| JPEG-bájtok PNG-névvel/browser MIME-mal | PASS: image/jpeg és .jpg név; változatlan bájt/méret/lastModified; eredeti File érintetlen |
+| Érvényes PNG üres vagy hibás browser MIME-mal | PASS: tartalom alapján image/png, megfelelő név |
+| Hiányzó/többszörös/hidden/nagybetűs suffix és 255 kódpontos Unicode név | PASS: típushelyes kiterjesztés, felső határ és Unicode-pár megőrzése |
+| Slice/arrayBuffer spy, név-/mérethiba | PASS: legfeljebb 16 fejlécbájt; nem olvassuk a teljes forrást; lokális név-/mérethibánál fejléc és init sem indul |
+| Ismeretlen init-kimenetel javított metadata után | PASS: ugyanaz a key/payload/File, nem ismételt fejléc-felismerés |
+| Dispose vagy másik worker AUTH_REQUIRED válasza fejléc-olvasás közben | PASS: az olvasás után nem indul init, nincs hamis siker |
+| Korrekciós notice HTML-szerű névvel | PASS: eredeti név + magyarázat, Vue escape |
+
+**Helyi reprodukció az érintett két képpel:** a felhasználó által megadott két `.png` fájl tényleges tartalma JPEG/JFIF, egyenként 120396 bájt. A Vite SSR-rel betöltött valódi `prepareImage` függvény mindkettőt image/jpeg és megfelelő .jpg névvel adta vissza. A visszaadott teljes bájtsor `assert.deepEqual` szerint egyezett a forrással. Ez hálózat/DB/object-storage nélküli célzott regresszió: a képek csak helyben lettek olvasva, nem módosultak, nem kerültek a repóba vagy CI-fixture-be, és feltöltés nem történt. Reprodukció: az adott fájlt File-ként PNG MIME-mal átadni a prepareImage-nak, ellenőrizni a JPEG MIME-ot, .jpg suffixet és teljes byteazonosságot.
+
+**Review/korlát:** a független review az új async header-read mellett egy session-race-et jelzett; init előtt új authRequired ellenőrzés és külön regresszió készült. A backend signature/MIME egyezést továbbra is szigorúan ellenőrzi, frontend-korrekcióval sem kerülhető meg. Magic number nem teljes dekódolás vagy sértetlenségi bizonyíték. A letöltési végpont és a 7. pont teljes böngészős/DB/MinIO tesztje továbbra is külön feladat; a helyes név most display/download metaadatként tárolható. A cleanup-proof és régi REJECTED foglalások kezelése nem változott.
+
 ## Első képköteg-felület – 2026-10-24
 
 Verzió: `feature/batch-upload-ui`, a `893bd0c` confirm/cleanup commitra építve (függőség: PR #24). Környezet: WSL Bash, Linux Node 22.23.2/npm 10.9.8, meglévő workspace dependencyk, Vitest Node-környezet és Vue SSR template render. Nincs új dependency, adatmodell/migráció, backend endpoint vagy integration/e2e suite.

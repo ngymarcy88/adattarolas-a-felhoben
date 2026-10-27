@@ -18,6 +18,7 @@ const messages: Record<string, string> = {
   VALIDATION_ERROR: 'A fájl adatai nem fogadhatók el.',
   INVALID_REQUEST: 'A feltöltési kérés nem fogadható el.',
   UNSUPPORTED_MEDIA_TYPE: 'Ez a képtípus nem engedélyezett.',
+  FILE_READ_FAILED: 'A fájl nem olvasható. Válaszd ki újra egy új feltöltési kötegben.',
   FILE_TOO_LARGE: 'A fájl túllépi a megengedett méretet.',
   QUOTA_EXCEEDED: 'Nincs elegendő szabad tárhely a fájlhoz. A korábbi függő feltöltések is foglalnak helyet.',
   IDEMPOTENCY_CONFLICT: 'A feltöltési művelet adatai eltérnek. Ezt a kísérletet nem lehet megismételni.',

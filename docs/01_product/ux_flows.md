@@ -132,3 +132,7 @@ Ez az első képszelet, nem tartós import. Az állapot csak az oldal memóriáj
 - Elutasított javaslat később sem alkalmazható automatikusan.
 
 **Sikeres végállapot:** a felhasználó tudatos döntéssel elfogadta vagy elutasította az opcionális javaslatot; jóváhagyás nélkül nem történt végleges metaadat-változás.
+
+## Hibás kiterjesztés javítása az első képszeletben – 2026-10-27
+
+A kiválasztott kép típusa a tartalom fejlécéből dől el. Az eredeti név a sorban marad; szükség esetén külön szöveg jelzi például: „A felismert formátum JPEG. Feltöltési név: kep.jpg. A képtartalom nem változik.” A feltöltés a javított névvel/típussal megy tovább, átnevezést vagy konvertálást nem kér a felhasználótól. Ismeretlen tartalom vagy nem olvasható fájl helyi hibát kap, a többi fájlt nem állítja le. Ez nem teljes képintegritás-ellenőrzés; a backend az aktiválás előtt önállóan validál.

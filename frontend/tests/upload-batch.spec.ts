@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createUploadBatch, MAX_BATCH_FILES, validateImage } from '../src/upload/batch';
 import { UploadRequestError, type UploadClient, type UploadReceipt, type UploadedFile } from '../src/api/uploads';
 
-const image = (name = 'image.png') => new File(['12345678'], name, { type: 'image/png', lastModified: 1 });
+const image = (name = 'image.png') => new File([new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10])], name, { type: 'image/png', lastModified: 1 });
 const id = '00000000-0000-4000-8000-000000000001';
 function receipt(): UploadReceipt {
   return { file: { id, status: 'PENDING_UPLOAD', originalName: 'image.png', mimeType: 'image/png', detectedMimeType: null, sizeBytes: 8,
@@ -12,7 +12,9 @@ function receipt(): UploadReceipt {
 const active = (): UploadedFile => ({ ...receipt().file, status: 'ACTIVE', detectedMimeType: 'image/png' });
 function setup() {
   let key = 0;
-  const client = { initiate: vi.fn<UploadClient['initiate']>().mockImplementation(async () => receipt()),
+  const client = { initiate: vi.fn<UploadClient['initiate']>().mockImplementation(async input => {
+      const value = receipt(); Object.assign(value.file, input); value.upload!.headers['Content-Type'] = input.mimeType; return value;
+    }),
     confirm: vi.fn<UploadClient['confirm']>().mockImplementation(async () => active()),
     put: vi.fn<UploadClient['put']>().mockResolvedValue() };
   const batch = createUploadBatch(client, () => `key-${++key}`);
@@ -21,7 +23,7 @@ function setup() {
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
 
 describe('image selection', () => {
-  it.each(['text/html', 'image/svg+xml', 'video/mp4', '', 'application/octet-stream'])('rejects %s without API calls', async type => {
+  it.each(['text/html', 'image/svg+xml', 'video/mp4', '', 'application/octet-stream'])('rejects unknown content declared as %s without API calls', async type => {
     const { client, batch } = setup(); batch.add([new File(['x'], 'test', { type })]); await batch.start();
     expect(batch.state.rows[0].status).toBe('error'); expect(client.initiate).not.toHaveBeenCalled();
   });
@@ -45,6 +47,54 @@ describe('image selection', () => {
   });
 });
 describe('bounded queue and application completion', () => {
+  it('uploads PNG-named JPEG using detected MIME, corrected name and unchanged bytes', async () => {
+    const { client, batch } = setup(); const bytes = new Uint8Array([255, 216, 255, 224, 0, 16, 74, 70, 73, 70]);
+    batch.add([new File([bytes], 'cashback.png', { type: 'image/png', lastModified: 1 })]); await batch.start();
+    expect(client.initiate.mock.calls[0][0]).toEqual({ originalName: 'cashback.jpg', mimeType: 'image/jpeg', sizeBytes: bytes.length });
+    const uploaded = client.put.mock.calls[0][1]; expect(uploaded.type).toBe('image/jpeg'); expect(uploaded.name).toBe('cashback.jpg');
+    expect(new Uint8Array(await uploaded.arrayBuffer())).toEqual(bytes);
+    expect(batch.state.rows[0].name).toBe('cashback.png'); expect(batch.state.rows[0].notice).toContain('cashback.jpg'); expect(batch.summary.value.success).toBe(1);
+  });
+  it('validates content independently of empty browser MIME and isolates forged images', async () => {
+    const { client, batch } = setup(); const source = image();
+    batch.add([new File(['<svg/>'], 'bad.png', { type: 'image/png' }), new File([source], 'good', { type: '' })]); await batch.start();
+    expect(client.initiate).toHaveBeenCalledTimes(1); expect(client.initiate.mock.calls[0][0].mimeType).toBe('image/png');
+    expect(batch.summary.value).toEqual({ total: 2, success: 1, failed: 1 });
+  });
+  it('keeps corrected metadata and the key stable on init retry, without reading the header twice', async () => {
+    vi.useFakeTimers(); const { client, batch } = setup();
+    const source = new File([new Uint8Array([255, 216, 255])], 'cashback.png', { type: 'image/png' }); const read = vi.spyOn(source, 'slice');
+    client.initiate.mockRejectedValueOnce(new UploadRequestError('UNAVAILABLE'));
+    batch.add([source]); await batch.start(); await vi.advanceTimersByTimeAsync(1000); batch.retry('key-1');
+    await vi.runAllTimersAsync();
+    expect(client.initiate.mock.calls.map(call => call.slice(0, 2))).toEqual([
+      [{ originalName: 'cashback.jpg', mimeType: 'image/jpeg', sizeBytes: 3 }, 'key-1'],
+      [{ originalName: 'cashback.jpg', mimeType: 'image/jpeg', sizeBytes: 3 }, 'key-1'],
+    ]); expect(read).toHaveBeenCalledTimes(1); expect(batch.summary.value.success).toBe(1);
+  });
+  it('never starts init after the page is disposed during header reading', async () => {
+    const { client, batch } = setup(); const source = image(); let finish!: (buffer: ArrayBuffer) => void;
+    vi.spyOn(source, 'slice').mockReturnValue({ arrayBuffer: () => new Promise(resolve => { finish = resolve; }) } as Blob);
+    batch.add([source]); const running = batch.start(); batch.dispose(); finish(new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]).buffer);
+    await running; expect(client.initiate).not.toHaveBeenCalled(); expect(client.put).not.toHaveBeenCalled();
+  });
+  it('does not read headers or reserve quota for locally invalid names or oversized files', async () => {
+    const { client, batch } = setup(); const invalid = image('../unsafe.png'); const large = image();
+    vi.spyOn(large, 'size', 'get').mockReturnValue(104857601);
+    const first = vi.spyOn(invalid, 'slice'); const second = vi.spyOn(large, 'slice');
+    batch.add([invalid, large]); await batch.start();
+    expect(first).not.toHaveBeenCalled(); expect(second).not.toHaveBeenCalled(); expect(client.initiate).not.toHaveBeenCalled();
+  });
+  it('does not initiate after another file loses the session during header reading', async () => {
+    const { client, batch } = setup(); const slow = image('slow.png'); let finish!: (buffer: ArrayBuffer) => void;
+    vi.spyOn(slow, 'slice').mockReturnValue({ arrayBuffer: () => new Promise(resolve => { finish = resolve; }) } as Blob);
+    client.initiate.mockRejectedValue(new UploadRequestError('AUTH_REQUIRED'));
+    batch.add([image('fast.png'), slow]); const running = batch.start();
+    await vi.waitFor(() => expect(batch.state.authRequired).toBe(true));
+    finish(new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]).buffer); await running;
+    expect(client.initiate).toHaveBeenCalledTimes(1); expect(batch.summary.value.success).toBe(0);
+    expect(batch.state.rows[1].status).toBe('error'); expect(client.put).not.toHaveBeenCalled();
+  });
   it('keeps at most two files in flight, ignores duplicate start, then drains queued siblings', async () => {
     const { client, batch } = setup(); const finish: (() => void)[] = [];
     client.put.mockImplementation(() => new Promise(resolve => finish.push(resolve)));

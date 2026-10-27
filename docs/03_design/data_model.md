@@ -225,7 +225,7 @@ Az utolsó feltételt az upload init tranzakciójának versengő kéréseknél i
 |---|---|---|---|
 | `id` | UUID, PK | Core MVP | Fájlmetaadat azonosító |
 | `ownerId` | UUID, FK → User | Core MVP | Tulajdonos és authorization határ |
-| `originalName` | validált string | Core MVP | Kizárólag display/download név; storage key nem ebből képződik |
+| `originalName` | validált string | Core MVP | Kizárólag display/download név; az első UI a felismert formátumhoz igazított nevet küldi (például JPEG-tartalmú kep.png → kep.jpg); storage key nem ebből képződik |
 | `storageKey` | string, unique | Core MVP | Backend által generált belső object key |
 | `mimeType` | string | Core MVP | Kliens által deklarált, initkor allowlistelt MIME |
 | `detectedMimeType` | nullable string | Core MVP | Confirmkor magic numberből detektált MIME |

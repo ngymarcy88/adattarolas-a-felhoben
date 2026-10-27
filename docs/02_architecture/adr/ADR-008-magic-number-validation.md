@@ -56,3 +56,11 @@ A 2026-10-20-i első [képfeltöltési API](../../03_design/api.md#upload--első
 Az első négy képtípushoz tiszta, függőség nélküli, 16 bájtos prefixosztályozó készült: JPEG FF D8 FF, PNG teljes 8 bájtos signature, GIF87a/GIF89a, WebP RIFF + WEBP + VP8/VP8L/VP8X FourCC. Az adapter az ETag-hez kötött range-ből legfeljebb 16 bájtot ad át. Tetszőleges fájltípus-parser vagy dekóder helyett ez a szűk döntés a meglévő CommonJS/Jest környezetet és négyformátumos scope-ot szolgálja, új csomag nélkül.
 
 A minősítés csak a signature-t igazolja, nem a teljes formátumot, CRC-t, dekódolhatóságot, malware-mentességet vagy minden polyglot hiányát. A későbbi képfeldolgozó dekódolása külön hibaág; initkor a MIME továbbra is csak deklaráció. Elsődleges formátumforrások: [PNG signature](https://www.w3.org/TR/png-3/#5PNG-file-signature), [GIF specifikáció](https://www.w3.org/Graphics/GIF/spec-gif89a.txt), [WebP konténer](https://developers.google.com/speed/webp/docs/riff_container).
+
+## Frontend előkészítés – 2026-10-27
+
+A backend ellenőrzése mellé az első UI ugyanazt a négyformátumos, legfeljebb 16 bájtos fejlécfelismerést alkalmazza init előtt, a téves kiterjesztés/browser MIME miatti javítható elutasítások elkerülésére. A helyes típust és a hozzá illesztett display/download nevet deklarálja; a File bájtjait nem konvertálja. Az alkalmazás az eredeti helyi nevet és a javítást külön jelzi. Az új név a backend 255 kódpontos korlátjába fér, a korábbi névbiztonsági ellenőrzés után. Retry ugyanazt az előkészített File-t/payloadot tartja meg.
+
+Alternatívák: kézi átnevezés rossz UX-et ad; a backend deklarált/detektált egyezésének elhagyása lazítaná a meglévő szerződést; teljes kliensoldali dekódolás/újrakódolás indokolatlan erőforrás- és minőségváltozás. A szűk kliensdetektor nem biztonsági határ; a backend szigorú, önálló signature/méret/kvóta-ellenőrzése megmarad. Az első UI és backend detektora változtatásakor mindkét oldali fixture-készletet szinkronban kell ellenőrizni.
+
+Ellenőrzés: szintetikus formátum-/név-/byteazonossági unitok, retry-azonosság és dispose/session regressziók, plusz a szerző által jelzett két JPEG-tartalmú PNG-névvel adott fájl helyi, hálózat nélküli előkészítési próbája. A letöltési végpont és teljes browser/DB/storage elfogadás ettől nem válik implementálttá/igazolttá.

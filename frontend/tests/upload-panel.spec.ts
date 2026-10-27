@@ -47,4 +47,11 @@ describe('upload panel isolated template rendering', () => {
   it('disables the picker during logout without destroying queue state', async () => {
     const html = await render(true); expect(html).toMatch(/type="file"[^>]*disabled/);
   });
+  it('shows an escaped correction notice next to the original selected name', async () => {
+    const batch = batches.createUploadBatch(client); batch.add([new File(['x'], 'cashback.png', { type: 'image/png' })]);
+    batch.state.rows[0].notice = 'A felismert formátum JPEG. Feltöltési név: <cashback>.jpg.';
+    vi.spyOn(batches, 'createUploadBatch').mockReturnValue(batch); const html = await render();
+    expect(html).toContain('cashback.png'); expect(html).toContain('A felismert formátum JPEG.');
+    expect(html).toContain('&lt;cashback&gt;.jpg'); expect(html).not.toContain('<cashback>');
+  });
 });

@@ -1,5 +1,6 @@
 import { computed, reactive } from 'vue';
 import { UploadRequestError, type UploadClient, type UploadReceipt } from '../api/uploads';
+import { prepareImage } from './image-format';
 
 export const MAX_BATCH_FILES = 20;
 export const MAX_IMAGE_BYTES = 104857600;
@@ -7,14 +8,13 @@ export const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'
 export type UploadStatus = 'queued' | 'initializing' | 'uploading' | 'confirming' | 'success' | 'error';
 export interface UploadRow {
   id: string; name: string; size: number; status: UploadStatus; progress: number;
-  error: string; retryable: boolean; retryAt: number; failures: number;
+  error: string; notice: string; retryable: boolean; retryAt: number; failures: number;
 }
-interface Context { file: File; receipt?: UploadReceipt; confirmFirst: boolean }
+interface Context { file: File; prepared?: boolean; receipt?: UploadReceipt; confirmFirst: boolean }
 export function validateImage(file: File): string {
   const name = file.name.trim().normalize('NFC');
   if (!name || ['.', '..'].includes(name) || [...name].length > 255 || /[\ud800-\udfff]/u.test(name) ||
       /[\/\\\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/u.test(file.name)) return 'A fájlnév nem használható. Nevezd át a fájlt.';
-  if (!IMAGE_TYPES.includes(file.type)) return 'Csak JPEG, PNG, WebP vagy GIF kép választható.';
   if (!Number.isSafeInteger(file.size) || file.size < 1) return 'Üres fájl nem tölthető fel.';
   if (file.size > MAX_IMAGE_BYTES) return 'A fájl legfeljebb 100 MiB lehet; a szerver ennél szigorúbb limitet is alkalmazhat.';
   return '';
@@ -42,7 +42,7 @@ export function createUploadBatch(client: UploadClient, newKey = () => crypto.ra
       const error = validateImage(file);
       const id = newKey();
       state.rows.push({ id, name: file.name, size: file.size, status: error ? 'error' : 'queued', progress: 0,
-        error, retryable: false, retryAt: 0, failures: 0 });
+        error, notice: '', retryable: false, retryAt: 0, failures: 0 });
       if (!error) contexts.set(id, { file, confirmFirst: false });
     }
   }
@@ -54,6 +54,12 @@ export function createUploadBatch(client: UploadClient, newKey = () => crypto.ra
     const ctx = contexts.get(row.id)!;
     if (!ctx.receipt) {
       row.status = 'initializing';
+      if (!ctx.prepared) {
+        const prepared = await prepareImage(ctx.file);
+        if (disposed || signal.aborted) return;
+        ctx.file = prepared.file; ctx.prepared = true; row.notice = prepared.notice;
+      }
+      if (state.authRequired) throw new UploadRequestError('AUTH_REQUIRED');
       ctx.receipt = await client.initiate({ originalName: ctx.file.name.trim().normalize('NFC'), mimeType: ctx.file.type, sizeBytes: ctx.file.size }, row.id, signal);
       if (disposed) return;
       if (ctx.receipt.file.status === 'ACTIVE') return;

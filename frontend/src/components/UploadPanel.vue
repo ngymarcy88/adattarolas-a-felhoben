@@ -48,6 +48,7 @@ const size = (bytes: number) => bytes < 1048576 ? `${Math.ceil(bytes / 1024)} Ki
             <p class="min-w-0 break-all font-medium">{{ row.name }}</p>
             <span class="text-xs text-slate-500">{{ size(row.size) }}</span>
           </div>
+          <p v-if="row.notice" class="mt-2 break-words text-sm text-indigo-700">{{ row.notice }}</p>
           <p class="mt-2 text-sm" :class="row.status === 'success' ? 'text-emerald-700' : row.status === 'error' ? 'text-red-700' : 'text-slate-600'">{{ labels[row.status] }}<span v-if="row.status === 'uploading'"> {{ row.progress }}%</span></p>
           <progress v-if="row.status === 'uploading'" :value="row.progress" max="100" :aria-label="`${row.name} átvitele`" class="mt-2 h-2 w-full accent-indigo-600" />
           <p v-if="row.status === 'confirming'" class="mt-1 text-xs text-slate-500">Az átvitel után a szerver ellenőrzése szükséges a sikerhez.</p>
