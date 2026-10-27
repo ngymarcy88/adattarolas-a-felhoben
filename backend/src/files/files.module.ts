@@ -11,7 +11,10 @@ import { FilesController } from './files.controller';
 import { UploadInitService } from './upload-init.service';
 import { UploadInitValidationPipe } from './upload-init.dto';
 import { UploadInitGuard } from './upload-init.guard';
+import { FileListService } from './file-list.service';
+import { FileListQueryPipe } from './file-list.query';
+import { FileListGuard } from './file-list.guard';
 
 @Module({ imports: [AuthModule, PrismaModule, StorageModule], controllers: [FilesController],
-  providers: [UploadStateService, UploadConfirmService, FileIdPipe, UploadConfirmGuard, UploadCleanupService, UploadCleanupWorker, UploadInitService, UploadInitValidationPipe, UploadInitGuard] })
+  providers: [FileListService, FileListQueryPipe, FileListGuard, UploadStateService, UploadConfirmService, FileIdPipe, UploadConfirmGuard, UploadCleanupService, UploadCleanupWorker, UploadInitService, UploadInitValidationPipe, UploadInitGuard] })
 export class FilesModule {}

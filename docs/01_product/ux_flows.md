@@ -57,7 +57,7 @@ Ez az első képszelet, nem tartós import. Az állapot csak az oldal memóriáj
 
 ## Első képgaléria és előnézet – tervezett UI-szelet, 2026-10-27
 
-Az API és a felület még nem implementált; a részletes [lista/preview szerződés](../03_design/api.md#fájllista-és-lifecycle) az irányadó. A lenti UX-02 teljes célfolyamatából most csak a saját ACTIVE képek megjelenítése és jogosított eredeti előnézete tervezett. Videó, letöltés/megosztás és thumbnail-generálás nem része ennek a szeletnek.
+A GET /files backend-lista már implementált; a preview API és a felület még nem implementált; a részletes [lista/preview szerződés](../03_design/api.md#fájllista-és-lifecycle) az irányadó. A lenti UX-02 teljes célfolyamatából most csak a saját ACTIVE képek megjelenítése és jogosított eredeti előnézete tervezett. Videó, letöltés/megosztás és thumbnail-generálás nem része ennek a szeletnek.
 
 | Állapot | Elvárt felületi viselkedés |
 |---|---|

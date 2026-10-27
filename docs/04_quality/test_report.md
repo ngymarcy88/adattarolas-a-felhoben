@@ -1,5 +1,27 @@
 # Test report
 
+## Saját képek listázása – GET /files, 2026-10-27
+
+Verzió: `feature/list-own-images`, `4500045` main és a `fde61c1` dokumentált galériaszerződés után. Környezet: WSL Bash, Linux Node 22.23.2/npm 10.9.8, Prisma 7.10.1, Jest/Vitest izolált runnerek. Nincs frontend-/preview-/séma-/dependency-változás; valódi PostgreSQL/MinIO/HTTP próbát ez a futás nem végzett.
+
+**Unit:** `npm test` PASS: **512 backend** (13 suite) + **220 frontend** (9 fájl) + **2 container helper** = **734 eset**. Ebből 83 új `backend/test/file-list.spec.ts` eset; előzetesen a 82-es célzott futás is PASS volt, majd külön plusz projekciós regresszió került be. A végleges `npm run typecheck` és `npm run build` mindkét workspace-re PASS; 48 helyi dokumentációs link, git diff --check és a tényleges környezeti credentialök repó-/frontendbundle-ellenőrzése is PASS.
+
+| Bemenet/lépés | Elvárt és tényleges unit eredmény |
+|---|---|
+| Üres query, limit 1/20/100 és hibás/extra/ismételt query | PASS: default 20, szigorú kanonikus egész; hibás limit VALIDATION_ERROR 400, hibás cursor CURSOR_INVALID 400 |
+| Base64url/UTF-8/JSON/v1/scope/UUID/UTC ezredmásodperc/max512 | PASS: hibás/hiányzó/extra mező, padding/padbit, érvénytelen dátum és trailing newline elutasítva; valid pozíció roundtrip pontos |
+| Saját/idegen owner, ACTIVE/pending/törölt, kép/video, null/eltérő MIME | PASS: az egyetlen Prisma where owner+ACTIVE+allowlist+MIME-mezőegyezést tartalmaz, minden cursoros oldalon is |
+| 105 képes statikus fixture, több azonos createdAt, 1/20/100-as oldalméret | PASS: teljes elvárt DESC sorrend kihagyás és ismétlés nélkül; cursor az utolsó visszaadott sorból, nem lookaheadből |
+| Törölt horgony, oldalméretváltás, más user cursorja, üres/beyond-end/exact-limit oldal | PASS: stabil tuple-folytatás, nincs horgony-404 vagy owner-határ átlépés; üres 200 és null/false végjelzés |
+| Hétmezős select és explicit mapper, túl bő DB-double válasz, BigInt határok | PASS: nincs owner/key/URL/receipt; méret biztonságos JSON szám, hibás/nem biztonságos érték nem kerekítődik csendben |
+| DB-kivétel | PASS: DATABASE_UNAVAILABLE 503, generikus üzenet, nem hamis üres lista/provideradat |
+| 60 user-kérés/perc, két user, ablakhatár és 4096-os mapkapacitás | PASS: külön ablak, 429 és felfelé kerekített Retry-After, lejárt bejegyzések újrahasznosítása |
+| Controller/module metadata és globális filter | PASS: SessionGuard → FileListGuard, GET/no-store, user kizárólag sessionből; nested code/details/requestId és megőrzött Retry-After |
+
+A CORS exposedHeaders konfiguráció Retry-After-rel bővült; valódi browser/CORS visszaolvasás nem történt. A service kizárólag Prisma+config függőséget kap, a listázás nem kér storage-hozzáférést és nem módosít foglalást/usage-ot. Független backend/security review nem talált blokkoló hibát.
+
+**Bizonyítékhatár:** a query double a Prisma-paraméterek szerkezetét és determinisztikus modellezett szűrést/rendezést igazolja; nem helyettesíti a PostgreSQL-lekérdezés vagy a teljes Nest/HTTP/adatbázis-folyamat tényleges próbáját. A preview végpont, frontend galéria és valós SQL/browser elfogadás továbbra is külön feladat. Új integration/e2e suite nem készült.
+
 ## Szerzői kézi feltöltési próba – visszaigazolva 2026-10-27
 
 **Eredmény: PASS a felületen megfigyelt sikeres feltöltésre, a szerző visszajelzése alapján.** A formátumkorrekció elkészülte után a szerző manuálisan tesztelte a feltöltést, és ezt jelezte: „sikeresen teszteltem a feltoltest”. Ez a korábbi, kizárólag unit/SSR és helyi fájl-előkészítési bizonyítékot pozitív kézi alkalmazáspróbával egészíti ki.

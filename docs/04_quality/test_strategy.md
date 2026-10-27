@@ -167,3 +167,9 @@ A `frontend/tests/image-format.spec.ts` támogatott/hiányos/hamis fejléceket, 
 - Későbbi kézi bizonyíték: két user saját képei, oldalfrissítés, több oldal/azonos időbélyeg, hiányzó objektum, lejárat és negatív jogosultság, storage GET CORS + anonymous képbetöltés, sikeres upload utáni frissítés. Signed URL-t nem tartalmazó képernyőkép és DB/object állapot együtt; fejlécfelismerés nem teljes képdekódolás.
 
 Ez tervezett ellenőrzési lista, nem PASS-riport; nem hoz létre unit/integration/e2e kódot vagy CI-változást. A thumbnail/processor-verzió, derived quota és recovery külön szerződés/tesztfeladat.
+
+### GET /files implementált unit szelet – 2026-10-27
+
+A fenti galéria-terv lista részét a `backend/test/file-list.spec.ts` fedi: query/limit/cursor invalid és 512-es mérethatár, UTF-8/base64url/verzió/scope/dátum/UUID, owner+ACTIVE+allowlist+MIME-mezőegyezés, hétmezős select/projekció és BigInt határ, 105 képes statikus minta 1/20/100 oldalmérettel/azonos időbélyegekkel, lookahead/utolsó visszaadott cursor, törölt horgony, idegen user cursorja, üres oldal és DB-hiba. A limiter 60-as user-ablaka, Retry-After, 4096-os tárolási korlátja, a controller guard/header és a nested error filter is izoláltan tesztelt.
+
+Ezek mockolt unit ellenőrzések; az SQL-t nem futtatják és nem bizonyítanak valós HTTP/CORS/browser/MinIO együttműködést. Preview/frontend és a megfelelő kézi tesztek külön feladatok maradnak. Új integration/e2e suite nincs.

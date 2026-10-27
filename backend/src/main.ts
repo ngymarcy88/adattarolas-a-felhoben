@@ -20,7 +20,7 @@ async function bootstrap(): Promise<void> {
       else callback(new ApiError('ORIGIN_NOT_ALLOWED'));
     },
     credentials: true,
-    exposedHeaders: ['X-Request-Id'],
+    exposedHeaders: ['X-Request-Id', 'Retry-After'],
   });
   app.enableShutdownHooks();
   await app.listen(config.port, config.host);

@@ -1,8 +1,8 @@
 # API-szerződés
 
-**Részben implementált szerződés: health, register/login/logout/me és upload-init/confirm létezik; a többi végpont tervezett.**
+**Részben implementált szerződés: health, register/login/logout/me, upload-init/confirm és GET /files létezik; a többi végpont tervezett.**
 
-A scaffold `GET /api/v1/health` végpontja, CORS-konfigurációja, request ID-ja és generikus hibakerete implementált. A regisztráció, login/logout/me is implementált; a `POST /api/v1/files/uploads/init` is implementált; a confirm is implementált; a további file-, share- és MI-endpoint terv; import-/processing-kiegészítésük későbbi szerződésfeladat. Futási ellenőrzés: [tesztriport](../04_quality/test_report.md).
+A scaffold `GET /api/v1/health` végpontja, CORS-konfigurációja, request ID-ja és generikus hibakerete implementált. A regisztráció, login/logout/me is implementált; a `POST /api/v1/files/uploads/init` is implementált; a confirm és a GET /files lista is implementált; a további file-, share- és MI-endpoint terv; import-/processing-kiegészítésük későbbi szerződésfeladat. Futási ellenőrzés: [tesztriport](../04_quality/test_report.md).
 
 A belső MinIO/S3 adapter már implementált; ez nem publikus endpoint. Az init authorizationja, kvótafoglalása és tartós replay-je implementált; a confirm is implementált; a cleanup csak igazolt íráslezárás mellett törölhet és oldhat fel foglalást; az in-flight íráslezárás bizonyítása nyitott.
 
@@ -13,7 +13,7 @@ A belső MinIO/S3 adapter már implementált; ez nem publikus endpoint. Az init 
 - Minden időpont UTC ISO 8601 formátumú, minden azonosító átlátszatlan UUID.
 - A bájtértékek nem negatív egész számok.
 - A frontend `credentials: include` módban hívja a cookie-auth endpointokat.
-- Az alábbi táblában a health, a négy auth sor és az upload-init/confirm implementált; a többi endpoint tervezett. Megvalósításkor a controller- és DTO-szerződést e dokumentummal együtt kell frissíteni. OpenAPI-generálás még nincs.
+- Az alábbi táblában a health, a négy auth sor, az upload-init/confirm és GET /files implementált; a többi endpoint tervezett. Megvalósításkor a controller- és DTO-szerződést e dokumentummal együtt kell frissíteni. OpenAPI-generálás még nincs.
 
 ## Hitelesítés, Origin és CORS
 
@@ -28,7 +28,7 @@ A register/login/logout végpontokon a backend ellenőrzi az `Origin` headert az
 
 Az ADR-010 szerinti `SameSite=Lax` és a szigorú Origin-ellenőrzés együtt adja a Core MVP CSRF-védelmét; külön CSRF-token nincs. Ha későbbi deployment topológia további CSRF-token mechanizmust vagy eltérő cookie-policyt igényel, azt implementáció előtt ADR-módosítással kell jóváhagyni.
 
-A jelenlegi scaffold a konfigurált `FRONTEND_PUBLIC_URL` origint credentiallel engedi, az eltérő Origint `403 ORIGIN_NOT_ALLOWED` hibával utasítja el. Origin nélküli kérést a publikus health eléréséhez enged. A register/login/logout külön Origin-guardja a hiányzó Origint is tiltja; az upload-init már ugyanilyen Origin-védelmet és SessionGuardot használ. A válaszok `X-Request-Id` headere CORS-on keresztül is olvasható. Register és login közös peer-guardot és külön explicit DTO-pipe-ot használ; logout Origin-guardot, `/me` JWT+DB-user guardot kapott. Az upload-init őrei sorrendben Origin → aktuális session/user → fejlécek/rate limit; utána a DTO következik. A további termékvégpontok még nincsenek.
+A jelenlegi scaffold a konfigurált `FRONTEND_PUBLIC_URL` origint credentiallel engedi, az eltérő Origint `403 ORIGIN_NOT_ALLOWED` hibával utasítja el. Origin nélküli kérést a publikus health eléréséhez enged. A register/login/logout külön Origin-guardja a hiányzó Origint is tiltja; az upload-init már ugyanilyen Origin-védelmet és SessionGuardot használ. A válaszok `X-Request-Id` és `Retry-After` headere CORS-on keresztül is olvasható. Register és login közös peer-guardot és külön explicit DTO-pipe-ot használ; logout Origin-guardot, `/me` JWT+DB-user guardot kapott. Az upload-init őrei sorrendben Origin → aktuális session/user → fejlécek/rate limit; utána a DTO következik. A GET /files SessionGuard → FileListGuard (60/perc/user) sorrendet és FileListQueryPipe-ot használ; nem követel Origint, a globális CORS változatlanul szűr. A további termékvégpontok még nincsenek.
 
 ## Endpoint-összefoglaló
 
@@ -40,7 +40,7 @@ A jelenlegi scaffold a konfigurált `FRONTEND_PUBLIC_URL` origint credentiallel 
 | `GET /auth/me` | **Implementált Core-szelet** | cookie | Aktuális felhasználó |
 | `POST /files/uploads/init` | **Implementált init-szelet** | owner cookie + Origin + Idempotency-Key | Egyszeri pending/foglalás és rövid presigned PUT |
 | `POST /files/{fileId}/confirm` | **Implementált confirm-szelet** | owner cookie + Origin | Idempotens storage-validáció és aktiválás |
-| `GET /files` | **Tervezett első képgaléria** | owner cookie | Saját ACTIVE képek cursor-lapozott metaadatlistája |
+| `GET /files` | **Implementált képlista-szelet** | owner cookie | Saját ACTIVE képek cursor-lapozott metaadatlistája |
 | `GET /files/trash` | Core MVP | owner cookie | Visszaállítható saját fájlok cursor-lapozott listája |
 | `GET /files/{fileId}` | Core MVP | owner cookie | Saját fájl biztonságos metaadata |
 | `GET /files/{fileId}/preview-url` | **Tervezett első képelőnézet** | owner cookie | Jogosított eredeti kép rövid életű inline URL-je |
@@ -346,9 +346,9 @@ A tus/Uppy és S3 multipart vizsgálandó alternatívák, nem kiválasztott impl
 
 ## Fájllista és lifecycle
 
-### `GET /files?cursor={cursor}&limit={limit}` – tervezett első képgaléria
+### `GET /files?cursor={cursor}&limit={limit}` – implementált képlista
 
-**Státusz: csak szerződés, nincs implementált listázó végpont.** Teljes helyi URL: `GET http://127.0.0.1:3000/api/v1/files`. Body nincs. Cookie/session + aktuális DB-user ellenőrzés kötelező; a frontend `credentials: include` módot használ. GET-ként hiányzó Origin megengedett, explicit eltérő Originre a közös CORS 403-at ad. Siker és hiba egyaránt `Cache-Control: no-store`.
+**Implementált backend-szelet, unit tesztekkel; galéria-UI és preview végpont még nincs.** Teljes helyi URL: `GET http://127.0.0.1:3000/api/v1/files`. Body nincs. Cookie/session + aktuális DB-user ellenőrzés kötelező; a frontend `credentials: include` módot használ. GET-ként hiányzó Origin megengedett, explicit eltérő Originre a közös CORS 403-at ad. Siker és hiba egyaránt `Cache-Control: no-store`.
 
 **Szűrés:** minden lekérdezés szerveroldalon az aktuális user `ownerId`-jára és `status=ACTIVE` értékre szűr. Az első szelet csak képek: a `detectedMimeType` nem null, egyezik a `mimeType`-pal, és a JPEG/PNG/WebP/GIF allowlist, valamint az aktuális `ALLOWED_MIME_TYPES` metszetében van. Pending, REJECTED/EXPIRED receipt mögötti pending, soft-deleted, video és ismeretlen típus nem kerül a listára. Nem kérhető másik owner, státusz vagy MIME query-paraméterrel. A későbbi videós lista külön szerződésbővítés.
 
@@ -359,7 +359,7 @@ A tus/Uppy és S3 multipart vizsgálandó alternatívák, nem kiválasztott impl
 
 Ismeretlen query-mező 400 VALIDATION_ERROR; nincs offset/page/ownerId paraméter. A szerver auth után validál. Példa: `GET /api/v1/files?limit=20`; a következő kérés ugyanezzel a limittel `cursor=<előző nextCursor>`.
 
-**Cursor v1 és lekérdezés:** kanonikus, padding nélküli base64url kódolású UTF-8 JSON, kizárólag `v:1`, `scope:"active-images-v1"`, `createdAt` és `id` mezőkkel. Az időpont érvényes, kanonikus UTC ISO 8601, ezredmásodperces pontossággal; az id kanonikus kisbetűs UUID. Rossz kódolás/JSON/alak, extra/hiányzó mező, ismeretlen verzió/scope, hibás dátum vagy UUID: CURSOR_INVALID. A kliens nem értelmezi vagy állítja elő a tokent. Ez nem aláírt vagy titkosított capability: érvényes szerkezetű módosítása legfeljebb más lapozási pozíciót jelent, jogosultságot nem ad. A server soha nem fogad owner/szűrő/SQL utasítást cursorból.
+**Cursor v1 és lekérdezés:** kanonikus, padding nélküli base64url kódolású UTF-8 JSON, kizárólag `v:1`, `scope:"active-images-v1"`, `createdAt` és `id` mezőkkel. Az időpont érvényes, kanonikus UTC ISO 8601, ezredmásodperces pontossággal, 0001–9999 közötti évvel; az id kanonikus kisbetűs UUID. Rossz kódolás/JSON/alak, extra/hiányzó mező, ismeretlen verzió/scope, hibás dátum vagy UUID: CURSOR_INVALID. A kliens nem értelmezi vagy állítja elő a tokent. Ez nem aláírt vagy titkosított capability: érvényes szerkezetű módosítása legfeljebb más lapozási pozíciót jelent, jogosultságot nem ad. A server soha nem fogad owner/szűrő/SQL utasítást cursorból.
 
 A rendezés `createdAt DESC, id DESC`, az adatbázis timestamp/UUID összehasonlításával. Folytatáskor a kötelező owner/state/type szűrés mellett: `createdAt < cursor.createdAt OR (createdAt = cursor.createdAt AND id < cursor.id)`. A cursor horgonyrekordját nem kell megkeresni; közbeni törlése nem 404 és nem akadály. Másik sessionből származó token sem oldja fel a saját-owner szűrést. Legfeljebb `limit+1` rekord olvasandó; az extra sor csak lookahead. `nextCursor` az utolsó **visszaadott** sorból készül, ha van extra rekord.
 
@@ -391,7 +391,7 @@ A rendezés `createdAt DESC, id DESC`, az adatbázis timestamp/UUID összehasonl
 
 A `createdAt` az upload init időpontja, nem confirm-idő; rendezési értéke nem módosul finalizáláskor. Változatlan adathalmaznál nincs kihagyás vagy ismétlés. Nincs snapshot-ígéret: közben aktivált/törölt kép, módosult allowlist vagy új feltöltés befolyásolhatja a folytatást. Frissítés/sikeres confirm után új első oldal és új lapozási lánc indul; a kliens ID szerint deduplikál. A limit oldalak között változhat, a cursor kizárólag pozíciót hordoz.
 
-**Tervezett hibák:** 400 VALIDATION_ERROR/CURSOR_INVALID; 401 AUTH_REQUIRED; 403 ORIGIN_NOT_ALLOWED; 429 RATE_LIMITED; 503 DATABASE_UNAVAILABLE/SERVICE_UNAVAILABLE; 500 INTERNAL_ERROR. A SessionGuard aktuális-user DB-hibája a meglévő 503 SERVICE_UNAVAILABLE, a listázó service DB-hibája 503 DATABASE_UNAVAILABLE. A nested error wrapper és `details:{}` közös, raw SQL/cursor/provideradat nélkül. Kezdeti abuse limit: 60 listakérés/perc/user, egy app-példány memóriájában; ez nem elosztott védelem. 429-nél a hátralévő ablakot jelző Retry-After másodpercben, CORS-on olvashatóan küldendő. Egy DB-hiba nem ad hamis üres listát.
+**Implementált hibák:** 400 VALIDATION_ERROR/CURSOR_INVALID; 401 AUTH_REQUIRED; 403 ORIGIN_NOT_ALLOWED; 429 RATE_LIMITED; 503 DATABASE_UNAVAILABLE/SERVICE_UNAVAILABLE; 500 INTERNAL_ERROR. A SessionGuard aktuális-user DB-hibája a meglévő 503 SERVICE_UNAVAILABLE, a listázó service DB-hibája 503 DATABASE_UNAVAILABLE. A nested error wrapper és `details:{}` közös, raw SQL/cursor/provideradat nélkül. Kezdeti abuse limit: 60 listakérés/perc/user, egy app-példány memóriájában; ez nem elosztott védelem. 429-nél a hátralévő ablakot jelző Retry-After másodpercben, CORS-on olvashatóan küldendő. Egy DB-hiba nem ad hamis üres listát.
 
 ### `GET /files/trash?cursor={cursor}&limit={limit}`
 

@@ -1,16 +1,25 @@
 import { UploadConfirmService } from './upload-confirm.service';
 import { FileIdPipe, UploadConfirmGuard } from './upload-confirm.guard';
-import { Body, Param, Controller, Header, Headers, Post, Res, Req, UseGuards } from '@nestjs/common';
+import { Body, Param, Controller, Get, Query, Header, Headers, Post, Res, Req, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { OriginGuard } from '../auth/origin.guard';
 import { SessionGuard, type AuthenticatedRequest } from '../auth/session.guard';
 import { UploadInitDto, UploadInitValidationPipe, uploadKey } from './upload-init.dto';
 import { UploadInitGuard } from './upload-init.guard';
 import { UploadInitService } from './upload-init.service';
+import { FileListService } from './file-list.service';
+import { FileListQuery, FileListQueryPipe } from './file-list.query';
+import { FileListGuard } from './file-list.guard';
 
 @Controller('files')
 export class FilesController {
-  constructor(private readonly uploads: UploadInitService, private readonly confirmation: UploadConfirmService) {}
+  constructor(private readonly uploads: UploadInitService, private readonly confirmation: UploadConfirmService, private readonly listing: FileListService) {}
+  @Get()
+  @Header('Cache-Control', 'no-store')
+  @UseGuards(SessionGuard, FileListGuard)
+  list(@Req() request: AuthenticatedRequest, @Query(FileListQueryPipe) query: FileListQuery) {
+    return this.listing.list(request.user.id, query);
+  }
   @Post(':fileId/confirm')
   @Header('Cache-Control', 'no-store')
   @UseGuards(OriginGuard, SessionGuard, UploadConfirmGuard)
