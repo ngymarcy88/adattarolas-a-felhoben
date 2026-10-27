@@ -158,7 +158,7 @@ describe('Confirm request boundary', () => {
   it('returns explicit 200 with public result and authenticated owner', async () => {
     const service = { confirm: jest.fn().mockResolvedValue({ file: { id, status: 'ACTIVE' } }) };
     const response = { status: jest.fn(), json: jest.fn() }; response.status.mockReturnValue(response);
-    await new FilesController(undefined as never, service as unknown as UploadConfirmService, undefined as never).confirm({ user: { id: owner }, requestId: 'request' } as never, id, response as never);
+    await new FilesController(undefined as never, service as unknown as UploadConfirmService, undefined as never, undefined as never).confirm({ user: { id: owner }, requestId: 'request' } as never, id, response as never);
     expect(service.confirm).toHaveBeenCalledWith(owner, id, 'request'); expect(response.status).toHaveBeenCalledWith(200); expect(response.json).toHaveBeenCalledWith({ file: { id, status: 'ACTIVE' } });
   });
 });

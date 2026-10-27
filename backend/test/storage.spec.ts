@@ -150,6 +150,14 @@ describe('S3 storage adapter', () => {
     expect(command.input).toMatchObject({ ResponseContentType: 'image/png', ResponseCacheControl: 'no-store' });
     expect((command as GetObjectCommand).input.ResponseContentDisposition).toBe('attachment; filename="download"; filename*=UTF-8\'\'%C3%81rv%C3%ADz%20%22k%C3%A9p%22.png');
   });
+  it('signs an inline preview with validated MIME, no-store and escaped UTF-8 filename', async () => {
+    const { adapter, sign } = fixture();
+    const result = await adapter.createReadAccess({ key, mimeType: 'image/png', originalName: 'Árvíz "kép".png', disposition: 'inline', expiresAt });
+    const command = sign.mock.calls[0][1] as GetObjectCommand;
+    expect(command.input).toMatchObject({ Bucket: 'unit-bucket', Key: key, ResponseContentType: 'image/png', ResponseCacheControl: 'no-store',
+      ResponseContentDisposition: 'inline; filename="download"; filename*=UTF-8\'\'%C3%81rv%C3%ADz%20%22k%C3%A9p%22.png' });
+    expect(result.expiresAt).toEqual(expiresAt);
+  });
   it.each(['', '.', ' .. ', '../image.png', 'bad\r\nname.png', 'bad\ud800', 'name\u202e.png'])('rejects unsafe read filename %#', async (originalName) => {
     const { adapter, sign } = fixture();
     await expect(adapter.createReadAccess({ key, mimeType: 'image/png', originalName, disposition: 'inline', expiresAt })).rejects.toMatchObject({ code: 'INVALID_ARGUMENT' });

@@ -5,7 +5,7 @@ import { ApiError } from '../common/errors/api-error';
 @Injectable()
 export class FileIdPipe implements PipeTransform<unknown, string> {
   transform(value: unknown): string {
-    if (typeof value !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) throw new ApiError('VALIDATION_ERROR');
+    if (typeof value !== 'string' || value.length !== 36 || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) throw new ApiError('VALIDATION_ERROR');
     return value.toLowerCase();
   }
 }
