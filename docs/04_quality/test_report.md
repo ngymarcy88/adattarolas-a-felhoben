@@ -1,5 +1,21 @@
 # Test report
 
+## Szerzői kézi feltöltési próba – visszaigazolva 2026-10-27
+
+**Eredmény: PASS a felületen megfigyelt sikeres feltöltésre, a szerző visszajelzése alapján.** A formátumkorrekció elkészülte után a szerző manuálisan tesztelte a feltöltést, és ezt jelezte: „sikeresen teszteltem a feltoltest”. Ez a korábbi, kizárólag unit/SSR és helyi fájl-előkészítési bizonyítékot pozitív kézi alkalmazáspróbával egészíti ki.
+
+| Jegyzőkönyvi mező | Rögzített adat |
+|---|---|
+| Ellenőrző és bizonyíték | A szakdolgozat szerzője; közvetlen visszajelzés ebben a projektbeszélgetésben. Nem az AI saját böngészős futtatása és nem külső UAT. |
+| Dátum | A visszajelzés dátuma 2026-10-27; külön tesztidőpont nem lett megadva. |
+| Kapcsolódó verzió | Formátumjavítás: `9073970`, [PR #26](https://github.com/ngymarcy88/adattarolas-a-felhoben/pull/26). A ténylegesen tesztelt build/commit külön nem lett megadva; nem állítjuk, hogy már mainre merge-elt verzió. |
+| Környezet | A szerző saját alkalmazáskörnyezete; böngészőverzió és indítási mód nem lett külön rögzítve. |
+| Bemenet és előzmény | Képfeltöltés újrapróbálása a javítás után. Az előző hibajegy két JPEG-tartalmú, PNG-kiterjesztésű fájlra vonatkozott; az új próba pontos fájllistája/darabszáma nincs külön megerősítve. |
+| Lépés, elvárt és tényleges eredmény | A feltöltési felület manuális kipróbálása; elvárt a sikeres feltöltés, ténylegesen a szerző sikeres feltöltést igazolt vissza. Részletes kattintássorozat vagy külön mezőnkénti megfigyelés nem került átadásra. |
+| Képernyőkép | Ehhez a sikeres próbához új képernyőkép nem érkezett; a korábbi kép a javítás előtti hibát mutatja. |
+
+**A 7. pont állapota: részben igazolt.** A pozitív kézi feltöltési út visszaigazolt. A közvetlen PostgreSQL-/MinIO-állapot, tényleges MIME/fájlnév, fájl-/audit-darabszám és pontos tárhelyelszámolás külön ellenőrzése még nincs e próba részeként dokumentálva. Hálózatmegszakítás/retry, ismételt confirm miatti duplikációmentesség, negatív fájlesetek és munkamenet-lejárat kézi próbájáról sem érkezett most eredmény; az ezekre meglévő unit bizonyíték külön szerepel lent. A teljes 7. pont és a cleanup fizikai release-proofja ettől nem zárult le.
+
 ## Tartalom alapján javított képformátum – 2026-10-27
 
 Verzió: `fix/detect-upload-image-format`, `63b5331` main baseline és a `8fa3fd2` ágon merge-elt #25 UI átvezetése után. A #25 az előző feature ágba került, ezért a mainhez a UI-függőséget is be kellett emelni. Környezet: WSL Bash, Linux Node 22.23.2/npm 10.9.8, meglévő Jest/Vitest/TypeScript. Nincs új dependency, backend endpoint vagy migráció.
