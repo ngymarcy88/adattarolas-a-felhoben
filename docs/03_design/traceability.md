@@ -1,6 +1,6 @@
 # Követhetőségi mátrix
 
-**Részben implementált: az US-01 regisztráció/login/logout/me backend-szelete; a többi termékfolyamat tervezett.**
+**Részben implementált: auth, első upload és saját ACTIVE képek GET /files backend-listája; preview és galéria-UI még tervezett.**
 
 ## Cél
 
@@ -63,3 +63,9 @@ Az upload-adatmodell későbbi tesztjei külön fedjék a következőket: (1) ow
 Az implementált upload-init bizonyítékai: `backend/test/upload-init.spec.ts` DTO/guard/service/controller unit esetek, illetve a tesztriportban külön verziózott kézi HTTP/DB concurrency és rollback próba. A későbbi confirm/cleanup szelet unit esetei is elkészültek: upload-confirm.spec.ts és upload-cleanup.spec.ts. Az UT-CLEANUP valós fizikai release-kapuja ettől még nem teljesül.
 
 Az első US-02 frontend-illesztés: `frontend/src/api/uploads.ts` → `frontend/src/upload/batch.ts` → `UploadPanel.vue` a védett AccountPage-en. Unit bizonyíték: `upload-api.spec.ts`, `upload-batch.spec.ts`, `upload-panel.spec.ts`. Fájlonkénti állapot/progress, két párhuzamos átvitel, részhiba és idempotens retry implementált; valódi browser/DB/storage elfogadás, galéria/processor és tartós/bájtszintű resume nem lezárt.
+
+## US-03 első képgaléria/preview szerződés – dokumentált, nem implementált, 2026-10-27
+
+GET /files → saját ACTIVE/ellenőrzött képek hétmezős projekciója, createdAt/id keyset és limit+1 → FileObject meglévő olvasási modell/index → tervezett UT-PAGINATION/UT-OWNERSHIP/UT-ERROR. GET /files/{fileId}/preview-url → owner/state/MIME + HEAD és createReadAccess → eredeti FileObject/storage objektum → tervezett UT-DELIVERY/UT-OWNERSHIP/UT-ERROR. Az [API](api.md#fájllista-és-lifecycle), [UX](../01_product/ux_flows.md#első-képgaléria-és-előnézet--tervezett-ui-szelet-2026-10-27) és [tesztterv](../04_quality/test_strategy.md) pontosítja az üres/loading/error/retry/expiry és thumbnail-határt. A storage read adapter létezése nem jelenti a végpont vagy galéria implementációját; működési PASS/evidence nincs ebben a dokumentációs feladatban.
+
+A GET /files backend-lista implementált: FilesController → SessionGuard/FileListGuard → FileListQueryPipe → FileListService → Prisma FileObject.findMany. `backend/test/file-list.spec.ts` a query/cursor, owner/state/type szűrés, mezőprojekció, 1/20/100-as lapozás és azonos időbélyegek, törölt horgony, idegen cursor, limiter és hiba-wrapper unit bizonyítéka. A Prisma-query double nem tényleges SQL/browser bizonyíték. A preview és frontend fent jelzett útja továbbra is terv.

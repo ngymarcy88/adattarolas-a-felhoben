@@ -136,6 +136,8 @@ A történeti MVP-0–MVP-7 helyett az alábbi **SZD2-0–SZD2-7** az aktuális 
 - [x] Cleanup worker és operátori batch: lejárat, tartós terminális okok, backoff, proof nélküli biztonságos blokkolás.
 - [ ] Cleanup fizikai törlés/release provider-proofja; a jelenlegi adapterrel még nem igazolt, foglalás megmarad.
 - [ ] Backend-kontrollált privát upload, méret/MIME/magic-number validáció, foglalás és idempotens confirm.
+- [x] Első saját képgaléria/eredeti-preview olvasási szerződés: owner/ACTIVE/kép szűrés, keyset cursor, válaszmezők/hibák/TTL és UI-állapotok dokumentálva; végpont/UI implementáció nélkül.
+- [x] GET /files backend: saját ACTIVE képek, szigorú cursor/limit, determinisztikus createdAt/id lapozás, hétmezős projekció, user rate limit és unit tesztek. A galéria-UI és preview endpoint még nincs.
 - [ ] Saját galéria és jogosult előnézet/letöltés; betöltési, üres és hibaállapotok.
 - [ ] Közös processor-interfész és első beépített processor, verziózott eredménnyel. Elsőként az előnézetkészítő javasolt; ez végrehajtási javaslat, a tanár általánosan első processort kér.
 - [ ] Eredeti és derived storage konzisztens elszámolása; minimális tartós job/result és audit, titkok nélkül.

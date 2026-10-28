@@ -1,8 +1,8 @@
 # API-szerződés
 
-**Részben implementált szerződés: health, register/login/logout/me és upload-init/confirm létezik; a többi végpont tervezett.**
+**Részben implementált szerződés: health, register/login/logout/me, upload-init/confirm és GET /files létezik; a többi végpont tervezett.**
 
-A scaffold `GET /api/v1/health` végpontja, CORS-konfigurációja, request ID-ja és generikus hibakerete implementált. A regisztráció, login/logout/me is implementált; a `POST /api/v1/files/uploads/init` is implementált; a confirm is implementált; a további file-, share- és MI-endpoint terv; import-/processing-kiegészítésük későbbi szerződésfeladat. Futási ellenőrzés: [tesztriport](../04_quality/test_report.md).
+A scaffold `GET /api/v1/health` végpontja, CORS-konfigurációja, request ID-ja és generikus hibakerete implementált. A regisztráció, login/logout/me is implementált; a `POST /api/v1/files/uploads/init` is implementált; a confirm és a GET /files lista is implementált; a további file-, share- és MI-endpoint terv; import-/processing-kiegészítésük későbbi szerződésfeladat. Futási ellenőrzés: [tesztriport](../04_quality/test_report.md).
 
 A belső MinIO/S3 adapter már implementált; ez nem publikus endpoint. Az init authorizationja, kvótafoglalása és tartós replay-je implementált; a confirm is implementált; a cleanup csak igazolt íráslezárás mellett törölhet és oldhat fel foglalást; az in-flight íráslezárás bizonyítása nyitott.
 
@@ -13,7 +13,7 @@ A belső MinIO/S3 adapter már implementált; ez nem publikus endpoint. Az init 
 - Minden időpont UTC ISO 8601 formátumú, minden azonosító átlátszatlan UUID.
 - A bájtértékek nem negatív egész számok.
 - A frontend `credentials: include` módban hívja a cookie-auth endpointokat.
-- Az alábbi táblában a health, a négy auth sor és az upload-init/confirm implementált; a többi endpoint tervezett. Megvalósításkor a controller- és DTO-szerződést e dokumentummal együtt kell frissíteni. OpenAPI-generálás még nincs.
+- Az alábbi táblában a health, a négy auth sor, az upload-init/confirm és GET /files implementált; a többi endpoint tervezett. Megvalósításkor a controller- és DTO-szerződést e dokumentummal együtt kell frissíteni. OpenAPI-generálás még nincs.
 
 ## Hitelesítés, Origin és CORS
 
@@ -28,7 +28,7 @@ A register/login/logout végpontokon a backend ellenőrzi az `Origin` headert az
 
 Az ADR-010 szerinti `SameSite=Lax` és a szigorú Origin-ellenőrzés együtt adja a Core MVP CSRF-védelmét; külön CSRF-token nincs. Ha későbbi deployment topológia további CSRF-token mechanizmust vagy eltérő cookie-policyt igényel, azt implementáció előtt ADR-módosítással kell jóváhagyni.
 
-A jelenlegi scaffold a konfigurált `FRONTEND_PUBLIC_URL` origint credentiallel engedi, az eltérő Origint `403 ORIGIN_NOT_ALLOWED` hibával utasítja el. Origin nélküli kérést a publikus health eléréséhez enged. A register/login/logout külön Origin-guardja a hiányzó Origint is tiltja; az upload-init már ugyanilyen Origin-védelmet és SessionGuardot használ. A válaszok `X-Request-Id` headere CORS-on keresztül is olvasható. Register és login közös peer-guardot és külön explicit DTO-pipe-ot használ; logout Origin-guardot, `/me` JWT+DB-user guardot kapott. Az upload-init őrei sorrendben Origin → aktuális session/user → fejlécek/rate limit; utána a DTO következik. A további termékvégpontok még nincsenek.
+A jelenlegi scaffold a konfigurált `FRONTEND_PUBLIC_URL` origint credentiallel engedi, az eltérő Origint `403 ORIGIN_NOT_ALLOWED` hibával utasítja el. Origin nélküli kérést a publikus health eléréséhez enged. A register/login/logout külön Origin-guardja a hiányzó Origint is tiltja; az upload-init már ugyanilyen Origin-védelmet és SessionGuardot használ. A válaszok `X-Request-Id` és `Retry-After` headere CORS-on keresztül is olvasható. Register és login közös peer-guardot és külön explicit DTO-pipe-ot használ; logout Origin-guardot, `/me` JWT+DB-user guardot kapott. Az upload-init őrei sorrendben Origin → aktuális session/user → fejlécek/rate limit; utána a DTO következik. A GET /files SessionGuard → FileListGuard (60/perc/user) sorrendet és FileListQueryPipe-ot használ; nem követel Origint, a globális CORS változatlanul szűr. A további termékvégpontok még nincsenek.
 
 ## Endpoint-összefoglaló
 
@@ -40,10 +40,10 @@ A jelenlegi scaffold a konfigurált `FRONTEND_PUBLIC_URL` origint credentiallel 
 | `GET /auth/me` | **Implementált Core-szelet** | cookie | Aktuális felhasználó |
 | `POST /files/uploads/init` | **Implementált init-szelet** | owner cookie + Origin + Idempotency-Key | Egyszeri pending/foglalás és rövid presigned PUT |
 | `POST /files/{fileId}/confirm` | **Implementált confirm-szelet** | owner cookie + Origin | Idempotens storage-validáció és aktiválás |
-| `GET /files` | Core MVP | owner cookie | Aktív saját fájlok cursor-lapozott listája |
+| `GET /files` | **Implementált képlista-szelet** | owner cookie | Saját ACTIVE képek cursor-lapozott metaadatlistája |
 | `GET /files/trash` | Core MVP | owner cookie | Visszaállítható saját fájlok cursor-lapozott listája |
 | `GET /files/{fileId}` | Core MVP | owner cookie | Saját fájl biztonságos metaadata |
-| `GET /files/{fileId}/preview-url` | Core MVP | owner cookie | Rövid életű inline preview URL, ha engedélyezett |
+| `GET /files/{fileId}/preview-url` | **Tervezett első képelőnézet** | owner cookie | Jogosított eredeti kép rövid életű inline URL-je |
 | `GET /files/{fileId}/download-url` | Core MVP | owner cookie | Rövid életű attachment download URL |
 | `DELETE /files/{fileId}` | Core MVP | owner cookie + Origin | Soft delete |
 | `POST /files/{fileId}/restore` | Core MVP | owner cookie + Origin | Restore a 30 napos retention alatt |
@@ -99,7 +99,7 @@ A response soha nem tartalmaz `storageKey` értéket.
 }
 ```
 
-A cursor átlátszatlan a kliens számára, a `createdAt + id` rendezési kulcsot kódolja, és nem tartalmazhat személyes vagy érzékeny adatot. A rendezés `createdAt DESC, id DESC`. A `limit` defaultja 20, maximuma 100; a tartományon kívüli érték validációs hiba.
+A cursor átlátszatlan a kliens számára, a `createdAt + id` rendezési kulcsot kódolja, és nem tartalmazhat profilt, credentialt vagy storage-adatot; a rendezési fájlazonosító és időpont a publikus metaadatlista mezői. A rendezés `createdAt DESC, id DESC`. A `limit` defaultja 20, maximuma 100; a tartományon kívüli érték validációs hiba.
 
 ## Auth
 
@@ -346,9 +346,52 @@ A tus/Uppy és S3 multipart vizsgálandó alternatívák, nem kiválasztott impl
 
 ## Fájllista és lifecycle
 
-### `GET /files?cursor={cursor}&limit={limit}`
+### `GET /files?cursor={cursor}&limit={limit}` – implementált képlista
 
-Csak `ACTIVE` saját fájlokat ad. Siker: `200 OK`, cursor-oldal. A stabil sorrend `createdAt DESC, id DESC`.
+**Implementált backend-szelet, unit tesztekkel; galéria-UI és preview végpont még nincs.** Teljes helyi URL: `GET http://127.0.0.1:3000/api/v1/files`. Body nincs. Cookie/session + aktuális DB-user ellenőrzés kötelező; a frontend `credentials: include` módot használ. GET-ként hiányzó Origin megengedett, explicit eltérő Originre a közös CORS 403-at ad. Siker és hiba egyaránt `Cache-Control: no-store`.
+
+**Szűrés:** minden lekérdezés szerveroldalon az aktuális user `ownerId`-jára és `status=ACTIVE` értékre szűr. Az első szelet csak képek: a `detectedMimeType` nem null, egyezik a `mimeType`-pal, és a JPEG/PNG/WebP/GIF allowlist, valamint az aktuális `ALLOWED_MIME_TYPES` metszetében van. Pending, REJECTED/EXPIRED receipt mögötti pending, soft-deleted, video és ismeretlen típus nem kerül a listára. Nem kérhető másik owner, státusz vagy MIME query-paraméterrel. A későbbi videós lista külön szerződésbővítés.
+
+| Query | Szabály |
+|---|---|
+| `limit` | Opcionális, alapérték 20; 1–100 közötti egész, csak kanonikus decimális szöveg (nincs előjel, tört, szóköz vagy vezető nulla). Üres/ismételt/rossz típus vagy tartomány: 400 VALIDATION_ERROR. |
+| `cursor` | Első oldalon elhagyandó. Később a változatlan `nextCursor` küldendő URL-kódolva. Üres/ismételt, 512 karakternél hosszabb vagy hibás token: 400 CURSOR_INVALID. |
+
+Ismeretlen query-mező 400 VALIDATION_ERROR; nincs offset/page/ownerId paraméter. A szerver auth után validál. Példa: `GET /api/v1/files?limit=20`; a következő kérés ugyanezzel a limittel `cursor=<előző nextCursor>`.
+
+**Cursor v1 és lekérdezés:** kanonikus, padding nélküli base64url kódolású UTF-8 JSON, kizárólag `v:1`, `scope:"active-images-v1"`, `createdAt` és `id` mezőkkel. Az időpont érvényes, kanonikus UTC ISO 8601, ezredmásodperces pontossággal, 0001–9999 közötti évvel; az id kanonikus kisbetűs UUID. Rossz kódolás/JSON/alak, extra/hiányzó mező, ismeretlen verzió/scope, hibás dátum vagy UUID: CURSOR_INVALID. A kliens nem értelmezi vagy állítja elő a tokent. Ez nem aláírt vagy titkosított capability: érvényes szerkezetű módosítása legfeljebb más lapozási pozíciót jelent, jogosultságot nem ad. A server soha nem fogad owner/szűrő/SQL utasítást cursorból.
+
+A rendezés `createdAt DESC, id DESC`, az adatbázis timestamp/UUID összehasonlításával. Folytatáskor a kötelező owner/state/type szűrés mellett: `createdAt < cursor.createdAt OR (createdAt = cursor.createdAt AND id < cursor.id)`. A cursor horgonyrekordját nem kell megkeresni; közbeni törlése nem 404 és nem akadály. Másik sessionből származó token sem oldja fel a saját-owner szűrést. Legfeljebb `limit+1` rekord olvasandó; az extra sor csak lookahead. `nextCursor` az utolsó **visszaadott** sorból készül, ha van extra rekord.
+
+**200 OK:** kizárólag `items`, `nextCursor`, `hasNextPage`. Az alábbi szintetikus példa egy teljes, egyképes oldal:
+
+```json
+{
+  "items": [{
+    "id": "018f4f35-20de-7a9c-a05a-6c5c9d4f1c32",
+    "originalName": "kep.jpg",
+    "mimeType": "image/jpeg",
+    "detectedMimeType": "image/jpeg",
+    "sizeBytes": 120396,
+    "status": "ACTIVE",
+    "createdAt": "2026-10-27T10:00:00.000Z"
+  }],
+  "nextCursor": null,
+  "hasNextPage": false
+}
+```
+
+| Válaszmező | Szabály |
+|---|---|
+| `items` | 0–limit elem. Elemenként pontosan a fenti hét mező: id UUID, validált display/download név, két egyező kép-MIME, pozitív biztonságos egész bájtméret, ACTIVE státusz és UTC createdAt. Ez külön galéria-reprezentáció, nem a teljes Prisma-rekord. |
+| `nextCursor` | Nem üres string pontosan akkor, ha hasNextPage=true; egyébként null. Nem a lookahead sorra mutat. |
+| `hasNextPage` | Boolean, a limit+1 eredményből; nincs totalCount vagy becsült összes képszám. |
+
+Üres első vagy folytatási oldal: `{"items":[],"nextCursor":null,"hasNextPage":false}`, **nem 404**. Nincs storageKey/bucket/ownerId, receipt, audit, quota, upload URL, preview URL vagy processor mező; a lista nem hívja a storage adaptert és nem függ a MinIO rendelkezésre állásától. Presigned URL csak külön jogosított preview kérésből adható.
+
+A `createdAt` az upload init időpontja, nem confirm-idő; rendezési értéke nem módosul finalizáláskor. Változatlan adathalmaznál nincs kihagyás vagy ismétlés. Nincs snapshot-ígéret: közben aktivált/törölt kép, módosult allowlist vagy új feltöltés befolyásolhatja a folytatást. Frissítés/sikeres confirm után új első oldal és új lapozási lánc indul; a kliens ID szerint deduplikál. A limit oldalak között változhat, a cursor kizárólag pozíciót hordoz.
+
+**Implementált hibák:** 400 VALIDATION_ERROR/CURSOR_INVALID; 401 AUTH_REQUIRED; 403 ORIGIN_NOT_ALLOWED; 429 RATE_LIMITED; 503 DATABASE_UNAVAILABLE/SERVICE_UNAVAILABLE; 500 INTERNAL_ERROR. A SessionGuard aktuális-user DB-hibája a meglévő 503 SERVICE_UNAVAILABLE, a listázó service DB-hibája 503 DATABASE_UNAVAILABLE. A nested error wrapper és `details:{}` közös, raw SQL/cursor/provideradat nélkül. Kezdeti abuse limit: 60 listakérés/perc/user, egy app-példány memóriájában; ez nem elosztott védelem. 429-nél a hátralévő ablakot jelző Retry-After másodpercben, CORS-on olvashatóan küldendő. Egy DB-hiba nem ad hamis üres listát.
 
 ### `GET /files/trash?cursor={cursor}&limit={limit}`
 
@@ -370,9 +413,31 @@ Az automatizált retention purge nem része ennek az API-verziónak; `Later`.
 
 ## Preview és download
 
-### `GET /files/{fileId}/preview-url`
+### `GET /files/{fileId}/preview-url` – tervezett első képelőnézet
 
-Owner- és `ACTIVE` state-check után csak dokumentált inline-safe kép- vagy videótípushoz ad rövid életű read URL-t. A storage response `Content-Disposition: inline` viselkedése kontrollált. HTML, SVG, JavaScript, XML és ismeretlen tartalom nem preview-zható.
+**Státusz: csak szerződés, nincs implementált preview végpont.** Példakérés: `GET /api/v1/files/018f4f35-20de-7a9c-a05a-6c5c9d4f1c32/preview-url`; nincs body vagy query-paraméter. Cookie/session + aktuális DB-user szükséges; Origin/CORS és no-store szabálya a GET /files-ével egyezik. Hibás UUID/ismeretlen query 400 VALIDATION_ERROR.
+
+1. Metaadat-lekérés kizárólag `id + aktuális ownerId + ACTIVE` szerint. Hiányzó, idegen, saját pending vagy soft-deleted fájl egységes **404 FILE_NOT_FOUND**, típus-/storage-ellenőrzés és presign nélkül. Az idegen fájl típusa/állapota nem szivároghat 415/503 válasszal sem.
+2. Támogatott tényleges típus: **image/jpeg, image/png, image/webp, image/gif**, az aktuális ALLOWED_MIME_TYPES-szal metszve; detectedMimeType nem null és egyezik a mimeType-pal. Csak már confirmált tartalom használható. Saját ACTIVE, de nem megfelelő típus/hiányzó detektálás esetén **415 PREVIEW_NOT_ALLOWED**. Video, SVG, HTML, JavaScript, XML és ismeretlen tartalom nem inline előnézet ebben a szeletben. Kiterjesztés vagy storage Content-Type önmagában nem elég.
+3. A meglévő adapterrel HEAD igazolja az objektum jelenlétét; bizonyított hiány **404 FILE_NOT_FOUND**, provider/access/bucket hiba **503 STORAGE_UNAVAILABLE**. A tényleges méretnek egyeznie kell a mentett pozitív mérettel; eltérésnél 503 STORAGE_UNAVAILABLE, URL nélkül. Nem végzünk új teljes letöltést/dekódolást. A hiány/hiba nem írja át a file státuszát vagy a kvótaszámlálókat.
+4. Jogosultság és állapot az URL kiadásakor is legyen érvényes; a storage I/O alatt változott metaadatot újra kell ellenőrizni a sikeres válasz előtt. A meglévő createReadAccess adapter az eredeti objektumhoz ad presigned GET-et; nincs publikus bucket vagy nyers, tartós storage link.
+
+**200 OK, kizárólag url és expiresAt:**
+
+```json
+{
+  "url": "https://object-storage.example.test/synthetic-presigned-image",
+  "expiresAt": "2026-10-27T10:05:00.000Z"
+}
+```
+
+A URL szintetikus példa. TTL a kiadáskor legfeljebb **300 másodperc**; a PRESIGNED_URL_TTL_SECONDS és a providercredential hátralévő élettartama tovább rövidítheti. A lejárat az adapter által ténylegesen vállalt abszolút UTC idő; a válaszig lejárt jogot nem adunk ki sikeresen (503 STORAGE_UNAVAILABLE). Nincs kliensoldali host-/query-átírás. A response és a storage GET Cache-Control-ja no-store; a storage Content-Type a validált detectedMimeType, Content-Disposition inline, biztonságos filename/UTF-8 filename* az adapterrel. A generikus ASCII fallback lehet `download`; a validált UTF-8 név hordozza a formátumhoz igazított display nevet.
+
+A signed URL a TTL alatt birtoklással használható capability: a storage GET nem kér API-cookie-t. Logout/oldalhagyás nem vonja vissza a már kiadott jogot; későbbi soft delete sem garantál azonnali visszavonást a korábban kiadott URL-re. Új URL mindig új owner/state ellenőrzést igényel. URL, query-token és storage key nem kerülhet logba, tartós browser-storage-ba vagy a lista response-ba. A frontend csak memóriában tartja, külön storage originre mutató image src-ként használja crossorigin=anonymous és referrerpolicy=no-referrer mellett; a storage GET CORS-nak a frontend origint engednie kell (nem credentiales kérés); storage-kéréshez nem ad API Authorization headert, nem illeszt HTML-t/iframe-et a válaszból.
+
+**Tervezett hibák:** 400 VALIDATION_ERROR; 401 AUTH_REQUIRED; 403 ORIGIN_NOT_ALLOWED; 404 FILE_NOT_FOUND; 415 PREVIEW_NOT_ALLOWED; 429 RATE_LIMITED; 503 DATABASE_UNAVAILABLE/STORAGE_UNAVAILABLE/SERVICE_UNAVAILABLE; 500 INTERNAL_ERROR (SERVICE_UNAVAILABLE a meglévő session-user ellenőrzés átmeneti hibája). Mindegyik nested error, details:{} és no-store; nincs raw URL, key vagy providerhiba. Kezdeti user-limit 120 preview-URL kérés/perc, külön a listalimiter ablakától, egy app-példányban; 429 Retry-After headere CORS-on olvasható legyen. Presignhibánál nincs fallback nyilvános URL-re.
+
+**Első szelet határa:** az eredeti képet adja kártyához és nagy előnézethez. Nincs új thumbnail, méretezés, EXIF-kinyerés, job/result/processor mező vagy thumbnail endpoint. Az előnézeti URL kiadása nem indít feldolgozást és nem változtat used/reserved kvótát. A későbbi thumbnail processor saját verziózott eredmény-, ownership-, kvóta- és lifecycle-szerződést igényel; nem lesz állandó publikus URL.
 
 ### `GET /files/{fileId}/download-url`
 

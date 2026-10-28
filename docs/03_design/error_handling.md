@@ -1,6 +1,6 @@
 # Hibakezelési szerződés
 
-**Részben implementált: generikus HTTP hibakeret és request ID. A regisztráció és login/logout/me hibái is implementáltak; a többi domainhiba tervezett.**
+**Részben implementált: generikus HTTP hibakeret és request ID. A regisztráció, login/logout/me és GET /files hibái is implementáltak; a többi domainhiba tervezett.**
 
 A scaffold globális exception filtert és request-ID middleware-t tartalmaz. A filter biztonságos, magyar generikus HTTP-üzeneteket és az alábbi nested wrappert adja; ismeretlen kivétel `500 INTERNAL_ERROR`. Hibás JSON `400 INVALID_REQUEST`, túl nagy request `413 REQUEST_TOO_LARGE`, nem támogatott JSON-karakterkészlet vagy Content-Encoding `415 UNSUPPORTED_MEDIA_TYPE`; explicit CORS-elutasítás `403 ORIGIN_NOT_ALLOWED`. A regisztráció DTO-pipe-ja `400 VALIDATION_ERROR`, unique-email hibája `409 EMAIL_ALREADY_EXISTS`, guardja `429 RATE_LIMITED`, foglaltság/hash/DB hibája `503 SERVICE_UNAVAILABLE`; üres details és biztonságos üzenet. Login: `401 INVALID_CREDENTIALS`; cookie/token/DB-user hiány a `/me` guardban `401 AUTH_REQUIRED`; auth DB/KDF/sign vagy kapacitáshiba `503 SERVICE_UNAVAILABLE`. Login/logout Origin és login DTO/rate-limit implementált. A többi domain/provider-mapping tervezett. A tényleges ellenőrzési eredményt a [tesztriport](../04_quality/test_report.md) tartalmazza.
 
@@ -47,7 +47,7 @@ A filter 400/401/403/404/405/409/413/415/429/503 HTTP-státuszhoz rendre `INVALI
 |---:|---|---|
 | 400 | `INVALID_REQUEST` | Hibás JSON, ismeretlen vagy rossz alakú közös request |
 | 400 | `VALIDATION_ERROR` | Regisztráció implementált, `details: {}`; más DTO-knál a tervezett `details.fields` csak mezőnevet és stabil okot tartalmazhat |
-| 400 | `CURSOR_INVALID` | Nem dekódolható, rossz verziójú vagy manipulált cursor |
+| 400 | `CURSOR_INVALID` | Nem dekódolható, rossz verziójú/scope-ú vagy hibás szerkezetű cursor; nem aláírt jogosultság |
 | 401 | `AUTH_REQUIRED` | Hiányzó, lejárt vagy érvénytelen JWT-cookie |
 | 401 | `INVALID_CREDENTIALS` | Login hiba; email- és jelszóhiba azonos válasza |
 | 403 | `ORIGIN_NOT_ALLOWED` | Unsafe kérés hiányzó vagy nem allowlistelt Originnel |
@@ -207,3 +207,11 @@ A storage adapter `StorageError` kódjai: `INVALID_ARGUMENT`, `NOT_FOUND`, `OBJE
 ## Upload-init implementált hibák – 2026-10-24
 
 Az init a dokumentált VALIDATION_ERROR, INVALID_FILE_NAME, UNSUPPORTED_MEDIA_TYPE, FILE_TOO_LARGE, QUOTA_EXCEEDED, IDEMPOTENCY_CONFLICT, RESOURCE_STATE_CONFLICT, UPLOAD_EXPIRED, UPLOAD_VALIDATION_FAILED, DATABASE_UNAVAILABLE és STORAGE_UNAVAILABLE domainkódokat használja a megfelelő állapotokban. A 413/422 tartalmi végkódok jelenleg megőrzött receipt-replay ágak; új tartalomellenőrzést az init nem végez. Origin/session/limiter a DTO előtt fut. Az upload service az ismeretlen DB-/commit-hibát is maszkolt DATABASE_UNAVAILABLE válasszal zárja; a kliens ugyanazt az idempotenciakulcsot használja. A filter minden hibára no-store-t állít, és nem adja tovább a provider/Prisma üzenetet.
+
+## Első képgaléria/preview – lista implementált, preview tervezett, 2026-10-27
+
+A GET /files hibái már implementáltak; a preview végpont hibái továbbra is tervezettek. Az [API részletes szerződése](api.md#fájllista-és-lifecycle) rögzíti a mappinget. GET /files: hibás limit/extra query VALIDATION_ERROR 400; üres/ismételt/rossz/max512 fölötti cursor CURSOR_INVALID 400. A v1 tuple cursor nem aláírt: egy szerkezetileg helyes, módosított pozíció nem szükségszerűen hiba; az owner/state/type szűrés minden esetben kötelező. Üres lista 200, DB-hiba DATABASE_UNAVAILABLE 503, nem hamis üres eredmény.
+
+GET /files/{fileId}/preview-url: hibás UUID/query 400; nem létező/idegen/saját nem ACTIVE sor és bizonyítottan hiányzó saját objektum egységes FILE_NOT_FOUND 404. Az owner/state ellenőrzés előzi meg a MIME- és storage-vizsgálatot. Saját ACTIVE, de nem támogatott/missing/mismatch detectedMimeType esetén PREVIEW_NOT_ALLOWED 415. HEAD/presign/bucket/access hiba vagy tényleges méreteltérés STORAGE_UNAVAILABLE 503; metadata-DB hiba DATABASE_UNAVAILABLE 503. A 404 és hiba sem módosít kvótát/életciklust.
+
+Közös: AUTH_REQUIRED 401; a meglévő SessionGuard user-lekérdezési hibája SERVICE_UNAVAILABLE 503 (nem 401); explicit eltérő Origin ORIGIN_NOT_ALLOWED 403; külön per-user list/preview ablak túllépése RATE_LIMITED 429 és olvasható Retry-After; ismeretlen hiba INTERNAL_ERROR 500. Details mindig {}, no-store; providerhiba, signed URL, cursor és storage key nem kerül vissza/logba. A storage kép-GET hibája nem backend JSON-hiba: a UI képbetöltési hibát jelez, és nem talál ki belőle 401/404 domainkódot. Teljes státusz csak új jogosított API-kérésből ismert.

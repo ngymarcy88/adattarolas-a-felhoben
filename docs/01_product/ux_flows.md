@@ -55,6 +55,30 @@ Ez az első képszelet, nem tartós import. Az állapot csak az oldal memóriáj
 
 **Sikeres végállapot:** egyetlen aktív fájl látható, a reservation rendezett, és a `usedStorageBytes` pontosan egyszer nőtt.
 
+## Első képgaléria és előnézet – tervezett UI-szelet, 2026-10-27
+
+A GET /files backend-lista már implementált; a preview API és a felület még nem implementált; a részletes [lista/preview szerződés](../03_design/api.md#fájllista-és-lifecycle) az irányadó. A lenti UX-02 teljes célfolyamatából most csak a saját ACTIVE képek megjelenítése és jogosított eredeti előnézete tervezett. Videó, letöltés/megosztás és thumbnail-generálás nem része ennek a szeletnek.
+
+| Állapot | Elvárt felületi viselkedés |
+|---|---|
+| Első betöltés | Loading jelzés, érzékeny/előző fiókból maradt kártyák nélkül. A lista JSON metaadatokat kér, storage-URL-eket nem. |
+| Üres első oldal | „Még nincs feltöltött képed” és elérhető feltöltési művelet; nem hiba és nincs További képek gomb. |
+| Sikeres lista | Escape-elt fájlnév, méret és createdAt; stabil rendezés és ID-alapú dedupe. Kártyánként külön képbetöltési állapot. |
+| Következő oldal | Csak hasNextPage=true esetén További képek, az előző nextCursorral. Futás alatt tiltott ismételt kattintás, a meglévő képek láthatók maradnak. |
+| Lista/folytatás hiba | Érthető magyar hiba és kézi retry; folytatás ugyanazzal a cursorral, meglévő kártyák megtartásával. Üres folytatási oldal lezárja a lapozást. |
+| CURSOR_INVALID | Az addigi kártyák maradnak, de nem ismételjük végtelenül a rossz tokent; „Lista frissítése” új első oldalt és lapozási láncot kér. |
+| Preview betöltés | Csak látható kártyához/megnyitott képhez kér rövid URL-t, legfeljebb négy párhuzamos URL-lekéréssel. Eredeti képfájl megjelenítése szükség szerint/lazy módon; ez nem thumbnail. |
+| Preview-/képhiba | A többi kártya működik; a fájlnév/metadata megmarad, kézi Újrapróbálás elérhető. Nincs raw XML/URL vagy automatikus végtelen presign-hurok. |
+| Lejárt URL | Memóriában expiresAt szerint már lejárt jogot nem használ újra; szükséges újramegjelenítésnél egy új jogosított URL-kérés indul. Ugyanazon megnyitás ismételt hibája után csak kézi retry; a már kirajzolt képet pusztán az óra miatt nem kell eltüntetni. |
+| 404 / 415 preview | Nincs hozzáférés/nem támogatott előnézet; nincs automatikus retry. 404-nél lista frissíthető, 415-nél a metadata és magyarázat marad. |
+| 429 / 503 | Egyértelmű várakozás/átmeneti hiba; 429-nél olvasható Retry-After szerint tiltott retry (hiányában 60 másodperc). Már látható kártyák megmaradnak. |
+| Session/fiókváltás | 401 után profil, lista és memóriabeli signed URL-ek ürülnek, login szükséges. Késői válasz nem töltheti vissza a korábbi user képeit. |
+| Frissítés/feltöltés | Sikeres ACTIVE confirm után összevont listafrissítés az első oldalról, új cursorlánccal. A régi lánc nem folytatható az új első oldal mögött. |
+
+Nagy előnézet kattintásra nyílik; külön loading/error/close, Escape és fókuszkezelés szükséges. Kizárólag képként renderelünk, nem HTML/iframe-ként. Signed URL csak memóriában él, storage GET külön originre crossorigin=anonymous és referrerpolicy=no-referrer mellett megy. Komponenselhagyáskor az API-kérések abortálódnak és a késői válaszok figyelmen kívül maradnak. Az oldalhagyás/logout nem vonja vissza a már kiadott tárolójogot; azt a legfeljebb ötperces TTL korlátozza.
+
+A későbbi thumbnail-processor aszinkron, verziózott derived képet készít majd saját quota/ownership/lifecycle szabályokkal. A mostani eredeti-preview sikere nem processor-siker; nincs job-polling, thumbnail státusz vagy új derived állomány.
+
 ## UX-02 – Cursor-lapozott fájllista, preview, letöltés és megosztás
 
 **Fázis:** `Core MVP`
