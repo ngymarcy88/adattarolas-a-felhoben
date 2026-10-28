@@ -10,10 +10,19 @@ import { UploadInitService } from './upload-init.service';
 import { FileListService } from './file-list.service';
 import { FileListQuery, FileListQueryPipe } from './file-list.query';
 import { FileListGuard } from './file-list.guard';
+import { FilePreviewService } from './file-preview.service';
+import { FilePreviewGuard } from './file-preview.guard';
 
 @Controller('files')
 export class FilesController {
-  constructor(private readonly uploads: UploadInitService, private readonly confirmation: UploadConfirmService, private readonly listing: FileListService) {}
+  constructor(private readonly uploads: UploadInitService, private readonly confirmation: UploadConfirmService,
+    private readonly listing: FileListService, private readonly preview: FilePreviewService) {}
+  @Get(':fileId/preview-url')
+  @Header('Cache-Control', 'no-store')
+  @UseGuards(SessionGuard, FilePreviewGuard)
+  previewUrl(@Req() request: AuthenticatedRequest, @Param('fileId', FileIdPipe) id: string) {
+    return this.preview.create(request.user.id, id);
+  }
   @Get()
   @Header('Cache-Control', 'no-store')
   @UseGuards(SessionGuard, FileListGuard)

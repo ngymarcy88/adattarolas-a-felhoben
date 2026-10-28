@@ -1,5 +1,28 @@
 # Test report
 
+## Eredeti kép előnézeti URL-je – 2026-10-27
+
+Verzió: `feature/image-preview-url`, a `7fdea88` képlista-szelet után. Környezet: WSL Bash, Linux Node 22.23.2/npm 10.9.8, Prisma 7.10.1, Jest/Vitest izolált runnerek. Nincs frontend-, download-endpoint-, thumbnail-, séma- vagy dependency-változás; valódi DB/MinIO/browser próba nem történt.
+
+**Unit:** `npm test` PASS: **589 backend** (14 suite) + **220 frontend** (9 fájl) + **2 container helper** = **811 eset**. Az új esetek: 76 file-preview unit és 1 inline storage-adapter unit, összesen 77. Az első célzott futásban az adapter 59 esete PASS volt, a preview suite a Jestből hiányzó Vitest-specifikus ExactlyOnceWith matcher miatt nem indult; Times(1)+With párosra javítva a teljes futás PASS. A végleges `npm run typecheck` és `npm run build` mindkét workspace-re PASS; 49 helyi dokumentációs link, git diff --check és a tényleges környezeti credentialök repó-/frontendbundle-ellenőrzése is PASS.
+
+| Bemenet/lépés | Elvárt és tényleges unit eredmény |
+|---|---|
+| Saját/idegen/hiányzó/pending/törölt sor | PASS: mindkét metadata-query id+ownerId+ACTIVE feltételű; nem jogosult vagy nem aktív sor egységes 404, storage és típusvizsgálat előtt |
+| JPEG/PNG/GIF/WebP, video/SVG/HTML/XML/JS/unknown, null/mismatch/config-disabled MIME | PASS: négy tényleges ellenőrzött képtípus; saját ACTIVE tiltott/missing/mismatch típus 415 PREVIEW_NOT_ALLOWED, kiterjesztés vagy storage Content-Type nem jogosít |
+| HEAD null, provider/bucket/access hiba, 0/negatív/tört/unsafe/eltérő méret | PASS: bizonyított hiány 404, provider- és mérethiba 503, nincs presign/fallback vagy kvótamódosítás |
+| Inline GetObjectCommand/no-store/MIME/UTF-8 név | PASS: meglévő adapterrel inline; filename*=UTF-8 percent-encoding, biztonságos ASCII fallback; nem tényleges HTTP-fejlécpróba |
+| Config TTL 1/30/300/900, rövidebb adapterexpiry és HEAD-késleltetés | PASS: legfeljebb 300s a signing előtt számítva, a tényleges adapter-lejárat kerül a kétmezős response-ba |
+| Lejárt/NaN/túlhosszú expiry, átadott Date-mutáció, végső DB-read alatti lejárat, hibás URL | PASS: 503 STORAGE_UNAVAILABLE és nincs visszaadott capability |
+| Signing közben eltűnő/idegenné/pendingdé/töröltté váló sor vagy változó key/név/méret/MIME | PASS: végső recheck eldobja a már előállított URL-t; 404/415/503 a dokumentált ok szerint |
+| Kezdeti/végső DB-hiba és presignhiba | PASS: generikus DATABASE_UNAVAILABLE/STORAGE_UNAVAILABLE, provideradat vagy URL nélküli nested error |
+| UUID/query/body, 120/perc user-ablak, más user és külön listabudget, 4096-os kapacitás | PASS: szigorú 36-karakteres UUID (trailing newline tiltva), safe GET őrök, felfelé kerekített Retry-After és lejárati újrahasznosítás |
+| Controller/module/filter | PASS: SessionGuard → FilePreviewGuard, GET és no-store; csak url/expiresAt publikus, nincs storage-/owner-metaadat az error bodyban |
+
+Független backend/security review nem talált blokkoló hibát; a numerikus deadline a presignnek átadott Date módosításától is független. A service nem tart nyitott DB-tranzakciót a provider I/O alatt, és nincs file/usage/derived/audit írás. A megosztott FileIdPipe hosszellenőrzését az új UUID-regresszió fedi, a régi confirm/init/lista tesztek is sikeresek.
+
+**Bizonyítékhatár:** a DB és provider doubles, illetve a mockolt signer parancsparaméterei unit bizonyítékok. Nem igazolják a valódi SQL/HTTP-fejléceket, MinIO GET/CORS-képbetöltést vagy egy már kiadott read URL azonnali revokációját. A capability a TTL alatt session nélkül is használható; logout nem vonja vissza. A frontend galéria/preview, letöltési endpoint, thumbnail/processor és teljes kézi DB/storage/browser elfogadás külön feladat.
+
 ## Saját képek listázása – GET /files, 2026-10-27
 
 Verzió: `feature/list-own-images`, `4500045` main és a `fde61c1` dokumentált galériaszerződés után. Környezet: WSL Bash, Linux Node 22.23.2/npm 10.9.8, Prisma 7.10.1, Jest/Vitest izolált runnerek. Nincs frontend-/preview-/séma-/dependency-változás; valódi PostgreSQL/MinIO/HTTP próbát ez a futás nem végzett.

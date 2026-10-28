@@ -144,7 +144,7 @@ describe('File list guard, controller and error boundary', () => {
   afterEach(() => { jest.useRealTimers(); jest.restoreAllMocks(); });
   it('uses the authenticated user only; GET has no unsafe OriginGuard and is no-store', async () => {
     const service = { list: jest.fn().mockResolvedValue({ items: [], nextCursor: null, hasNextPage: false }) };
-    const controller = new FilesController(undefined as never, undefined as never, service as unknown as FileListService);
+    const controller = new FilesController(undefined as never, undefined as never, service as unknown as FileListService, undefined as never);
     const query = new FileListQuery(20); const result = await controller.list({ user: { id: owner }, query: { ownerId: other } } as never, query);
     expect(service.list).toHaveBeenCalledWith(owner, query); expect(result.items).toEqual([]);
     expect(Reflect.getMetadata(GUARDS_METADATA, controller.list)).toEqual([SessionGuard, FileListGuard]);

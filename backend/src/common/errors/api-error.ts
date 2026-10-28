@@ -1,6 +1,7 @@
 import { HttpException } from '@nestjs/common';
 
 const apiErrors = {
+  PREVIEW_NOT_ALLOWED: { status: 415, message: 'Ehhez a fájlhoz nem érhető el képelőnézet.' },
   CURSOR_INVALID: { status: 400, message: 'A lapozási azonosító érvénytelen. Frissítsd a listát.' },
   FILE_NOT_FOUND: { status: 404, message: 'A fájl nem található.' },
   UPLOAD_NOT_READY: { status: 409, message: 'A fájl még nem érkezett meg a tárolóba.' },

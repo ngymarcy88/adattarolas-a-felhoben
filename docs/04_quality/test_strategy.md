@@ -173,3 +173,9 @@ Ez tervezett ellenőrzési lista, nem PASS-riport; nem hoz létre unit/integrati
 A fenti galéria-terv lista részét a `backend/test/file-list.spec.ts` fedi: query/limit/cursor invalid és 512-es mérethatár, UTF-8/base64url/verzió/scope/dátum/UUID, owner+ACTIVE+allowlist+MIME-mezőegyezés, hétmezős select/projekció és BigInt határ, 105 képes statikus minta 1/20/100 oldalmérettel/azonos időbélyegekkel, lookahead/utolsó visszaadott cursor, törölt horgony, idegen user cursorja, üres oldal és DB-hiba. A limiter 60-as user-ablaka, Retry-After, 4096-os tárolási korlátja, a controller guard/header és a nested error filter is izoláltan tesztelt.
 
 Ezek mockolt unit ellenőrzések; az SQL-t nem futtatják és nem bizonyítanak valós HTTP/CORS/browser/MinIO együttműködést. Preview/frontend és a megfelelő kézi tesztek külön feladatok maradnak. Új integration/e2e suite nincs.
+
+### Preview backend unit szelet – 2026-10-27
+
+`backend/test/file-preview.spec.ts`: SessionGuard/route/module és no-store bekötés, UUID/query/body validáció, owner/ACTIVE egységes 404 storage előtt, négy tényleges képtípus és konfiguráció/mismatch/null ellenőrzés, bizonyított objektumhiány vs provider/bucket hiba, méret, inline presign, actual expiry/config/max300 és Date-mutáció, signing utáni owner/state/key/név/MIME/size változás, végső DB-olvasás alatti lejárat, biztonságos hiba-wrapper. Külön 120/perc user-limiter, Retry-After, 4096-os bound és listalimittől függetlenség. A storage-unit mockolt GetObjectCommandon ellenőrzi az inline/no-store/MIME/UTF-8 filename* paramétereket, nem tényleges HTTP-fejléceken.
+
+A tesztek izolált doubles-t használnak, nem igazolnak valódi SQL/MinIO/browser viselkedést vagy azonnali read URL-visszavonást. A preview nem thumbnail, és nem processor-készültség vagy teljes képintegritás bizonyítéka. Új integration/e2e suite nincs.
