@@ -5,11 +5,12 @@ import { uploadClient } from '../api/uploads';
 import { createUploadBatch, IMAGE_TYPES, type UploadStatus } from '../upload/batch';
 
 const batch = createUploadBatch(uploadClient);
-defineProps<{ disabled?: boolean }>();
+const props = defineProps<{ ownerId: string; disabled?: boolean }>();
 const { state, summary, busy } = batch;
-const emit = defineEmits<{ busy: [value: boolean] }>();
+const emit = defineEmits<{ busy: [value: boolean]; completed: [ownerId: string] }>();
 // Account logout stays disabled while a request is running; queued selection alone is safe to leave.
 watch(() => state.running > 0, value => emit('busy', value));
+watch(() => state.completionVersion, () => emit('completed', props.ownerId));
 const now = ref(Date.now());
 let timer: ReturnType<typeof setInterval> | undefined;
 onMounted(() => { timer = setInterval(() => { now.value = Date.now(); }, 1000); });
@@ -56,7 +57,7 @@ const size = (bytes: number) => bytes < 1048576 ? `${Math.ceil(bytes / 1024)} Ki
           <button v-if="row.status === 'error' && row.retryable" type="button" :disabled="disabled || waits(row.retryAt) > 0 || state.authRequired" :aria-label="`${row.name} újrapróbálása`" class="mt-3 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold disabled:opacity-50" @click="batch.retry(row.id)">Újrapróbálás<span v-if="waits(row.retryAt) > 0"> ({{ waits(row.retryAt) }} mp)</span></button>
         </li>
       </ul>
-      <p v-if="!busy && summary.success" class="mt-4 text-sm text-emerald-800">A sikeres fájlok tárolása véglegesítve. Az új fájlokat a galéria Lista frissítése gombjával kérheted le. Képfeldolgozás még nem érhető el.</p>
+      <p v-if="!busy && summary.success" class="mt-4 text-sm text-emerald-800">A sikeres fájlok tárolása véglegesítve. A galéria automatikus frissítést kér. Ha a lista lekérése hibázik, használd a Lista frissítése gombot. Képfeldolgozás még nem érhető el.</p>
     </div>
     <p v-if="state.authRequired" role="alert" class="mt-4 text-sm text-red-700">A munkamenet lejárt, további fájlokat nem indítunk. <RouterLink to="/login" class="font-semibold underline">Bejelentkezés</RouterLink>. Az oldal elhagyásakor a köteg helyi állapota elveszik; a szerveroldali foglalások megmaradhatnak.</p>
   </section>

@@ -184,8 +184,12 @@ A tesztek izolált doubles-t használnak, nem igazolnak valódi SQL/MinIO/browse
 
 `gallery-api.spec.ts`: exact request, credential/no-store/redirect/limit/cursor, három/hétmezős response, ACTIVE/ellenőrzött MIME/UUID/dátum/safe méret, privát mezők tiltása, kontrollált hibák, Retry-After/fallback, timeout a body végéig és abort. `gallery-state.spec.ts`: üres vs első loading, szerverrend és ID-dedupe, megtartott kártyák/azonos cursor page-retry, invalid/looping cursor, új lánc, felülírt kérés és dispose/session lejárat utáni késői válaszok, cooldown. `gallery-panel.spec.ts`: izolált Vue SSR kártyák/escaped név/méret/time, loading/empty/retry/reset/disabled állapot, kép/preview nélkül.
 
-A template render nem browser/hydration vagy teljes auth/DB/storage bizonyíték. Nem vezet be integration/e2e keretrendszert; a védett account valódi megnyitását, kézi lapozását, 401 navigációját és az elérhetőségi/viewport próbát külön kell rögzíteni. Automatikus upload utáni refresh és a képes preview a következő szeletek.
+A template render nem browser/hydration vagy teljes auth/DB/storage bizonyíték. Nem vezet be integration/e2e keretrendszert; a védett account valódi megnyitását, kézi lapozását, 401 navigációját és az elérhetőségi/viewport próbát külön kell rögzíteni. A képes preview és az automatikus upload utáni refresh további implementált szeleteit a következő bekezdések írják le.
 
 ### Képes galéria unit/template – 2026-10-28
 
 42 új izolált eset: preview-kliens pontos DTO/URL/deadline/hibák/cancel; max. négy fizikai kérés, demand/dedupe, cooldown, kézi retry, stale API-/img-verzió, account/dispose és listafrissítés-hibareset; SSR kép/loading/error/modal attribútumok, fake IntersectionObserver és native-dialog/fókusz helper. A fake dialog és SSR nem teszteli a böngésző tényleges fókuszcsapdáját vagy Escape-viselkedését. Kézi kapu: saját képek lazy betöltése; nagy nézet Enter/Space, Tab/Shift+Tab/Escape és visszatérő fókusz; MinIO CORS, offline kép és kézi retry, lapozás, logout/fiókváltás. Nincs új integration/e2e suite.
+
+### Feltöltés utáni összevont listafrissítés – 2026-10-28
+
+Upload-state unitok: több párhuzamos confirm egy hullámjelzés, részleges siker + hibás fájl külön retry-ja, PUT 100%/all-fail/ACTIVE-init-replay/dispose nem új jelzés. Gallery-state fake-timer unitok: 20 gyors jelzés egy read, aktív refresh/lapozás mögött egy trailing read, új cursorlánc/ID-dedupe, kézi refresh összevonás, hibánál timer törlése, 429 és session/dispose. Owner-jelzés külön izolált tesztje kizárja az előző usert. Nincs browser/DB/integration/e2e bizonyíték; a rövid kézi ellenőrzőlista a tesztriport új szakaszában nyitott.

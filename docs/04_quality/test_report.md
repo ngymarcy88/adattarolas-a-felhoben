@@ -1,5 +1,35 @@
 # Test report
 
+## Feltöltés utáni összevont galériafrissítés – 2026-10-28
+
+**Verzió:** `feature/gallery-upload-refresh`, `ee26d1b` képesgaléria-alap után. **Környezet:** WSL Bash, Linux Node 22.23.2/npm 10.9.8; izolált Jest/Vitest, fake időzítő és szintetikus kép/API-válasz. Nincs új backend/séma/dependency.
+
+**Végrehajtott unit ellenőrzés:** `npm test` **937 PASS** = 589 backend + 346 frontend (16 fájl) + 2 container helper. A 14 új eset közül öt upload-wave, kilenc gallery-refresh/owner. A korábbi 923 teszt is PASS. A `npm run typecheck` és `npm run build` mindkét workspace-re PASS; 39 helyi dokumentációs link, `git diff --check` és a repó/frontend bundle credential-ellenőrzése is PASS. A célzott első frontend futás 345 PASS volt; az utána hozzáadott timer-race regresszió a teljes futásban PASS. Független review megtalálta az előre ütemezett frissítés + közben hibás lapozás versenyhelyzetét; a timer törlése és a pending jelzés újraellenőrzése javította.
+
+| Unit lépés / bemenet | Elvárt és tényleges eredmény |
+|---|---|
+| Három párhuzamos fájl, késleltetett confirm; PUT már 100% | Confirm előtt nincs jelzés, a hullám végén egy jelzés: PASS. |
+| Egy siker és egy hibás confirm; hibás fájl retry | Részleges siker egy jelzés, későbbi siker új jelzés, jó fájl nem kerül újraküldésre: PASS. |
+| Minden confirm hibás, ACTIVE init-replay, késői confirm dispose után | Nincs új frissítési jelzés: PASS. |
+| Húsz gyors jelzés; futó refresh vagy lapozás | Egy összevont új első oldal; futó kérés nem abortálódik; új cursorlánc és ID-dedupe: PASS. |
+| Automatikus read-hiba/429; pending timer mellett hibás lapozás | Kártyák megmaradnak, nincs automatikus hibahurok, kézi retry és Retry-After: PASS. |
+| Fiókváltás/oldalelhagyás | Régi owner jelzése elutasítva, timer törölve: PASS. |
+
+**Bizonyíték:** `frontend/tests/upload-batch.spec.ts`, `gallery-refresh.spec.ts`, a módosított upload-template teszt és a teljes unit futás. Ezek izolált állapot-/template-próbák; a Vue-komponensek valódi browser/HTTP/DB/storage együttműködését nem igazolják.
+
+### Rövid kézi ellenőrzőlista – még nem végrehajtott
+
+Minden sor **NYITOTT**. Futtatáskor rögzítendő: pontos commit, dátum, böngésző/OS, indítási környezet, tényleges eredmény és bizonyíték hivatkozása. Előkészítés: helyi Compose, két külön tesztfiók (A/B), saját nem érzékeny képek; lapozáshoz legalább 21 kép két, legfeljebb 20-as kötegben. Részleges sikerhez tesztkörnyezetben egy hibás/szerver által elutasított képfájl. Bizonyítékba ne kerüljön cookie, signed URL vagy személyes adat. Saját próba nem külső UAT.
+
+- [ ] **Üres galéria:** új A fióknál loading után üres állapot és feltöltési link, indokolatlan hiba/korábbi fiókkép nélkül.
+- [ ] **Több kép:** saját képek, helyes név/méret/dátum és kép; görgetéskor szükség szerinti betöltés. Networkben legfeljebb négy párhuzamos preview-url kérés.
+- [ ] **Lapozás:** További képek után nincs dupla kártya, hiba esetén a korábbiak megmaradnak. Feltöltés utáni refresh új első oldalt/cursorláncot ad.
+- [ ] **Előnézet:** kattintás/Enter/Space megnyit; Tab/Shift+Tab a modálban marad, Escape/Bezárás visszaadja a fókuszt. Képhiba után kézi retry működik, nincs ismétlődő URL-kérés.
+- [ ] **Feltöltés utáni megjelenés:** több jó kép párhuzamosan + egy hibás; csak új ACTIVE confirm után, a hullám végén frissül a lista. A jó képek megjelennek, a hibás nem; sikeres retry új frissítést ad. Networkben nincs fájlonkénti lista-kérésáradat; a galériahibát kézzel lehet újrapróbálni.
+- [ ] **Oldalfrissítés:** befejezett feltöltés után böngészőfrissítéskor ugyanazok a saját ACTIVE képek jelennek meg, duplikáció nélkül.
+- [ ] **Másik felhasználó:** A kijelentkezés → B belépés után nincs A-kártya/kép/URL; B saját feltöltése csak B listájában jelenik meg. A ismert fájl-ID-jére B preview-kérése 404, a lista sem ad A-adatot.
+
+
 ## Képes galéria és nagy előnézet – 2026-10-28
 
 **Verzió:** `feature/gallery-image-previews`, `fbe77f0` metaadatgaléria-alap után. **Környezet:** WSL Bash, Linux Node 22.23.2/npm 10.9.8, Jest/Vitest izolált unit/SSR. Szintetikus fájl-ID, URL, válasz és idő; nincs új backend/séma/dependency vagy thumbnail.

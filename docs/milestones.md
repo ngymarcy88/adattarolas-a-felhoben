@@ -139,8 +139,9 @@ A történeti MVP-0–MVP-7 helyett az alábbi **SZD2-0–SZD2-7** az aktuális 
 - [x] Első saját képgaléria/eredeti-preview olvasási szerződés: owner/ACTIVE/kép szűrés, keyset cursor, válaszmezők/hibák/TTL és UI-állapotok dokumentálva; végpont/UI implementáció nélkül.
 - [x] GET /files backend: saját ACTIVE képek, szigorú cursor/limit, determinisztikus createdAt/id lapozás, hétmezős projekció, user rate limit és unit tesztek. A képes galéria UI is implementált.
 - [x] GET /files/{fileId}/preview-url backend: saját ACTIVE/ellenőrzött kép, HEAD/méret, signing utáni metaadat-recheck, legfeljebb 300s inline/no-store read URL, külön limiter és unitok. Frontend implementált; valós DB/storage/browser próba még külön kapu.
-- [x] Saját metaadatgaléria `/app`: név/méret/dátum kártyák, első/folytató loading, üres/error/retry, cursor és ID-dedupe, session/dispose védelem unit/template tesztekkel. Képbetöltés/nagy előnézet alább implementált; automatikus upload utáni frissítés külön feladat.
+- [x] Saját metaadatgaléria `/app`: név/méret/dátum kártyák, első/folytató loading, üres/error/retry, cursor és ID-dedupe, session/dispose védelem unit/template tesztekkel. Képbetöltés/nagy előnézet alább implementált; automatikus upload utáni frissítés alább implementált.
 - [x] Eredeti képek lazy betöltése és natív nagy előnézet: négy URL-kérés, memory-only cache, kézi retry, Escape/fókusz és unit/template tesztek; valós browser elfogadás még nyitott.
+- [x] ACTIVE confirm utáni összevont galériafrissítés: részleges siker/retry, futó lekérés mögötti egy jelzés, új cursorlánc, owner/dispose és hiba/cooldown unitokkal; manuális ellenőrzőlista nyitott a tesztriportban.
 - [ ] Saját galéria és jogosult előnézet/letöltés; betöltési, üres és hibaállapotok.
 - [ ] Közös processor-interfész és első beépített processor, verziózott eredménnyel. Elsőként az előnézetkészítő javasolt; ez végrehajtási javaslat, a tanár általánosan első processort kér.
 - [ ] Eredeti és derived storage konzisztens elszámolása; minimális tartós job/result és audit, titkok nélkül.

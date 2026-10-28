@@ -189,3 +189,47 @@ describe('session loss and page disposal', () => {
     expect(JSON.stringify(batch.state.rows)).toBe(snapshot);
   });
 });
+
+describe('Gallery completion notifications', () => {
+  it('coalesces all confirmed files in a drained parallel wave, not picker/PUT progress', async () => {
+    const { client, batch } = setup();
+    const confirmations: Array<(file: UploadedFile) => void> = [];
+    client.put.mockImplementation(async (_access, _file, _signal, progress) => { progress(100); });
+    client.confirm.mockImplementation(() => new Promise(resolve => confirmations.push(resolve)));
+    batch.add([image('a.png'), image('b.png'), image('c.png')]);
+    expect(batch.state.completionVersion).toBe(0);
+    const running = batch.start(); await vi.waitFor(() => expect(confirmations).toHaveLength(2));
+    expect(batch.state.completionVersion).toBe(0); expect(batch.summary.value.success).toBe(0);
+    confirmations[0](active()); await vi.waitFor(() => expect(confirmations).toHaveLength(3));
+    expect(batch.state.completionVersion).toBe(0);
+    confirmations[1](active()); confirmations[2](active()); await running;
+    expect(batch.summary.value.success).toBe(3); expect(batch.state.completionVersion).toBe(1);
+    await batch.start(); batch.retry('key-1'); expect(batch.state.completionVersion).toBe(1);
+  });
+  it('notifies on partial success and again only after a failed file confirms on retry', async () => {
+    const { client, batch } = setup(); client.confirm.mockRejectedValueOnce(new UploadRequestError('UNAVAILABLE'));
+    batch.add([image('a.png'), image('b.png')]); await batch.start();
+    expect(batch.summary.value).toEqual({ total: 2, success: 1, failed: 1 }); expect(batch.state.completionVersion).toBe(1);
+    vi.useFakeTimers(); await vi.advanceTimersByTimeAsync(1000); batch.retry('key-1');
+    await vi.waitFor(() => expect(batch.state.running).toBe(0));
+    expect(batch.state.completionVersion).toBe(2); expect(batch.summary.value.success).toBe(2);
+    expect(client.put).toHaveBeenCalledTimes(2); // Successful sibling was not resent.
+  });
+  it('never notifies when every confirm fails, even after PUT reaches 100 percent', async () => {
+    const { client, batch } = setup(); client.confirm.mockRejectedValue(new UploadRequestError('UPLOAD_VALIDATION_FAILED'));
+    batch.add([image('a.png'), image('b.png')]); await batch.start();
+    expect(batch.state.completionVersion).toBe(0); expect(batch.summary.value.success).toBe(0);
+  });
+  it('does not notify for an already ACTIVE init replay without a new confirm', async () => {
+    const { client, batch } = setup(); client.initiate.mockResolvedValue({ file: active(), upload: null });
+    batch.add([image()]); await batch.start(); expect(batch.summary.value.success).toBe(1);
+    expect(client.confirm).not.toHaveBeenCalled(); expect(batch.state.completionVersion).toBe(0);
+  });
+  it('discards a late confirmed result after leaving the upload component', async () => {
+    const { client, batch } = setup(); let finish!: (file: UploadedFile) => void;
+    client.confirm.mockReturnValue(new Promise(resolve => { finish = resolve; }));
+    batch.add([image()]); const pending = batch.start();
+    await vi.waitFor(() => expect(batch.state.rows[0].status).toBe('confirming'));
+    batch.dispose(); finish(active()); await pending; expect(batch.state.completionVersion).toBe(0);
+  });
+});
