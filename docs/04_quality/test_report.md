@@ -1,5 +1,24 @@
 # Test report
 
+## Képes galéria és nagy előnézet – 2026-10-28
+
+**Verzió:** `feature/gallery-image-previews`, `fbe77f0` metaadatgaléria-alap után. **Környezet:** WSL Bash, Linux Node 22.23.2/npm 10.9.8, Jest/Vitest izolált unit/SSR. Szintetikus fájl-ID, URL, válasz és idő; nincs új backend/séma/dependency vagy thumbnail.
+
+**Eredmény:** `npm test` **923 PASS** = 589 backend + 332 frontend (15 fájl) + 2 container helper. A 42 új eset API/state/template. `npm run typecheck` és `npm run build` mindkét workspace-re PASS. Az első 429 teszt fixture-e túl korán feloldotta a többi kérést; a ténylegesen sorban várakozó kérést modellező javítás után PASS. Egy további eseményteszt-kísérlet nem futott a meglévő SSR fordítás mellett; elhagyva, nem számít bizonyítéknak.
+
+| Lépés / bemenet | Elvárt és tényleges izolált eredmény |
+|---|---|
+| Láthatóság/megnyitás, több ID, ismételt demand | Csak szükséges kérés, max. négy; azonos ID dedupe, PASS. |
+| API-hiba, img-error, lejárat és 429 | Külön biztonságos hiba, URL törlés, kézi retry/cooldown; nincs időzített hurok, PASS. |
+| Retain, késői válasz/esemény, 401/unmount | Memóriaürítés és stale-védelem; abortált fizikai kérés korlátba számít, PASS. |
+| Sikeres explicit refresh | Hibák újrapróbálhatók, jó kép nem törlődik, PASS. |
+| Template/fókusz helper | Anonymous/no-referrer img, feliratok/loading/modal; showModal/close, scroll és visszatérő fókusz fake elemekkel PASS. |
+
+**Bizonyíték:** `frontend/tests/preview-api.spec.ts`, `previews-state.spec.ts`, `preview-templates.spec.ts`; a korábbi galéria és upload unitok is PASS. Független frontend/security review után a terminális preview-hibák explicit frissítési útja javítva, regressziós teszttel.
+
+**Határ:** nem történt valódi browser/DB/MinIO próba, képernyőkép vagy külső UAT. Külön manuálisan ellenőrizendő a lazy kép/CORS, nagy nézet Tab/Shift+Tab/Enter/Space/Escape és fókusz-visszaadás, offline/lejárt kép retry, fiókváltás. Eredeti képeket töltünk, a thumbnail processor és automatikus upload utáni listafrissítés még külön feladat. A lenti korábbi riportok az adott szelet akkori állapotát rögzítik.
+
+
 ## Saját képek metaadatgalériája – 2026-10-28
 
 Verzió: `feature/gallery-metadata-ui`, a `fe2ef8b` preview backend után. Környezet: WSL Bash, Linux Node 22.23.2/npm 10.9.8, meglévő Vitest Node-környezet és izolált Vue SSR render. Backend, séma, dependency és preview végpont nem változott; nincs új integration/e2e runner.

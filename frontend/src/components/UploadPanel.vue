@@ -56,7 +56,7 @@ const size = (bytes: number) => bytes < 1048576 ? `${Math.ceil(bytes / 1024)} Ki
           <button v-if="row.status === 'error' && row.retryable" type="button" :disabled="disabled || waits(row.retryAt) > 0 || state.authRequired" :aria-label="`${row.name} újrapróbálása`" class="mt-3 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold disabled:opacity-50" @click="batch.retry(row.id)">Újrapróbálás<span v-if="waits(row.retryAt) > 0"> ({{ waits(row.retryAt) }} mp)</span></button>
         </li>
       </ul>
-      <p v-if="!busy && summary.success" class="mt-4 text-sm text-emerald-800">A sikeres fájlok tárolása véglegesítve. Az új fájlokat a galéria Lista frissítése gombjával kérheted le. Képes előnézet és képfeldolgozás még nem érhető el.</p>
+      <p v-if="!busy && summary.success" class="mt-4 text-sm text-emerald-800">A sikeres fájlok tárolása véglegesítve. Az új fájlokat a galéria Lista frissítése gombjával kérheted le. Képfeldolgozás még nem érhető el.</p>
     </div>
     <p v-if="state.authRequired" role="alert" class="mt-4 text-sm text-red-700">A munkamenet lejárt, további fájlokat nem indítunk. <RouterLink to="/login" class="font-semibold underline">Bejelentkezés</RouterLink>. Az oldal elhagyásakor a köteg helyi állapota elveszik; a szerveroldali foglalások megmaradhatnak.</p>
   </section>

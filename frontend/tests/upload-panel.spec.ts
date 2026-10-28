@@ -36,7 +36,7 @@ describe('upload panel isolated template rendering', () => {
     vi.spyOn(batches, 'createUploadBatch').mockReturnValue(batch); const html = await render();
     expect(html).toContain('1 / 2 sikeres · 1 hibás'); expect(html).toContain('Sikeresen feltöltve'); expect(html).toContain('role="alert"');
     expect(html).toContain('Átmeneti hiba.'); expect(html).toContain('aria-label="b.png újrapróbálása"'); expect(html).toContain('Újrapróbálás');
-    expect(html).toContain('galéria Lista frissítése'); expect(html).toContain('Képes előnézet és képfeldolgozás még nem érhető el.');
+    expect(html).toContain('galéria Lista frissítése'); expect(html).toContain('Képfeldolgozás még nem érhető el.');
   });
   it('offers login and paused-state explanation after session loss', async () => {
     const batch = batches.createUploadBatch(client); batch.state.authRequired = true;

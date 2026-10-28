@@ -1,6 +1,6 @@
 # Követhetőségi mátrix
 
-**Részben implementált: auth, első upload és saját ACTIVE képek GET /files backend-listája; preview backend is implementált; metaadatgaléria UI is implementált; képes frontend-előnézet még tervezett.**
+**Részben implementált: auth, első upload és saját ACTIVE képek GET /files backend-listája; preview backend is implementált; metaadatgaléria UI is implementált; képes frontend-előnézet is implementált.**
 
 ## Cél
 
@@ -73,3 +73,5 @@ A GET /files backend-lista implementált: FilesController → SessionGuard/FileL
 US-03 preview backend implementált: FilesController.previewUrl → SessionGuard/FilePreviewGuard/FileIdPipe → FilePreviewService → kétszeri saját ACTIVE metaadatolvasás + ObjectStorage.head/createReadAccess. `file-preview.spec.ts` jogosultság/állapot/típus/HEAD/size/TTL/race/error/rate unit bizonyíték; `storage.spec.ts` az inline MIME/no-store/UTF-8 Content-Disposition paramétereit is ellenőrzi. A kétmezős capability response nem ír usage-ot vagy derived eredményt. Frontend, download endpoint, thumbnail és valós DB/MinIO/browser evidence külön feladat.
 
 US-03 metaadatgaléria: védett AccountPage → GalleryPanel → gallery/state.ts → api/gallery.ts → GET /files. Unit bizonyíték: gallery-api.spec.ts (séma/adatvédelem/HTTP/timeout), gallery-state.spec.ts (cursor/retry/dedupe/abort/session), gallery-panel.spec.ts (SSR kártya/loading/empty/error/rate). Nincs preview-url/storage kérés vagy img; a teljes képes UI és valódi browser/DB elfogadás külön feladat.
+
+US-03 képes galéria: GalleryCard → láthatóság → gallery/previews → api/preview → GET preview-url → GalleryImage; nagy nézet PreviewDialog natív modal, Escape/fókusz. Bizonyíték: preview-api.spec.ts, previews-state.spec.ts, preview-templates.spec.ts (42 új unit/template eset). Bounded queue, memory-only signed URL, külön képhiba, kézi retry, lejárat és account-élettartam tesztelt. Eredeti képet használ; thumbnail és valós browser/provider elfogadás külön kapu. A fenti korábbi metaadat-szelet kép nélküli határa ezzel bővült.
