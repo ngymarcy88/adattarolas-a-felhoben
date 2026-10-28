@@ -348,7 +348,7 @@ A tus/Uppy és S3 multipart vizsgálandó alternatívák, nem kiválasztott impl
 
 ### `GET /files?cursor={cursor}&limit={limit}` – implementált képlista
 
-**Implementált backend-szelet, unit tesztekkel; galéria-UI és preview végpont még nincs.** Teljes helyi URL: `GET http://127.0.0.1:3000/api/v1/files`. Body nincs. Cookie/session + aktuális DB-user ellenőrzés kötelező; a frontend `credentials: include` módot használ. GET-ként hiányzó Origin megengedett, explicit eltérő Originre a közös CORS 403-at ad. Siker és hiba egyaránt `Cache-Control: no-store`.
+**Implementált backend és metaadatgaléria-kliens, unit/template tesztekkel; képek frontend-betöltése még nincs.** Teljes helyi URL: `GET http://127.0.0.1:3000/api/v1/files`. Body nincs. Cookie/session + aktuális DB-user ellenőrzés kötelező; a frontend `credentials: include` módot használ. GET-ként hiányzó Origin megengedett, explicit eltérő Originre a közös CORS 403-at ad. Siker és hiba egyaránt `Cache-Control: no-store`.
 
 **Szűrés:** minden lekérdezés szerveroldalon az aktuális user `ownerId`-jára és `status=ACTIVE` értékre szűr. Az első szelet csak képek: a `detectedMimeType` nem null, egyezik a `mimeType`-pal, és a JPEG/PNG/WebP/GIF allowlist, valamint az aktuális `ALLOWED_MIME_TYPES` metszetében van. Pending, REJECTED/EXPIRED receipt mögötti pending, soft-deleted, video és ismeretlen típus nem kerül a listára. Nem kérhető másik owner, státusz vagy MIME query-paraméterrel. A későbbi videós lista külön szerződésbővítés.
 
@@ -415,7 +415,7 @@ Az automatizált retention purge nem része ennek az API-verziónak; `Later`.
 
 ### `GET /files/{fileId}/preview-url` – implementált eredeti képelőnézet
 
-**Implementált backend-szelet, unit tesztekkel; frontend galéria/preview még nincs.** Példakérés: `GET /api/v1/files/018f4f35-20de-7a9c-a05a-6c5c9d4f1c32/preview-url`; nincs body vagy query-paraméter. Cookie/session + aktuális DB-user szükséges; Origin/CORS és no-store szabálya a GET /files-ével egyezik. Hibás UUID/ismeretlen query 400 VALIDATION_ERROR.
+**Implementált backend-szelet, unit tesztekkel; a metaadatgaléria nem hívja ezt a végpontot, képes előnézeti felület még nincs.** Példakérés: `GET /api/v1/files/018f4f35-20de-7a9c-a05a-6c5c9d4f1c32/preview-url`; nincs body vagy query-paraméter. Cookie/session + aktuális DB-user szükséges; Origin/CORS és no-store szabálya a GET /files-ével egyezik. Hibás UUID/ismeretlen query 400 VALIDATION_ERROR.
 
 1. Metaadat-lekérés kizárólag `id + aktuális ownerId + ACTIVE` szerint. Hiányzó, idegen, saját pending vagy soft-deleted fájl egységes **404 FILE_NOT_FOUND**, típus-/storage-ellenőrzés és presign nélkül. Az idegen fájl típusa/állapota nem szivároghat 415/503 válasszal sem.
 2. Támogatott tényleges típus: **image/jpeg, image/png, image/webp, image/gif**, az aktuális ALLOWED_MIME_TYPES-szal metszve; detectedMimeType nem null és egyezik a mimeType-pal. Csak már confirmált tartalom használható. Saját ACTIVE, de nem megfelelő típus/hiányzó detektálás esetén **415 PREVIEW_NOT_ALLOWED**. Video, SVG, HTML, JavaScript, XML és ismeretlen tartalom nem inline előnézet ebben a szeletben. Kiterjesztés vagy storage Content-Type önmagában nem elég.
@@ -601,3 +601,11 @@ Az init HTTP-szerződése változatlan. A frontend név/méret után, init előt
 A File új név/MIME-metaadatot kap változatlan bájtokkal/mérettel/lastModified-dal; az eredeti kliensfájl érintetlen. Ez a korrigált példány és az init payload cache-elt, ezért egy hálózati init-retry nem változtat a fingerprinten ugyanazon kulcs mellett. A UI az eredeti kiválasztott nevet és a korrekciós jelzést is mutatja. Olvasási hiba helyi FILE_READ_FAILED, ismeretlen fejléc helyi UNSUPPORTED_MEDIA_TYPE: egyik sem indít API-kérést vagy foglalást; FILE_READ_FAILED nem új backend hibakód. A fejléc olvasása után is újra ellenőrizzük a dispose/session állapotot.
 
 A backend az új deklarációt sem tekinti hitelesnek: confirmnál saját tárolóolvasással továbbra is egyezést követel. Közvetlen API-kliens téves MIME-deklarációja továbbra is 422. A korrekció nem konvertálás, teljes dekódolás vagy végleges sértetlenségi bizonyíték.
+
+## Metaadatgaléria frontend-illesztése – implementált, 2026-10-28
+
+A `frontend/src/api/gallery.ts` kizárólag GET /files-t kér, limit=20 és a változatlan nextCursor átadásával: credentials include, no-store, redirect error, 10s timeout a JSON-body végéig és caller abort. A válasz pontos hárommezős oldala és hétmezős ACTIVE kép-projekciója runtime ellenőrzött; privát extra mezők, hibás dátum/méret/MIME/UUID/oldal elutasított. A kliens a cursor tartalmát nem dekódolja és nem képez sajátot; csak nem üres, legfeljebb 512-es URL-safe tokenként továbbítja. A frontend nem kér ownerId-t és nem végez storage/preview kérést.
+
+`gallery/state.ts` egy folyamatban lévő folytatást enged; a lapozási hiba nem változtatja az items/current cursor értékét, a retry ugyanazt a pozíciót használja. Dedupe ID szerint az első példányt tartja meg, a szerver sorrendjében. Ismétlődő nextCursor vagy CURSOR_INVALID új elsőoldalas frissítést igényel. A frissítés sikerig megtartja a kártyákat, de érvényteleníti a korábbi lánc folytatását; sikerkor teljesen új listát/cursorláncot fogad. A 429 olvasható Retry-After szerint tilt új hívást, hiányzó/hibás headernél 60s; nincs automatikus polling vagy retry.
+
+A `GalleryPanel` a védett `/app` oldalon, user.id-hez kötött példányban indul. 401-kor a lista/cursor ürül, a szülő azonos user esetén törli a session profilt és loginra navigál. Az abort/generation védelem eldobja a késői választ, unmount üríti a memóriabeli listát. Fájlnevek szövegként escape-eltek. Képes előnézet, nagy nézet, thumbnail és automatikus confirm utáni frissítés nincs ebben a szeletben.
