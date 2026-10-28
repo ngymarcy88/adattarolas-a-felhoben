@@ -8,11 +8,12 @@ import { restoreModalFocus } from '../gallery/modal';
 import GalleryCard from './GalleryCard.vue';
 import PreviewDialog from './PreviewDialog.vue';
 
-const props = defineProps<{ ownerId: string; disabled?: boolean }>();
+const props = defineProps<{ ownerId: string; disabled?: boolean; refreshVersion?: number }>();
 const emit = defineEmits<{ unauthorized: [ownerId: string] }>();
 function expired() { gallery.dispose(); previews.dispose(); closePreview(); emit('unauthorized', props.ownerId); }
 const gallery = createGallery(galleryClient, expired);
 const previews = createPreviews(previewClient, expired);
+watch(() => props.refreshVersion, () => gallery.requestRefresh());
 const { state } = gallery;
 const selectedId = ref<string | null>(null); const refreshButton = ref<HTMLButtonElement | null>(null);
 const selected = computed(() => state.items.find(file => file.id === selectedId.value));

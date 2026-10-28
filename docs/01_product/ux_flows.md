@@ -73,7 +73,7 @@ A GET /files backend-lista már implementált; a preview API is implementált; a
 | 404 / 415 preview | Nincs hozzáférés/nem támogatott előnézet; nincs automatikus retry. 404-nél lista frissíthető, 415-nél a metadata és magyarázat marad. |
 | 429 / 503 | Egyértelmű várakozás/átmeneti hiba; 429-nél olvasható Retry-After szerint tiltott retry (hiányában 60 másodperc). Már látható kártyák megmaradnak. |
 | Session/fiókváltás | 401 után profil, lista és memóriabeli signed URL-ek ürülnek, login szükséges. Késői válasz nem töltheti vissza a korábbi user képeit. |
-| Frissítés/feltöltés (automatikus változat még tervezett) | Sikeres ACTIVE confirm után összevont listafrissítés az első oldalról, új cursorlánccal. A régi lánc nem folytatható az új első oldal mögött. |
+| Frissítés/feltöltés (implementált) | Sikeres ACTIVE confirm után összevont listafrissítés az első oldalról, új cursorlánccal. A régi lánc nem folytatható az új első oldal mögött. |
 
 Nagy előnézet kattintásra/Enter/Space-re nyílik natív modális dialógusban; külön loading/error/close, Escape, kezdő és visszatérő fókusz implementált. Kizárólag képként renderelünk, nem HTML/iframe-ként. Signed URL csak memóriában él, storage GET külön originre crossorigin=anonymous és referrerpolicy=no-referrer mellett megy. Komponenselhagyáskor az API-kérések abortálódnak és a késői válaszok figyelmen kívül maradnak. Az oldalhagyás/logout nem vonja vissza a már kiadott tárolójogot; azt a legfeljebb ötperces TTL korlátozza.
 
@@ -165,6 +165,12 @@ A kiválasztott kép típusa a tartalom fejlécéből dől el. Az eredeti név a
 
 Belépés után a `/app` a saját képek fájlnevét/méretét/létrehozási idejét kártyákon jeleníti meg, első loading, üres és magyar error/retry állapotokkal. További képek cursorral, ismételt kattintás ellen védve érkeznek, ID-dedupe mellett. Lapozási hiba alatt a kártyák maradnak; retry ugyanazt az oldalt kéri. Invalid/looping cursornál magyarázat és elsőoldalas újrakezdés, 429-nél várakozás; nincs automatikus hurok. A Lista frissítése új láncot indít, az addigi kártyák csak sikeres válaszkor cserélődnek.
 
-401-re a lista és profil ürül, login szükséges. Fiókváltás új komponenspéldányt ad a galériának és a feltöltőnek; korábbi account késői válasza nem tölti vissza az adatokat. Kijelentkezési kérés alatt a galéria vezérlői tiltottak, hiba esetén a köteg/kártyák nem tűnnek el. Feltöltés után kézi listafrissítés használható; a sikerhez kötött automatikus frissítés külön későbbi lépés. A kártyák láthatóság alapján eredeti képet töltenek, nagy előnézetet nyitnak. Négy URL-kérés futhat párhuzamosan; hiba után kézi retry szükséges. A confirmhoz kapcsolt automatikus frissítés továbbra is tervezett.
+401-re a lista és profil ürül, login szükséges. Fiókváltás új komponenspéldányt ad a galériának és a feltöltőnek; korábbi account késői válasza nem tölti vissza az adatokat. Kijelentkezési kérés alatt a galéria vezérlői tiltottak, hiba esetén a köteg/kártyák nem tűnnek el. Új sikeres ACTIVE confirm után a futó feltöltési hullám leürülése egy galériafrissítést jelez, akkor is, ha más fájl hibás. A kártyák láthatóság alapján eredeti képet töltenek, nagy előnézetet nyitnak. Négy URL-kérés futhat párhuzamosan; hiba után kézi retry szükséges. A confirmhoz kapcsolt automatikus frissítés implementált.
 
 A sikeres kézi listafrissítés a preview-hibákat is feloldja; a már használható képek megmaradnak. IntersectionObserver hiányában megnyitáskor kérünk képet. Képbetöltési hiba külön üzenet, nincs automatikus megújítás. A valódi viewport/keyboard/CORS elfogadás még nem igazolt.
+
+### Feltöltés utáni frissítés – implementált, 2026-10-28
+
+Kiválasztás, init/PENDING, PUT 100%, sikertelen confirm és a korábban ACTIVE-ként visszajátszott init nem ad új frissítési jelzést. Új ACTIVE confirm után a leürült köteg egy jelzést ad; a hibás fájl későbbi sikeres retry-ja új jelzést ad, a sikeres testvérek újraküldése nélkül. A frontend confirm-kliense csak ugyanazon fájl ACTIVE válaszát fogadja el.
+
+A galéria 300 ms alatt összevonja a jelzéseket, futó lista/lapozás mögött egy függő frissítést tart. Első oldalról új láncot kezd, ID-dedupe mellett. A régi kártyák sikerig megmaradnak. Olvasási hiba után a függő automatikus kérés törlődik; 429-re nincs időzített ébredés. Kézi retry/listafrissítés szükséges. A listahiba nem változtatja a feltöltés sikerét. Az account-ID-s jelzés és keyed komponensek kizárják a korábbi fiók késői eseményét; oldalhagyás törli az időzítőt. Az automatikus listafrissítés nem oldja fel a korábbi preview-hibát, arra a külön kézi műveletek maradnak.

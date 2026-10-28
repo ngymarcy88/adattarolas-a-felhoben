@@ -6,9 +6,22 @@ export function createGallery(client: GalleryClient, onUnauthorized: () => void 
   const state = reactive({ items: [] as GalleryFile[], loaded: false, loading: null as 'refresh' | 'more' | null,
     nextCursor: null as string | null, error: '', resetRequired: false, unauthorized: false, retryAt: 0 });
   const cursors = new Set<string>();
+  let refreshPending = false; let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+  function scheduleRefresh() {
+    if (!refreshPending || refreshTimer || state.loading || disposed || state.unauthorized || Date.now() < state.retryAt) return;
+    refreshTimer = setTimeout(() => {
+      refreshTimer = undefined;
+      if (refreshPending && !disposed && !state.loading && !state.unauthorized && Date.now() >= state.retryAt) void load(true);
+    }, 300);
+  }
+  function requestRefresh() {
+    if (disposed || state.unauthorized || Date.now() < state.retryAt) return;
+    refreshPending = true; scheduleRefresh();
+  }
   let generation = 0; let disposed = false; let controller: AbortController | undefined;
   async function load(reset: boolean) {
     if (disposed || state.unauthorized || Date.now() < state.retryAt || (!reset && (state.loading || state.resetRequired || !state.nextCursor))) return;
+    if (reset) { clearTimeout(refreshTimer); refreshTimer = undefined; refreshPending = false; }
     const cursor = reset ? null : state.nextCursor;
     controller?.abort(); controller = new AbortController(); const attempt = ++generation;
     state.loading = reset ? 'refresh' : 'more'; state.error = '';
@@ -31,11 +44,18 @@ export function createGallery(client: GalleryClient, onUnauthorized: () => void 
         state.items = []; state.nextCursor = null; state.loaded = false; state.unauthorized = true; cursors.clear();
         onUnauthorized();
       }
-    } finally { if (!disposed && attempt === generation) state.loading = null; }
+    } finally {
+      if (!disposed && attempt === generation) {
+        state.loading = null;
+        // A failed read stays a manual retry; never turn upload completion into a retry loop.
+        if (state.error) { refreshPending = false; clearTimeout(refreshTimer); refreshTimer = undefined; }
+        else scheduleRefresh();
+      }
+    }
   }
   const refresh = () => load(true);
   const loadMore = () => load(false);
   const retry = () => state.resetRequired || !state.loaded ? refresh() : loadMore();
-  function dispose() { disposed = true; generation++; controller?.abort(); state.items = []; state.nextCursor = null; cursors.clear(); }
-  return { state, refresh, loadMore, retry, dispose };
+  function dispose() { disposed = true; clearTimeout(refreshTimer); refreshPending = false; generation++; controller?.abort(); state.items = []; state.nextCursor = null; cursors.clear(); }
+  return { state, refresh, requestRefresh, loadMore, retry, dispose };
 }

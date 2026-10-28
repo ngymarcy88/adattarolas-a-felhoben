@@ -23,11 +23,11 @@ const identity = (file: File) => JSON.stringify([file.name, file.size, file.type
 
 /** Page-lifetime queue; capabilities and File objects stay outside rendered/reactive state. */
 export function createUploadBatch(client: UploadClient, newKey = () => crypto.randomUUID() as string) {
-  const state = reactive({ rows: [] as UploadRow[], selectionError: '', authRequired: false, running: 0 });
+  const state = reactive({ rows: [] as UploadRow[], selectionError: '', authRequired: false, running: 0, completionVersion: 0 });
   const contexts = new Map<string, Context>();
   const selected = new Set<string>();
   const controllers = new Set<AbortController>();
-  let disposed = false;
+  let disposed = false; let completedSinceIdle = false;
   const busy = computed(() => state.running > 0 || state.rows.some(row => row.status === 'queued'));
   const summary = computed(() => ({ total: state.rows.length, success: state.rows.filter(r => r.status === 'success').length,
     failed: state.rows.filter(r => r.status === 'error').length }));
@@ -62,11 +62,11 @@ export function createUploadBatch(client: UploadClient, newKey = () => crypto.ra
       if (state.authRequired) throw new UploadRequestError('AUTH_REQUIRED');
       ctx.receipt = await client.initiate({ originalName: ctx.file.name.trim().normalize('NFC'), mimeType: ctx.file.type, sizeBytes: ctx.file.size }, row.id, signal);
       if (disposed) return;
-      if (ctx.receipt.file.status === 'ACTIVE') return;
+      if (ctx.receipt.file.status === 'ACTIVE') return false; // Already finalized replay, not a new confirm notification.
     }
     // Confirm before any resend after a PUT was attempted, even if the previous response was lost/412.
     if (ctx.confirmFirst || !ctx.receipt.upload || Date.now() >= Date.parse(ctx.receipt.upload.expiresAt)) {
-      try { await confirm(row, ctx, signal); return; }
+      try { await confirm(row, ctx, signal); return true; }
       catch (error) {
         if (!(error instanceof UploadRequestError) || error.code !== 'UPLOAD_NOT_READY') throw error;
       }
@@ -83,13 +83,13 @@ export function createUploadBatch(client: UploadClient, newKey = () => crypto.ra
       if (disposed) return;
       // The storage error body/status is not an application result. A lost response may still have committed the object.
     }
-    if (!disposed) await confirm(row, ctx, signal);
+    if (!disposed) { await confirm(row, ctx, signal); return true; }
   }
   async function run(row: UploadRow) {
     const controller = new AbortController(); controllers.add(controller); state.running++;
     try {
-      await process(row, controller.signal);
-      if (!disposed) { row.status = 'success'; row.progress = 100; contexts.delete(row.id); }
+      const confirmed = await process(row, controller.signal);
+      if (!disposed) { row.status = 'success'; row.progress = 100; contexts.delete(row.id); completedSinceIdle ||= confirmed === true; }
     } catch (cause) {
       if (!disposed) {
         const error = cause instanceof UploadRequestError ? cause : new UploadRequestError('UNAVAILABLE');
@@ -97,7 +97,13 @@ export function createUploadBatch(client: UploadClient, newKey = () => crypto.ra
         row.failures++; row.retryAt = Date.now() + Math.max(error.retryAfterMs, Math.min(30_000, 1000 * 2 ** Math.min(row.failures - 1, 5)));
         if (error.code === 'AUTH_REQUIRED') state.authRequired = true;
       }
-    } finally { controllers.delete(controller); state.running--; }
+    } finally {
+      controllers.delete(controller); state.running--;
+      // One invalidation per drained wave, including partial success and later successful retries.
+      if (!disposed && completedSinceIdle && state.running === 0 && !state.rows.some(item => item.status === 'queued')) {
+        completedSinceIdle = false; state.completionVersion++;
+      }
+    }
   }
   async function start() {
     if (disposed || state.running || state.authRequired) return;
