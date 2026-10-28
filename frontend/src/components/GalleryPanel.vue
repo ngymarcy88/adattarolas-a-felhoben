@@ -1,23 +1,43 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { galleryClient } from '../api/gallery';
+import { previewClient } from '../api/preview';
 import { createGallery } from '../gallery/state';
+import { createPreviews } from '../gallery/previews';
+import { restoreModalFocus } from '../gallery/modal';
+import GalleryCard from './GalleryCard.vue';
+import PreviewDialog from './PreviewDialog.vue';
 
 const props = defineProps<{ ownerId: string; disabled?: boolean }>();
 const emit = defineEmits<{ unauthorized: [ownerId: string] }>();
-const gallery = createGallery(galleryClient, () => emit('unauthorized', props.ownerId));
+function expired() { gallery.dispose(); previews.dispose(); closePreview(); emit('unauthorized', props.ownerId); }
+const gallery = createGallery(galleryClient, expired);
+const previews = createPreviews(previewClient, expired);
 const { state } = gallery;
+const selectedId = ref<string | null>(null); const refreshButton = ref<HTMLButtonElement | null>(null);
+const selected = computed(() => state.items.find(file => file.id === selectedId.value));
+let opener: HTMLElement | null = null; let alive = true;
+function openPreview(id: string, button: HTMLElement) {
+  if (props.disabled) return;
+  opener = button; selectedId.value = id; previews.request(id);
+}
+function closePreview() {
+  if (!selectedId.value) return;
+  const returnTo = opener; opener = null;
+  selectedId.value = null;
+  void nextTick(() => { if (alive && !selectedId.value) restoreModalFocus(returnTo, refreshButton.value); });
+}
+watch(() => state.items.map(file => file.id), ids => {
+  previews.retain(ids); if (selectedId.value && !ids.includes(selectedId.value)) closePreview();
+}, { immediate: true, flush: 'sync' });
 const now = ref(Date.now()); let timer: ReturnType<typeof setInterval> | undefined;
 onMounted(() => { void gallery.refresh(); timer = setInterval(() => { now.value = Date.now(); }, 1000); });
-onBeforeUnmount(() => { clearInterval(timer); gallery.dispose(); });
+onBeforeUnmount(() => { alive = false; clearInterval(timer); gallery.dispose(); previews.dispose(); });
 const wait = computed(() => Math.max(0, Math.ceil((state.retryAt - now.value) / 1000)));
 const blocked = computed(() => props.disabled || !!state.loading || wait.value > 0 || state.unauthorized);
-const date = (value: string) => new Intl.DateTimeFormat('hu-HU', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
-function size(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`;
-  const unit = bytes < 1048576 ? 'KiB' : bytes < 1073741824 ? 'MiB' : 'GiB';
-  const divisor = unit === 'KiB' ? 1024 : unit === 'MiB' ? 1048576 : 1073741824;
-  return `${new Intl.NumberFormat('hu-HU', { maximumFractionDigits: 1 }).format(bytes / divisor)} ${unit}`;
+async function refreshGallery() {
+  await gallery.refresh();
+  if (alive && state.loaded && !state.error && !state.loading) previews.clearErrors();
 }
 </script>
 
@@ -25,9 +45,9 @@ function size(bytes: number) {
   <section class="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-7" aria-labelledby="gallery-title" :aria-busy="!!state.loading || (!state.loaded && !state.error)">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <h2 id="gallery-title" class="text-xl font-semibold">Képgaléria</h2>
-      <button type="button" :disabled="blocked" class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold hover:bg-slate-50 disabled:opacity-50" @click="gallery.refresh">Lista frissítése</button>
+      <button ref="refreshButton" type="button" :disabled="blocked" class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold hover:bg-slate-50 disabled:opacity-50" @click="refreshGallery">Lista frissítése</button>
     </div>
-    <p class="mt-3 text-sm text-slate-600">A képeid fájlneve, mérete és létrehozási ideje. A képes előnézet később válik elérhetővé.</p>
+    <p class="mt-3 text-sm text-slate-600">A képeid előnézettel, fájlnévvel, mérettel és dátummal. Kattints a képre a nagy előnézethez.</p>
     <p v-if="state.loading === 'refresh' || (!state.loaded && !state.error)" role="status" aria-live="polite" class="mt-5 text-sm text-slate-600">Képek listájának betöltése…</p>
     <div v-if="state.error" class="mt-5 rounded-xl border border-red-200 bg-red-50 p-4">
       <p role="alert" class="text-sm text-red-700">{{ state.error }}</p>
@@ -41,16 +61,11 @@ function size(bytes: number) {
     <template v-if="state.items.length">
       <p role="status" aria-live="polite" class="mt-5 text-sm text-slate-500">{{ state.items.length }} betöltött kép</p>
       <ul class="mt-4 grid gap-4 sm:grid-cols-2" aria-label="Saját képek">
-        <li v-for="file in state.items" :key="file.id" class="min-w-0 rounded-2xl border border-slate-200 p-4">
-          <h3 class="break-all font-semibold">{{ file.originalName }}</h3>
-          <dl class="mt-4 space-y-2 text-sm">
-            <div><dt class="text-slate-500">Méret</dt><dd class="font-medium">{{ size(file.sizeBytes) }}</dd></div>
-            <div><dt class="text-slate-500">Létrehozva</dt><dd><time :datetime="file.createdAt">{{ date(file.createdAt) }}</time></dd></div>
-          </dl>
-        </li>
+        <GalleryCard v-for="file in state.items" :key="file.id" :file="file" :previews="previews" :now="now" :disabled="disabled" @open="openPreview(file.id, $event)" />
       </ul>
     </template>
     <p v-if="state.loading === 'more'" role="status" aria-live="polite" class="mt-4 text-sm text-slate-600">További képek betöltése…</p>
     <button v-if="state.nextCursor && !state.error && !state.resetRequired" type="button" :disabled="blocked" class="mt-5 rounded-xl bg-indigo-600 px-5 py-3 font-semibold text-white hover:bg-indigo-700 disabled:opacity-50" @click="gallery.loadMore">További képek</button>
+    <PreviewDialog v-if="selected" :file="selected" :previews="previews" :now="now" :disabled="disabled" @close="closePreview" />
   </section>
 </template>

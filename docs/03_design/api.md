@@ -348,7 +348,7 @@ A tus/Uppy és S3 multipart vizsgálandó alternatívák, nem kiválasztott impl
 
 ### `GET /files?cursor={cursor}&limit={limit}` – implementált képlista
 
-**Implementált backend és metaadatgaléria-kliens, unit/template tesztekkel; képek frontend-betöltése még nincs.** Teljes helyi URL: `GET http://127.0.0.1:3000/api/v1/files`. Body nincs. Cookie/session + aktuális DB-user ellenőrzés kötelező; a frontend `credentials: include` módot használ. GET-ként hiányzó Origin megengedett, explicit eltérő Originre a közös CORS 403-at ad. Siker és hiba egyaránt `Cache-Control: no-store`.
+**Implementált backend és metaadatgaléria-kliens, unit/template tesztekkel; képek frontend-betöltése és nagy előnézete is implementált.** Teljes helyi URL: `GET http://127.0.0.1:3000/api/v1/files`. Body nincs. Cookie/session + aktuális DB-user ellenőrzés kötelező; a frontend `credentials: include` módot használ. GET-ként hiányzó Origin megengedett, explicit eltérő Originre a közös CORS 403-at ad. Siker és hiba egyaránt `Cache-Control: no-store`.
 
 **Szűrés:** minden lekérdezés szerveroldalon az aktuális user `ownerId`-jára és `status=ACTIVE` értékre szűr. Az első szelet csak képek: a `detectedMimeType` nem null, egyezik a `mimeType`-pal, és a JPEG/PNG/WebP/GIF allowlist, valamint az aktuális `ALLOWED_MIME_TYPES` metszetében van. Pending, REJECTED/EXPIRED receipt mögötti pending, soft-deleted, video és ismeretlen típus nem kerül a listára. Nem kérhető másik owner, státusz vagy MIME query-paraméterrel. A későbbi videós lista külön szerződésbővítés.
 
@@ -415,7 +415,7 @@ Az automatizált retention purge nem része ennek az API-verziónak; `Later`.
 
 ### `GET /files/{fileId}/preview-url` – implementált eredeti képelőnézet
 
-**Implementált backend-szelet, unit tesztekkel; a metaadatgaléria nem hívja ezt a végpontot, képes előnézeti felület még nincs.** Példakérés: `GET /api/v1/files/018f4f35-20de-7a9c-a05a-6c5c9d4f1c32/preview-url`; nincs body vagy query-paraméter. Cookie/session + aktuális DB-user szükséges; Origin/CORS és no-store szabálya a GET /files-ével egyezik. Hibás UUID/ismeretlen query 400 VALIDATION_ERROR.
+**Implementált backend-szelet, unit tesztekkel; a galéria ezt a végpontot használja a képekhez és a nagy előnézethez.** Példakérés: `GET /api/v1/files/018f4f35-20de-7a9c-a05a-6c5c9d4f1c32/preview-url`; nincs body vagy query-paraméter. Cookie/session + aktuális DB-user szükséges; Origin/CORS és no-store szabálya a GET /files-ével egyezik. Hibás UUID/ismeretlen query 400 VALIDATION_ERROR.
 
 1. Metaadat-lekérés kizárólag `id + aktuális ownerId + ACTIVE` szerint. Hiányzó, idegen, saját pending vagy soft-deleted fájl egységes **404 FILE_NOT_FOUND**, típus-/storage-ellenőrzés és presign nélkül. Az idegen fájl típusa/állapota nem szivároghat 415/503 válasszal sem.
 2. Támogatott tényleges típus: **image/jpeg, image/png, image/webp, image/gif**, az aktuális ALLOWED_MIME_TYPES-szal metszve; detectedMimeType nem null és egyezik a mimeType-pal. Csak már confirmált tartalom használható. Saját ACTIVE, de nem megfelelő típus/hiányzó detektálás esetén **415 PREVIEW_NOT_ALLOWED**. Video, SVG, HTML, JavaScript, XML és ismeretlen tartalom nem inline előnézet ebben a szeletben. Kiterjesztés vagy storage Content-Type önmagában nem elég.
@@ -608,4 +608,12 @@ A `frontend/src/api/gallery.ts` kizárólag GET /files-t kér, limit=20 és a v�
 
 `gallery/state.ts` egy folyamatban lévő folytatást enged; a lapozási hiba nem változtatja az items/current cursor értékét, a retry ugyanazt a pozíciót használja. Dedupe ID szerint az első példányt tartja meg, a szerver sorrendjében. Ismétlődő nextCursor vagy CURSOR_INVALID új elsőoldalas frissítést igényel. A frissítés sikerig megtartja a kártyákat, de érvényteleníti a korábbi lánc folytatását; sikerkor teljesen új listát/cursorláncot fogad. A 429 olvasható Retry-After szerint tilt új hívást, hiányzó/hibás headernél 60s; nincs automatikus polling vagy retry.
 
-A `GalleryPanel` a védett `/app` oldalon, user.id-hez kötött példányban indul. 401-kor a lista/cursor ürül, a szülő azonos user esetén törli a session profilt és loginra navigál. Az abort/generation védelem eldobja a késői választ, unmount üríti a memóriabeli listát. Fájlnevek szövegként escape-eltek. Képes előnézet, nagy nézet, thumbnail és automatikus confirm utáni frissítés nincs ebben a szeletben.
+A `GalleryPanel` a védett `/app` oldalon, user.id-hez kötött példányban indul. 401-kor a lista/cursor ürül, a szülő azonos user esetén törli a session profilt és loginra navigál. Az abort/generation védelem eldobja a késői választ, unmount üríti a memóriabeli listát. Fájlnevek szövegként escape-eltek. A képes előnézet alább implementált; thumbnail és automatikus confirm utáni frissítés továbbra sincs.
+
+## Képes galéria frontend-illesztése – implementált, 2026-10-28
+
+`api/preview.ts` külön kliens: body nélküli GET, credentials include, no-store, redirect error és tíz másodperces timeout. Csak a két szerződéses mezőt fogadja el; jövőbeli kanonikus UTC lejáratot és abszolút HTTP(S) URL-t ellenőriz, userinfo/fragment és frontenddel azonos origin nélkül. A signed URL-t nem módosítja vagy naplózza. A storage GET anonymous CORS/no-referrer; storage-cookie nélkül történik, megfelelő provider-CORS szükséges.
+
+`gallery/previews.ts` fiókhoz kötött memóriabeli sor, legfeljebb négy fizikai URL-kéréssel (az abortált, de még le nem zárt kérés is beleszámít). Csak látható kártya vagy explicit megnyitás igényel URL-t. Azonos ID folyamatban levő kérése közös a kártyának és a dialógusnak. A már betöltött kép nem tűnik el pusztán lejáratkor; új megnyitáskor lejárt URL helyett új jogot kér. Nincs időzített megújítás. A kép load-error törli az URL-t és kézi retry-t kér, nem találgat HTTP-státuszt az img eseményéből. A 404/415 terminális az adott próbában; sikeres explicit listafrissítés érvényteleníti a hibás bejegyzéseket. A 429 közös cooldown és kézi retry, nem időzített újraindítás. Láthatósági API nélkül explicit kattintás a fallback.
+
+401, eltűnt fájl, accountváltás vagy unmount törli az érintett memóriát; abort és bejegyzésazonosság/verzió védi a késői API-/képeseményeket. Az oldalhagyás nem revokálja a már kiadott capability-t. A nagy nézet natív modális dialog, felirattal, close-fókusszal, Escape cancel eseménnyel és visszaadott fókusszal; thumbnail/processor/download nem készült.

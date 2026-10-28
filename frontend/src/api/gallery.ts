@@ -1,4 +1,5 @@
 import { parseApiBaseUrl } from './health';
+import { readRetryAfter } from './retry-after';
 
 export const GALLERY_PAGE_SIZE = 20;
 export interface GalleryFile {
@@ -38,11 +39,6 @@ function parsePage(value: unknown): GalleryPage {
   }
   return { items: value.items.map(parseFile), nextCursor: value.nextCursor as string | null, hasNextPage: value.hasNextPage };
 }
-function retryAfter(header: string | null): number {
-  if (!header) return 60_000;
-  const delay = /^\d+$/.test(header) ? Number(header) * 1000 : Math.max(0, Date.parse(header) - Date.now());
-  return Number.isSafeInteger(delay) && delay >= 0 && delay <= Number.MAX_SAFE_INTEGER - Date.now() ? delay : 60_000;
-}
 export function createGalleryClient(baseUrl: string | undefined) {
   return {
     async list(cursor: string | null, signal: AbortSignal): Promise<GalleryPage> {
@@ -56,7 +52,7 @@ export function createGalleryClient(baseUrl: string | undefined) {
           cache: 'no-store', redirect: 'error', headers: { Accept: 'application/json' }, signal: controller.signal });
         if (response.status === 401) throw new GalleryRequestError('unauthorized');
         if (response.status === 403) throw new GalleryRequestError('forbidden');
-        if (response.status === 429) throw new GalleryRequestError('rate_limited', retryAfter(response.headers.get('Retry-After')));
+        if (response.status === 429) throw new GalleryRequestError('rate_limited', readRetryAfter(response.headers.get('Retry-After')));
         if (response.status === 400) {
           let data: unknown; try { data = await response.json(); } catch { /* Never expose raw bodies. */ }
           if (record(data) && record(data.error) && data.error.code === 'CURSOR_INVALID') throw new GalleryRequestError('cursor_invalid');

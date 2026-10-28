@@ -138,7 +138,7 @@ npm run storage:verify
 
 Ez explicit kézi provider-próba, nem része az `npm test`/CI futásnak. Backend build után szintetikus PNG-t tölt fel véletlen kulcsokra, ellenőrzi a tiltott felülírást, méret/header módosításának elutasítását, HEAD/range/download, bucket-hozzáférés és CORS működését; végül csak a saját próbaobjektumait törli. A parancs nem módosít DB-t vagy kvótát, és nem naplóz hozzáférési URL-t. Az in-flight PUT-ok biztos lezárását és a valódi böngészős uploadot nem bizonyítja. Részletek: [tesztriport](docs/04_quality/test_report.md).
 
-A backend feltöltési API-ja init → presigned PUT → body nélküli confirm sorrendben használható az [API-szerződés](docs/03_design/api.md) alapján, szintetikus fejlesztői adatokkal. Confirm után a tárhely egyszer kerül reservedből used-ba; a signature-ellenőrzés nem teljes képdekódolás. A feltöltőfelület és a metaadatkártyás galéria implementált; képbetöltés/nagy előnézet még nincs.
+A backend feltöltési API-ja init → presigned PUT → body nélküli confirm sorrendben használható az [API-szerződés](docs/03_design/api.md) alapján, szintetikus fejlesztői adatokkal. Confirm után a tárhely egyszer kerül reservedből used-ba; a signature-ellenőrzés nem teljes képdekódolás. A feltöltőfelület és az eredeti képeket megjelenítő galéria nagy előnézettel implementált.
 
 A háttér-cleanup percenként legfeljebb 50 esedékes műveletet vizsgál. Azonnali, egyköteges operátori futtatás host Node-környezetből, a szokásos `.env`, dependencyk és futó PostgreSQL/MinIO mellett:
 
@@ -154,7 +154,7 @@ Belépés után a `/app` oldalon válassz legfeljebb 20 JPEG/PNG/WebP/GIF képet
 
 Átmeneti hibánál a fájl saját **Újrapróbálás** gombja rövid, növekvő várakozás után használható; 429-nél legalább 60 másodperc. Ugyanaz az init-kulcs/fileId marad, bizonytalan PUT után először confirm történik, és csak hiányzó objektumnál, élő eredeti joggal indulhat új teljes PUT. Kész fájlt a retry nem küld újra. Terminális tartalom-/típus-/méret-/lejárati hibánál nincs vak retry. Munkamenet-lejárat leállítja az új fájlok indítását, a felület login linket ad.
 
-A köteg memóriában, egyetlen megnyitott oldalon él; legfeljebb 20 sor, ugyanazon kiválasztott fájl ismételt hozzáadását kihagyja. Frissítés/navigáció után nincs helyi állapot-visszaállítás; a korábbi reservation nem szűnik meg ettől. A futó kéréseket komponenselhagyáskor megszakítjuk, de ez nem bizonyítja a szerver/storage írásainak végét. Nincs cancel endpoint, galéria, processor vagy bájtszintű resume. A teljes kézi UI → DB/storage ellenőrzés a 7. pont feladata.
+A köteg memóriában, egyetlen megnyitott oldalon él; legfeljebb 20 sor, ugyanazon kiválasztott fájl ismételt hozzáadását kihagyja. Frissítés/navigáció után nincs helyi állapot-visszaállítás; a korábbi reservation nem szűnik meg ettől. A futó kéréseket komponenselhagyáskor megszakítjuk, de ez nem bizonyítja a szerver/storage írásainak végét. Nincs cancel endpoint, processor vagy bájtszintű resume. A teljes kézi UI → DB/storage ellenőrzés a 7. pont feladata.
 
 A storage PUT XHR-rel ad átviteli progress-t, `withCredentials=false` mellett, a frontendtől eltérő storage originre; ugyanazon origint elutasítja, mert ott ez a beállítás nem zárná ki a cookie-t. Az API cookie-s kérései ettől elkülönülnek. Capability/File csak memóriában marad, nem kerül renderelt sorba vagy localStorage-ba.
 
@@ -162,7 +162,7 @@ A storage PUT XHR-rel ad átviteli progress-t, `withCredentials=false` mellett, 
 
 A feltöltés indításakor a frontend legfeljebb 16 fejlécbájtból ismeri fel a JPEG/PNG/GIF/WebP típust; a böngésző MIME-jelzése és a kiterjesztés nem döntő. Például JPEG-tartalmú `kep.png` automatikusan `kep.jpg` feltöltési nevet és `image/jpeg` típust kap, a sorban magyarázó jelzéssel. A bájtok, méret és a helyi fájl változatlanok; nem történik konvertálás. A helyes `.jpg`/`.jpeg` és más támogatott kiterjesztés megmarad (kis-/nagybetűtől függetlenül). Hiányzó vagy hibás kiterjesztés javítható; az új név legfeljebb 255 Unicode-kódpont.
 
-A név-/méretellenőrzés a fejléc olvasása előtt történik, ismeretlen fejlécnél nincs init/kvótafoglalás. A korrigált metaadat ugyanazon init-kulcs mellett retry során is változatlan. A backend továbbra is saját HEAD/signature ellenőrzést végez és a deklarált/detektált eltérést elutasítja. A felismerés nem teljes képdekódolás. A javított display/download név `originalName`-ként tárolódik; a galéria/letöltési végpont továbbra is külön feladat.
+A név-/méretellenőrzés a fejléc olvasása előtt történik, ismeretlen fejlécnél nincs init/kvótafoglalás. A korrigált metaadat ugyanazon init-kulcs mellett retry során is változatlan. A backend továbbra is saját HEAD/signature ellenőrzést végez és a deklarált/detektált eltérést elutasítja. A felismerés nem teljes képdekódolás. A javított display/download név `originalName`-ként tárolódik; a letöltési végpont továbbra is külön feladat.
 
 ## Saját képek listája – backend-szelet
 
@@ -178,4 +178,10 @@ Hiányzó/idegen/pending/törölt fájl 404, saját ACTIVE nem támogatott tény
 
 Belépés után a `/app` oldalon a **Képgaléria** a GET /files első húsz elemét kéri le. Kártyánként fájlnév, olvasható méret és a böngésző helyi időzónájában megjelenített létrehozási idő látható. A **További képek** gomb cursorral lapoz; a meglévő kártyák loading/hiba közben is megmaradnak, az ismételt ID-k nem kapnak új kártyát. Üres lista feltöltési linket, hiba magyar üzenetet és kézi újrapróbálást ad. Érvénytelen/ismétlődő cursornál frissítés az első oldaltól indul, nem folytatja a régi láncot. 429-nél a Retry-After várakozás a frissítésre is érvényes.
 
-A **Lista frissítése** új első oldalt kér; sikerig a korábbi kártyák megmaradnak, sikerkor lecserélődnek. Feltöltés után ezt kézzel használd; automatikus upload utáni frissítés még külön feladat. A kliens állapota fiókonként/komponensenként memóriában él, 401-kor ürül és a loginra vezet; unmount/új kérés figyelmen kívül hagyja a régi választ. Nincs localStorage-cache, képletöltés, preview-url hívás vagy nagy előnézet ebben a szeletben. A unit/template ellenőrzés eredménye a [tesztriportban](docs/04_quality/test_report.md) szerepel; teljes böngészős/DB elfogadás külön kapu.
+A **Lista frissítése** új első oldalt kér; sikerig a korábbi kártyák megmaradnak, sikerkor lecserélődnek. Feltöltés után ezt kézzel használd; automatikus upload utáni frissítés még külön feladat. A kliens állapota fiókonként/komponensenként memóriában él, 401-kor ürül és a loginra vezet; unmount/új kérés figyelmen kívül hagyja a régi választ. Nincs localStorage-cache. A képes előnézet működését a következő bekezdés írja le. A unit/template ellenőrzés eredménye a [tesztriportban](docs/04_quality/test_report.md) szerepel; teljes böngészős/DB elfogadás külön kapu.
+
+### Képek és nagy előnézet
+
+A látható kártyák a preview-url végponttal kérnek eredeti képet, legfeljebb négy párhuzamos URL-kéréssel. Kattintás vagy Enter/Space nagy, natív dialógust nyit; Escape és Bezárás visszaadja a fókuszt a nyitógombnak (eltűnt kártyánál a lista frissítésének). A natív modális dialógus a fókuszt a megnyitott nézetben tartja.
+
+A signed URL csak memóriában él, nem kerül naplóba vagy tartós tárolóba; a storage GET külön originre, anonymous CORS és no-referrer mellett megy. A kép hibája külön üzenetet és kézi újrapróbálást ad. Nincs időzített URL-megújítás vagy automatikus hibahurok; 429 esetén kivárjuk a Retry-After értékét. A sikeres kézi listafrissítés feloldja a korábbi preview-hibákat, de megtartja a használható képeket. IntersectionObserver nélkül csak megnyitásra indul kérés. Ez eredeti kép, nem thumbnail; nagy fájlok eredeti méretben töltődnek. A valódi böngészős CORS/kép/keyboard elfogadás még ellenőrizendő.
