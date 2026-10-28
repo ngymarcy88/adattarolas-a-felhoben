@@ -4,6 +4,7 @@ import { RouterLink, useRouter } from 'vue-router';
 import { authClient, AuthRequestError } from '../api/auth';
 import { session } from '../auth/session';
 import UploadPanel from '../components/UploadPanel.vue';
+import GalleryPanel from '../components/GalleryPanel.vue';
 
 const router = useRouter();
 const user = session.user;
@@ -12,6 +13,12 @@ const uploading = ref(false);
 const error = ref('');
 let active = true;
 let controller: AbortController | undefined;
+async function gallerySessionExpired(ownerId: string) {
+  if (!active || session.user.value?.id !== ownerId) return;
+  controller?.abort();
+  session.user.value = null;
+  await router.replace({ name: 'login' });
+}
 async function logout() {
   if (pending.value || uploading.value) return;
   pending.value = true;
@@ -42,6 +49,7 @@ onBeforeUnmount(() => { active = false; controller?.abort(); });
       <button type="button" :disabled="pending || uploading" class="mt-7 rounded-xl border border-slate-300 px-4 py-3 font-semibold hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60" @click="logout">{{ pending ? 'Kijelentkezés…' : 'Kijelentkezés' }}</button>
       <p v-if="uploading" class="mt-2 text-xs text-slate-500">Kijelentkezés a futó feltöltések befejezése után.</p>
     </section>
-    <UploadPanel v-if="user" :disabled="pending" @busy="uploading = $event" />
+    <GalleryPanel v-if="user" :key="user.id" :owner-id="user.id" :disabled="pending" @unauthorized="gallerySessionExpired" />
+    <UploadPanel v-if="user" :key="'upload-' + user.id" :disabled="pending" @busy="uploading = $event" />
   </main>
 </template>

@@ -137,8 +137,9 @@ A történeti MVP-0–MVP-7 helyett az alábbi **SZD2-0–SZD2-7** az aktuális 
 - [ ] Cleanup fizikai törlés/release provider-proofja; a jelenlegi adapterrel még nem igazolt, foglalás megmarad.
 - [ ] Backend-kontrollált privát upload, méret/MIME/magic-number validáció, foglalás és idempotens confirm.
 - [x] Első saját képgaléria/eredeti-preview olvasási szerződés: owner/ACTIVE/kép szűrés, keyset cursor, válaszmezők/hibák/TTL és UI-állapotok dokumentálva; végpont/UI implementáció nélkül.
-- [x] GET /files backend: saját ACTIVE képek, szigorú cursor/limit, determinisztikus createdAt/id lapozás, hétmezős projekció, user rate limit és unit tesztek. A galéria-UI még nincs.
+- [x] GET /files backend: saját ACTIVE képek, szigorú cursor/limit, determinisztikus createdAt/id lapozás, hétmezős projekció, user rate limit és unit tesztek. A metaadatgaléria UI is implementált; képbetöltés még nincs.
 - [x] GET /files/{fileId}/preview-url backend: saját ACTIVE/ellenőrzött kép, HEAD/méret, signing utáni metaadat-recheck, legfeljebb 300s inline/no-store read URL, külön limiter és unitok. Valós DB/storage/browser próba és frontend még külön kapu.
+- [x] Saját metaadatgaléria `/app`: név/méret/dátum kártyák, első/folytató loading, üres/error/retry, cursor és ID-dedupe, session/dispose védelem unit/template tesztekkel. Képbetöltés/nagy előnézet és automatikus upload utáni frissítés külön feladat.
 - [ ] Saját galéria és jogosult előnézet/letöltés; betöltési, üres és hibaállapotok.
 - [ ] Közös processor-interfész és első beépített processor, verziózott eredménnyel. Elsőként az előnézetkészítő javasolt; ez végrehajtási javaslat, a tanár általánosan első processort kér.
 - [ ] Eredeti és derived storage konzisztens elszámolása; minimális tartós job/result és audit, titkok nélkül.

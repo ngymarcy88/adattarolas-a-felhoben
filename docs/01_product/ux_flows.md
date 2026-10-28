@@ -57,7 +57,7 @@ Ez az első képszelet, nem tartós import. Az állapot csak az oldal memóriáj
 
 ## Első képgaléria és előnézet – tervezett UI-szelet, 2026-10-27
 
-A GET /files backend-lista már implementált; a preview API is implementált; a galéria-/előnézeti felület még nem implementált; a részletes [lista/preview szerződés](../03_design/api.md#fájllista-és-lifecycle) az irányadó. A lenti UX-02 teljes célfolyamatából most csak a saját ACTIVE képek megjelenítése és jogosított eredeti előnézete tervezett. Videó, letöltés/megosztás és thumbnail-generálás nem része ennek a szeletnek.
+A GET /files backend-lista már implementált; a preview API is implementált; a fájlnév/méret/dátum metaadatgaléria is implementált; a képek betöltése és az előnézeti felület még nem implementált; a részletes [lista/preview szerződés](../03_design/api.md#fájllista-és-lifecycle) az irányadó. A lenti UX-02 teljes célfolyamatából most csak a saját ACTIVE képek megjelenítése és jogosított eredeti előnézete tervezett. Videó, letöltés/megosztás és thumbnail-generálás nem része ennek a szeletnek.
 
 | Állapot | Elvárt felületi viselkedés |
 |---|---|
@@ -160,3 +160,9 @@ A későbbi thumbnail-processor aszinkron, verziózott derived képet készít m
 ## Hibás kiterjesztés javítása az első képszeletben – 2026-10-27
 
 A kiválasztott kép típusa a tartalom fejlécéből dől el. Az eredeti név a sorban marad; szükség esetén külön szöveg jelzi például: „A felismert formátum JPEG. Feltöltési név: kep.jpg. A képtartalom nem változik.” A feltöltés a javított névvel/típussal megy tovább, átnevezést vagy konvertálást nem kér a felhasználótól. Ismeretlen tartalom vagy nem olvasható fájl helyi hibát kap, a többi fájlt nem állítja le. Ez nem teljes képintegritás-ellenőrzés; a backend az aktiválás előtt önállóan validál.
+
+## Megvalósított metaadatgaléria – 2026-10-28
+
+Belépés után a `/app` a saját képek fájlnevét/méretét/létrehozási idejét kártyákon jeleníti meg, első loading, üres és magyar error/retry állapotokkal. További képek cursorral, ismételt kattintás ellen védve érkeznek, ID-dedupe mellett. Lapozási hiba alatt a kártyák maradnak; retry ugyanazt az oldalt kéri. Invalid/looping cursornál magyarázat és elsőoldalas újrakezdés, 429-nél várakozás; nincs automatikus hurok. A Lista frissítése új láncot indít, az addigi kártyák csak sikeres válaszkor cserélődnek.
+
+401-re a lista és profil ürül, login szükséges. Fiókváltás új komponenspéldányt ad a galériának és a feltöltőnek; korábbi account késői válasza nem tölti vissza az adatokat. Kijelentkezési kérés alatt a galéria vezérlői tiltottak, hiba esetén a köteg/kártyák nem tűnnek el. Feltöltés után kézi listafrissítés használható; a sikerhez kötött automatikus frissítés külön későbbi lépés. A kártyák most nem töltenek képet, nem nyithatók nagy előnézetre és nem kérnek signed URL-t. A fenti teljes képes UX egyéb sorai továbbra is tervezettek.

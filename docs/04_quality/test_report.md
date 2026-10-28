@@ -1,5 +1,27 @@
 # Test report
 
+## Saját képek metaadatgalériája – 2026-10-28
+
+Verzió: `feature/gallery-metadata-ui`, a `fe2ef8b` preview backend után. Környezet: WSL Bash, Linux Node 22.23.2/npm 10.9.8, meglévő Vitest Node-környezet és izolált Vue SSR render. Backend, séma, dependency és preview végpont nem változott; nincs új integration/e2e runner.
+
+**Unit:** `npm test` PASS: **589 backend** (14 suite) + **290 frontend** (12 fájl) + **2 container helper** = **881 eset**. A 70 új galéria API/state/template eset mellett az upload sikerüzenet meglévő tesztje a kézi frissítési útmutatóra frissült. A célzott 290-es frontend futás/typecheck is PASS volt. A végleges `npm run typecheck` és `npm run build` mindkét workspace-re PASS; 39 helyi dokumentációs link, git diff --check és a tényleges környezeti credentialök repó-/frontendbundle-ellenőrzése is PASS. Független frontend/security review nem talált blokkoló hibát.
+
+| Bemenet/lépés | Elvárt és tényleges unit/template eredmény |
+|---|---|
+| Első/folytató GET /files, limit20 és opaque cursor | PASS: include/no-store/redirect error, JSON-only metadata, nincs body/preview/storage kérés |
+| Hibás page/row, privát extra mező, nem ACTIVE vagy eltérő MIME, rossz UUID/dátum/méret | PASS: runtime sémaellenőrzés, biztonságos generikus hiba; raw body/URL nem kerül a UI-ba |
+| Initial loading vs üres 200 | PASS: betöltési állapot, üres siker külön feltöltési linkkel, nincs korai üres státusz |
+| Több oldal, ismételt ID-k és párhuzamos További képek kattintás | PASS: szerverrend megmarad, egy ID egy kártya, egyszerre egy folytatás |
+| Lapozási hiba, majd retry | PASS: korábbi kártyák és cursor maradnak; pontosan az elbukott oldalt kéri újra |
+| CURSOR_INVALID/ismétlődő nextCursor vagy sikertelen frissítés | PASS: nem folytatja a rossz/régi láncot, kártyák sikeres elsőoldalas frissítésig megmaradnak |
+| Felülírt kérés, dispose, késői siker/401 | PASS: abort + generation védelem, régi válasz nem ír vissza adatot és nem indít új auth-callbacket |
+| 401 és 429/Retry-After (szám/dátum/fallback) | PASS: 401 előtt listaürítés és callback, 429 alatt a frissítés sem kerüli meg a várakozást |
+| SSR kártyák/loading/error/retry/disabled/üres | PASS: fájlnév escape, olvasható méret, time datetime és betöltött elemszám; nincs img/iframe/video/picture |
+
+Az AccountPage a galériát és a feltöltőt user.id kulcshoz köti; a galéria 401 eseményére csak ugyanazon aktuális user esetén törli a profilt és navigál loginra. A template-tesztek izolált SSR-ek, onMounted nem indít bennük valódi hálózatot.
+
+**Bizonyítékhatár:** nem történt valódi böngészős megnyitás, DOM-interakció/hydration, viewport/keyboard próba vagy a GET /files valódi DB-vel futtatott ellenőrzése. A teljes auth/lista UI → backend/DB elfogadás külön kapu. A kártyák most kizárólag metaadatok: képek betöltése, nagy előnézet és automatikus upload utáni frissítés még nincs. A korábbi szerzői sikeres feltöltési próba nem galéria-UAT.
+
 ## Eredeti kép előnézeti URL-je – 2026-10-27
 
 Verzió: `feature/image-preview-url`, a `7fdea88` képlista-szelet után. Környezet: WSL Bash, Linux Node 22.23.2/npm 10.9.8, Prisma 7.10.1, Jest/Vitest izolált runnerek. Nincs frontend-, download-endpoint-, thumbnail-, séma- vagy dependency-változás; valódi DB/MinIO/browser próba nem történt.
