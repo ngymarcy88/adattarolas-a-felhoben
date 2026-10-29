@@ -6,7 +6,7 @@ Accepted – tervezési döntés; 2026-10-29.
 
 ## Implementation status
 
-**Csak dokumentált, nem implementált.** Nincs Sharp-telepítés, lockfile-, Prisma-, migráció-, worker-, API- vagy Compose-változás. A következő implementáció külön feladat. A második, image-metadata processor későbbi szelet; import-/resumable protokollt ez az ADR nem választ.
+**Részben implementált alap:** a job/attempt/result Prisma-séma és külön additív migráció elkészült (2026-10-29). Nincs Sharp-telepítés, lockfile-, worker-, API- vagy Compose-változás; jobindítás és könyvelő service sincs. A következő implementáció külön feladat. A második, image-metadata processor későbbi szelet; import-/resumable protokollt ez az ADR nem választ.
 
 ## Context
 

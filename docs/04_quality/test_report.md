@@ -1,5 +1,25 @@
 # Test report
 
+## Processor-adatmodell és migráció – 2026-10-29
+
+**Verzió:** `feature/processing-data-model`, `6bfd746` szerződés után. **Környezet:** WSL Bash, Linux Node22.23.2/npm10.9.8, Prisma7.10.1 és eldobható PostgreSQL17.9 Docker-konténer. Az alkalmazás futó DB-je/volume-jai nem változtak. Csak a séma, új additív migráció, opt-in ellenőrző eszköz és dokumentáció készült; processor/worker/API nincs.
+
+**Végrehajtott ellenőrzések:** Prisma validate és generate PASS; `npm run typecheck`, `npm test` (**937 PASS:589 backend+346 frontend+2 container helper**) és `npm run build` PASS. A `CLOUDVAULT_DOCKER_CLI='<helyi Windows Docker CLI>' node scripts/verify-processing-schema.mjs` külön, valódi PostgreSQL-en **75 constraint-esetet** ellenőrzött, ezek nem a937 unit részei és nem alkalmazás-integration/e2e tesztek.
+
+| Kísérlet / bemenet | Elvárt és tényleges eredmény |
+|---|---|
+| Régi migrációk + szintetikus2user/4file, ACTIVE és PENDING8-byte foglalás, upload receipt/share/audit; új migrate deploy | Minden régi tábla rendezett teljes rekord-snapshotja és countere változatlan: PASS. Nincs backfill vagy jobindítás. |
+| Új logikai job/result duplikálása, másik verzió és cross-owner/file/job/attempt/storageKey kombinációk | Duplicate tiltott, új verzió engedett, kevert ownership/key FK-val tiltott: PASS. |
+| Hiányos NULL output/lease/proof/marker; rossz hash/MIME/size/dimenzió/counter/finite időpont; történetiR és proof nélküli release | A helyes soralak engedett, hibás alak23514; óvatlan parent-törlés23503 és eredeti kvóta-check megmarad: PASS. |
+| Migrate diff/status upgrade DB-n; teljes lánc friss DB-n | Nincs Prisma által reprezentált strukturális drift; history aktuális, fresh deploy/parity: PASS. A CHECK-eket a különSQL-esetek fedik, nem a migrate diff. |
+| Normál generált Prisma Client job/attempt create, createdAt/default-now és @updatedAt; rollback | Tényleges klienssel létrehozható, időbélyeg-korlát kompatibilis, tranzakció visszagörgetve: PASS. |
+| Verifier lezárása | Saját --rm konténer és ideiglenes adatok eltávolítva, application DB untouched: PASS. |
+
+**Javított teszt-fixture-ek:** az első owner-update próbát egy cascade-elt child CHECK hamarabb utasította el a célzott FK helyett; insert/clone fixture-rel különítettük el. A tesztcímkék aposztróf-escape-jét is javítottuk. Az újrafuttatás mind75 esetben PASS. A független sémareview nem talált blokkoló hibát; a javasolt normál Prisma timestamp-próba is lefutott.
+
+**Bizonyíték:** `scripts/verify-processing-schema.mjs`, `backend/prisma/verification/processing-model.sql`, új migráció és a futások konzolkimenete. A fixture-ek nem valódi médiafeltöltések. A SQL CHECK/FK/unique soralak és relációazonosság igazolt; a parent ACTIVE/current-fence, monoton state transition, jobSUCCEEDED/result együttállás, fizikai storage-proof és User-counter összegek cross-row konzervációja későbbi service-feladat. Ez nem thumbnail/recovery/kvóta-service működési PASS, és a meglévő adatbázist nem migráltuk automatikusan.
+
+
 ## Első thumbnail-processor szerződés – 2026-10-29, csak dokumentáció
 
 **Verzió:** `docs/thumbnail-processor-contract`, `2373620` alap után (alkalmazáskód továbbra is a `2e68506` merge állapota). **Környezet/módszer:** WSL Bash, meglévő docs és runtime-interface-ek olvasása, Sharp/Jimp/libvips elsődleges dokumentációjának ellenőrzése. Szerződés: ADR-016 + API/adatmodell/UX/security/quality és roadmap.

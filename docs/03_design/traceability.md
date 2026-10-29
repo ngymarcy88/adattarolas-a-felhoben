@@ -89,3 +89,7 @@ US-02 → US-03 frissítés: upload/batch completionVersion (új ACTIVE confirm,
 | Biztonságos natív decoder | Allowlist/32MiB/40Mpixel/512KiB/child timeout és limitált worker | Unit limit + valós cgroup/OOM/time/codec-allowlist ellenőrzés |
 
 A fenti új entitások/API/worker **nem implementáltak**. A második image-metadata processor, teljes resumable import és összehasonlító mérés külön kötelező későbbi szeletek. Nincs új runtime teszt-PASS vagy teljes milestone-zárás ebből a dokumentációból.
+
+### Processor-adatmodell implementációs határa – 2026-10-29
+
+ProcessingJob/ProcessingAttempt/DerivedObject → Prisma schema → 20261029000100_processing_model additív migráció: job logical unique, compound owner/file/job/attempt/key FK, result(job,kind)/attempt/key unique, NULL-biztos shape/hash/counter/time CHECK-ek. A repeatable opt-in scripts/verify-processing-schema.mjs eldobható PostgreSQL-en vizsgálja a migrációt és75 constraint-esetet; nem fut CI-ben és nem új alkalmazás-integration/e2e suite. A konkrét eredmény a tesztriportban. Processor, worker, registry, current-fence/monoton transition és tranzakciós reserved→used service még nincs; a DB-korlátok önmagukban nem könyvelnek és nem igazolnak S3-proofot.
