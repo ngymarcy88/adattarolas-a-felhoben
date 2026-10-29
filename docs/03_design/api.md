@@ -626,7 +626,7 @@ A 300 ms-os összevonás egy függő elsőoldalas olvasást tart; futó lista/fo
 
 ## Első thumbnail-processor API – TERVEZETT, 2026-10-29
 
-**Ezek a végpontok nem léteznek.** A tartós adatmodell sémája/migrációja már elkészült, de ez nem módosítja a meglévő API runtime-ját és nem indít jobot. A [képpolicy és Sharp-választás](../02_architecture/adr/ADR-016-thumbnail-processing.md), illetve [job/attempt/result és derived kvóta](data_model.md#első-thumbnail-processor--tervezett-szerződés-2026-10-29) az irányadó. Az első kiadásban csak `thumbnail@1.0.0` fut; image-metadata későbbi processor. Meglévő GET /files hétmezős válasza, cursorja és eredeti preview-url válasza változatlan; új storage key/URL nem kerül a listába.
+**Ezek a végpontok nem léteznek.** A tiszta Processor/ThumbnailProcessor már implementált, de csak explicit bináris transzformáció; nincs Nest-wiring, confirm-jobindítás vagy HTTP-ról meghívás. A tartós adatmodell sémája/migrációja már elkészült, de ez nem módosítja a meglévő API runtime-ját és nem indít jobot. A [képpolicy és Sharp-választás](../02_architecture/adr/ADR-016-thumbnail-processing.md), illetve [job/attempt/result és derived kvóta](data_model.md#első-thumbnail-processor--tervezett-szerződés-2026-10-29) az irányadó. Az első kiadásban csak `thumbnail@1.0.0` fut; image-metadata későbbi processor. Meglévő GET /files hétmezős válasza, cursorja és eredeti preview-url válasza változatlan; új storage key/URL nem kerül a listába.
 
 ### Indítás és a confirm határa
 

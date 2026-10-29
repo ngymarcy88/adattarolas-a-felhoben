@@ -6,7 +6,7 @@ Accepted – tervezési döntés; 2026-10-29.
 
 ## Implementation status
 
-**Részben implementált alap:** a job/attempt/result Prisma-séma és külön additív migráció, majd a bounded eredetiolvasás és create-only derived írás adaptere elkészült (2026-10-29). Nincs Sharp-telepítés, lockfile-, worker-, API- vagy Compose-változás; jobindítás és könyvelő service sincs. A következő implementáció külön feladat. A második, image-metadata processor későbbi szelet; import-/resumable protokollt ez az ADR nem választ.
+**Részben implementált alap, 2026-10-29:** job/attempt/result séma, storage I/O, közös TypeScript `Processor` és explicit hívható `ThumbnailProcessor` elkészült. Root lockfile-ban pontos Sharp **0.35.5**, WSL Linux x64 runtime: libvips **8.18.7**, libwebp **1.6.0**. Nincs worker, Nest-regisztráció, confirmból indítás, új HTTP API vagy derived-könyvelő service. A galéria továbbra is eredetit mutat. A metadata-processor későbbi szelet.
 
 ## Context
 
@@ -14,7 +14,7 @@ A jelenlegi galéria az eredeti JPEG/PNG/WebP/GIF képet használja. A confirm c
 
 ## Decision
 
-**Sharp + libvips** legyen az első képfeldolgozó. A dokumentált input-/output-/resize-/orientációs API illeszkedik a négy meglévő képformátumhoz és a statikus WebP-kimenethez. Saját resize-kód vagy shellből összeállított konvertálóparancs helyett külön ThumbnailProcessor fogja körbe. Az aktuális támogatott kiadás pontos verzióját, bináris libvips/codec-verzióit és licencleltárát a későbbi telepítési PR rögzítse; `latest` nincs beégetve és nincs letöltés ebben a feladatban.
+**Sharp + libvips** legyen az első képfeldolgozó. A dokumentált input-/output-/resize-/orientációs API illeszkedik a négy meglévő képformátumhoz és a statikus WebP-kimenethez. Saját resize-kód vagy shellből összeállított konvertálóparancs helyett külön ThumbnailProcessor fogja körbe. A pontos verzió root lockfile-ban rögzített; a runtime teljes `sharp.versions` leltára és a policy/platform/arch hash-e az `implementationFingerprint`. A konkrét native bundle licenceit a privacy/licensing dokumentum rögzíti.
 
 A projekt által választott v1-policy (nem upstream alapérték):
 
@@ -22,7 +22,7 @@ A projekt által választott v1-policy (nem upstream alapérték):
 |---|---|
 | Processor identity | `thumbnail`, `1.0.0`, output kind `thumbnail`; teljes szabálykészlet változása új verzió |
 | Bemenet | Saját ACTIVE eredeti; egyező deklarált/detektált JPEG/PNG/WebP/GIF és aktuális konfiguráció metszete; a tényleges decoder-format is ellenőrzendő |
-| Animáció | GIF/animált WebP/APNG esetén csak a 0. frame statikus képe, egy oldal (`page: 0`, `pages: 1`, nem animated); nincs animált thumbnail vagy teljes animáció-validálási ígéret |
+| Animáció | GIF/animált WebP és támogatott APNG esetén csak a 0. frame statikus képe, egy oldal (`page: 0`, `pages: 1`, nem animated); nincs animált thumbnail vagy teljes animáció-validálási ígéret |
 | Geometria | EXIF auto-orient és tükrözés után maximum 512×512, `fit: inside`, aránytartó, crop/padding és felnagyítás nélkül; pozitív egész kimeneti méret, legfeljebb egy pixel kerekítési eltérés |
 | Kimenet | Egy `image/webp`, quality 80, alphaQuality 100, effort 4; átlátszóság megmarad, sRGB; nincs adaptive quality retry |
 | Privacy | EXIF/GPS/XMP/IPTC/eredeti ICC és egyéb bemeneti metadata eltávolítandó; nincs keepMetadata/withMetadata. Orientációt előbb a pixelekre kell alkalmazni |
@@ -30,6 +30,8 @@ A projekt által választott v1-policy (nem upstream alapérték):
 | Output-korlát | 1–524288 bájt (512 KiB), validált WebP/pozitív méret/maximum512 és SHA-256; túl nagy eredmény nem kerül storage-ba |
 
 Az upload jelenlegi 100 MiB limitje változatlan: egy egyébként érvényes, de 32 MiB-nál nagyobb eredeti marad ACTIVE és előnézhető, thumbnailje `FAILED / PROCESSOR_INPUT_LIMIT`. Nem bővítjük az allowlistet a könyvtár által egyébként olvasható SVG/HTML/TIFF/AVIF/PDF stb. formátumokra. Bufferes input és explicit decoder-allowlist szükséges; nincs felhasználói URL/path, hálózati betöltés vagy tetszőleges libvips operation. A codec-azonosítók a telepített builddel tesztelendők.
+
+**Méréssel pontosított APNG-határ:** a libvips PNG-loader a default rastert olvassa. Ezért v1 csak olyan APNG-t fogad el, ahol az első `fcTL` az első `IDAT` előtt áll, a default raster az animáció 0. frame-je. Külön poster/default képes APNG `PROCESSOR_INPUT_UNSUPPORTED`; nem szolgáljuk ki tévesen első frame-ként a postert. A chunk/CRC/sequence/layout ellenőrzés nem teljes animációdekódolás. A soha még nem telepített v1 policy és fingerprint ezt az `apngPolicy` értékkel rögzíti; nincs saját pixeldekóder.
 
 ### Végrehajtási és erőforráshatár
 
@@ -57,9 +59,19 @@ Minden írási próbálkozás saját, soha újra nem használt create-only kulcs
 
 Egységes kis kimenet, eredeti-preview fallback és később külön metadata-processor ugyanazon interfészen. Natív dependency/codec-karbantartás, extra worker-erőforrás és a user kvótájából számolt derived bájtok szükségesek. Full kvótánál az eredeti upload sikeres marad, thumbnail `BLOCKED_QUOTA`; ez látható állapot, nem ingyenes szolgáltatói tárhely. Worker/codec hibák elkülönülnek az eredeti fájltól. A korábbi thumbnail-Later scope-feltételt ez a tervezett szelet felülvizsgálja, a jelenlegi runtime-ra nem állít új képességet.
 
+### Implementált tiszta transzformáció
+
+A `Processor<Output extends ProcessorResult>` csak bináris inputot, detektált MIME-ot és opcionális AbortSignalt kap. A thumbnail output `kind: artifact`, `bytes`, `mimeType`, `sizeBytes`, `width`, `height`, `sha256`, `selectedFrame: 0`, `implementationFingerprint`. Descriptor/allowlist runtime immutable; input privát snapshot. Egy példány egyszerre egy explicit hívást enged, foglaltságkor RESOURCE_LIMIT.
+
+A dekódolás fix argumentumú Node childban fut, nem tartós job-worker. Környezete nem örököl app-secretet/NODE_OPTIONS-t, stderr nem kerül logba; kizárólag JPEG/PNG/WebP/GIF Buffer-loaderek engedélyezettek. A teljes 15s deadline/abort killt és kilépésre várást jelent. A szülő a bounded protokollt, fingerprintet/hash-t és a tényleges WebP RIFF/képheader geometriát külön ellenőrzi; ez nem második teljes pixeldekóder. Nyers native hibák helyett safe `ProcessorError` van.
+
+**Biztonsági határ:** a scrubbed env és child process nem OS-sandbox: azonos OS-user fájl-/hálózati jogosultságait nem korlátozza. A 128MiB V8 heap nem natív memórialimit. A fent tervezett worker cgroup/CPU/pids korlátok és OOM/restart próba még nincsenek implementálva; az explicit processor nem kötött HTTP inputhoz vagy automatikus feldolgozáshoz.
+
 ## Verification
 
-**Még nem futtatott kapuk:** root lockfile-os, pontos Sharp-verzió telepítése Linux/WSL és Debian-image környezetben; négy formátum, animation-first-frame, EXIF/tükör, alpha, sRGB/metadata-stripping és határok unit fixture-ekkel; natív codec-allowlist; tényleges worker memory/time/OOM-korlát; atomikus confirm/job, duplicate/retry/fence és candidate accounting unitok; később engedélyezett DB/storage/browser/restart próbák. A test strategy tartalmazza az elvárt eseteket. Ez a dokumentáció nem futási PASS és nem dependency-telepítési engedély.
+**Végrehajtva:** 107 izolált unit eset: tényleges szintetikus JPEG/PNG/WebP/GIF, animáció/APNG, EXIF/tükör, alpha, metadata-stripping, decode/input/output és IPC/deadline/abort korlátok; külön WebP-header adversarial esetek. Részletes eredmény a tesztriportban.
+
+**Nyitott kapuk:** Debian image natív runtime, worker memory/CPU/pids/OOM; atomikus confirm/job, retry/recovery/fence és candidate accounting; provider write-closure; DB/storage/browser/restart és felhasználói próbák. Ezekre nincs PASS-állítás.
 
 ## Sources
 
@@ -68,6 +80,6 @@ Ellenőrizve: 2026-10-29. Az upstream képességek forrásai; a fenti limitek sa
 - [Sharp constructor](https://sharp.pixelplumbing.com/api-constructor/): formátumok, frame/page és input-korlátok.
 - [Sharp resize](https://sharp.pixelplumbing.com/api-resize/), [autoOrient](https://sharp.pixelplumbing.com/api-operation/#autoorient), [output](https://sharp.pixelplumbing.com/api-output/): képműveletek és metadata alapviselkedés.
 - [Sharp security](https://sharp.pixelplumbing.com/security/), [utility](https://sharp.pixelplumbing.com/api-utility/): decoder-policy és OS-erőforrásvédelem.
-- [Sharp installation](https://sharp.pixelplumbing.com/install/): Node-API, Linux binárisok és platformfüggő lockfile-kockázat. A repo Node22/Debian célja dokumentáció alapján kompatibilis; telepítés még nincs igazolva.
+- [Sharp installation](https://sharp.pixelplumbing.com/install/): Node-API, Linux binárisok és platformfüggő lockfile-kockázat. A repo Node22/Debian célja dokumentáció alapján kompatibilis; WSL natív telepítés igazolt, Debian runtime külön nyitott kapu.
 - [Sharp LICENSE](https://github.com/lovell/sharp/blob/main/LICENSE): Apache-2.0; [libvips](https://www.libvips.org/): LGPL-2.1-or-later. A tranzitív codec licenceket a konkrét csomagnál leltározni kell.
 - [Jimp](https://jimp-dev.github.io/jimp/): alternatíva formátumlistája.

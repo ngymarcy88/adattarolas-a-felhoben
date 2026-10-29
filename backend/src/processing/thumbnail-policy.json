@@ -1,0 +1,25 @@
+{
+  "key": "thumbnail",
+  "version": "1.0.0",
+  "outputKind": "thumbnail",
+  "supportedMimeTypes": [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/gif"
+  ],
+  "maxInputBytes": 33554432,
+  "maxInputPixels": 40000000,
+  "maxInputDimension": 20000,
+  "maxInputChannels": 4,
+  "maxOutputBytes": 524288,
+  "width": 512,
+  "height": 512,
+  "quality": 80,
+  "alphaQuality": 100,
+  "effort": 4,
+  "decodeTimeoutSeconds": 10,
+  "wallTimeoutMs": 15000,
+  "maxHeaderBytes": 4096,
+  "apngPolicy": "default-is-frame-zero-only"
+}
