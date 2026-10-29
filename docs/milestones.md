@@ -145,6 +145,7 @@ A történeti MVP-0–MVP-7 helyett az alábbi **SZD2-0–SZD2-7** az aktuális 
 - [ ] Saját galéria és jogosult előnézet/letöltés; betöltési, üres és hibaállapotok.
 - [x] Első thumbnail tervezési szerződés: ADR-016 Sharp/statikus WebP, erőforráslimitek, közös interfész, tartós job/attempt/result, retry/recovery, derived quota/lifecycle és tervezett API; implementáció és proof-kapuk még nyitottak.
 - [x] Processor-adatmodell: ProcessingJob/ProcessingAttempt/DerivedObject séma és új additív migráció, ownership/unique/NULL-biztos sor-korlátokkal; worker/API/automatikus könyvelés nélkül.
+- [x] Thumbnail storage I/O adapter: bounded teljes original read, single-attempt create-only derived write, canonical key/abort/deadline és unitok; kvóta/processor/worker/API és derived full-read nélkül.
 - [ ] Közös processor-interfész és első beépített processor, verziózott eredménnyel. Elsőként az előnézetkészítő javasolt; ez végrehajtási javaslat, a tanár általánosan első processort kér.
 - [ ] Eredeti és derived storage konzisztens elszámolása; minimális tartós job/result és audit, titkok nélkül.
 - [ ] Bemutatható commit, valós képernyőkép, tesztriport, kipróbált lokális telepítés és aktuális dolgozatrész.

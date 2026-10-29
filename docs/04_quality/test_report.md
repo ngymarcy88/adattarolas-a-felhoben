@@ -1,5 +1,25 @@
 # Test report
 
+## Thumbnail storage I/O adapter – 2026-10-29
+
+**Verzió:** `feature/thumbnail-storage-io`, `06e4286` adatmodell után. **Környezet:** WSL Bash, Linux Node22.23.2/npm10.9.8, Jest és mockolt AWS SDK/Node Readable/fake timer. Nincs új dependency, Prisma/migráció, kvótakezelés, processor, worker vagy HTTP-végpont ebben az incrementben. A futó MinIO/application DB adatait a unitok nem érintették.
+
+**Végrehajtott tesztek:** `npm test` **1009 PASS** =661 backend (15suite)+346 frontend+2 container helper. Az új storage-transfers.spec.ts **72 unitot** ad a korábbi937-hez. A fejlesztői célzott storage-futás127 PASS volt; a root review korai deadline-regresszióját tartalmazó külön új-suite69 PASS, majd további builder/source-allowlist regressziókkal a teljes futásban72 új eset PASS. A teljes workspace typecheck és build is PASS.
+
+| Bemenet / unit ellenőrzés | Elvárt és tényleges eredmény |
+|---|---|
+| Original exact32MiB, kisebb configcap, plus-one/rossz numeric/head/ETag | Határ engedett, túlméret és hibás paraméter I/O előtt tiltott: PASS. |
+| Full conditional Range/IfMatch;206/header/ETag/short/long/string/object response | Csak pontos bináris eredmény; fix buffer és minden kimeneten stream destroy: PASS. |
+| Preabort, callerabort, stalled send/stream, késői body és monotonic deadline | Nincs preabort-I/O, teljes10s limit, késői read-body lezárul, timer/listener nem marad: PASS. |
+| Derived exact512KiB/plus-one, input közbeni mutáció, SHA snapshot | Pontos méret, privát snapshot, checksum/body egyezik; hibás input nem ír: PASS. |
+| Create-only PUT, no-store/WebP, HTTP200/ETag/checksum és409/412/503/403 | IfNoneMatch*, egy SDK-attempt, safe OBJECT_EXISTS/WRITE_CONFLICT/UNAVAILABLE; nincs retry/delete/release: PASS. |
+| Canonical kulcs, végső newline/U+2028, source-MIME és derived-WebP, lifecycle | Hibás kulcs tiltott; upload/prefix/original-read derivedre tiltott; safe derived HEAD/delete/read-access; minden SDK-client egyszer zárul: PASS. |
+
+**Review és javítás:** a JS regex `$` végső sortörés előtti illeszkedését teljes-string ellenőrzés zárja le, az original builderre is. A boundedOperation kezdeti deadline-ellenőrzése async wrapperbe került, így egy hosszú GC/scheduler szünetből eredő korai abort nem okoz figyeletlen cancellation-rejectiont. Mindkettő regresszióteszttel ellenőrzött; független review nem talált további blokkoló hibát.
+
+**Bizonyítékhatár:** ezek SDK-command/stream unitok, nem valódi HTTP/MinIO/S3 conditional-write, checksum, socket abort vagy provider-hozzáférés bizonyítékok. ETag nem tartalomhash; a receipt SHA a snapshot hash-e. Teljes képvalidáció/ownership/current-fence és előzetesR reservation a későbbi meghívó feladata. A derived candidate teljes visszaolvasása/recovery-adoption még nincs ebben a portban. A writeClosureEvidence továbbra unproven; timeout/abort/409/412/hibás200-meta és fizikai DELETE önmagában nem jogosít kvóta-visszaadásra. A külön korábbi75 SQL-eset az adatmodell kísérlete, nem ennek a72 unitnak a része.
+
+
 ## Processor-adatmodell és migráció – 2026-10-29
 
 **Verzió:** `feature/processing-data-model`, `6bfd746` szerződés után. **Környezet:** WSL Bash, Linux Node22.23.2/npm10.9.8, Prisma7.10.1 és eldobható PostgreSQL17.9 Docker-konténer. Az alkalmazás futó DB-je/volume-jai nem változtak. Csak a séma, új additív migráció, opt-in ellenőrző eszköz és dokumentáció készült; processor/worker/API nincs.

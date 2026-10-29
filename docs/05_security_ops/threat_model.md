@@ -85,3 +85,7 @@ A tétlen oldal profilja nincs folyamatosan újraellenőrizve; a backend követk
 Forgatott képnél orientáció előbb pixelekre kerül, utána minden metadata elvész; nincs GPS/XMP log vagy feldolgozás külső image-szolgáltatónál. Az immutable candidate-ek ugyanabban a privát storage-ban vannak, kliens nem választhat kulcsot. Derived URL csak owner/ACTIVE/READY és rövid TTL után; elveszett capability a TTL-ig él.
 
 A lease nem S3 write-fence: külön attempt key, pontos előzetes reservation, DB-publication fence, source/hash/type és végső owner-check együtt kell. A cleanup-claim irreverzibilisen kizárja az adoptiont. Timeout/crash/HEAD404/DELETE200 után nincs proof nélküli quota release; különben késői PUT számlálatlan objektumot hozhatna létre. Retry kerete, user-kvóta és rate limit védi a feldolgozási/árvaobjektum DoS-t; a beragadt reservation operátori jelzés, nem kézi nullázandó számláló. A második metadata-processor későbbi adatvédelmi szerződést kap.
+
+### Implementált thumbnail-storage I/O határ – 2026-10-29
+
+A storage adapter bounded full original-read és create-only derived-write védelme már létezik: szigorú teljes-key (sortörések nélkül),32MiB/512KiB cap, ETag/size/range,10s/caller-abort, immutable snapshot/checksum és egy SDK-write-attempt. Nem dekóder/ownership/DB-fence ellenőrzés. A derived WebP olvasási MIME fix, eredeti upload-allowlist változatlan. Távoli írás abortja/time-outja nem proof; nincs automatikus delete vagy reservation release. A unitok a command/stream és safe-error határt igazolják; valódi provider/closure/recovery külön kapu.

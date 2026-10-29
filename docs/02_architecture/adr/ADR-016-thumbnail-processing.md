@@ -6,11 +6,11 @@ Accepted – tervezési döntés; 2026-10-29.
 
 ## Implementation status
 
-**Részben implementált alap:** a job/attempt/result Prisma-séma és külön additív migráció elkészült (2026-10-29). Nincs Sharp-telepítés, lockfile-, worker-, API- vagy Compose-változás; jobindítás és könyvelő service sincs. A következő implementáció külön feladat. A második, image-metadata processor későbbi szelet; import-/resumable protokollt ez az ADR nem választ.
+**Részben implementált alap:** a job/attempt/result Prisma-séma és külön additív migráció, majd a bounded eredetiolvasás és create-only derived írás adaptere elkészült (2026-10-29). Nincs Sharp-telepítés, lockfile-, worker-, API- vagy Compose-változás; jobindítás és könyvelő service sincs. A következő implementáció külön feladat. A második, image-metadata processor későbbi szelet; import-/resumable protokollt ez az ADR nem választ.
 
 ## Context
 
-A jelenlegi galéria az eredeti JPEG/PNG/WebP/GIF képet használja. A confirm csak signature/méretellenőrzést végez, nem teljes dekódolást; a processor hibája nem érvénytelenítheti a sikeres feltöltést. Thumbnailhez közös processor-határ, tartós recovery és a valóban elfoglalt derived bájtok elszámolása kell. A meglévő storage adapter teljes korlátozott olvasást/backend-írást még nem biztosít, `writeClosureEvidence = unproven` értéke nem változik ettől a tervtől.
+A jelenlegi galéria az eredeti JPEG/PNG/WebP/GIF képet használja. A confirm csak signature/méretellenőrzést végez, nem teljes dekódolást; a processor hibája nem érvénytelenítheti a sikeres feltöltést. Thumbnailhez közös processor-határ, tartós recovery és a valóban elfoglalt derived bájtok elszámolása kell. A storage adapter bounded teljes eredetiolvasása és backendoldali derived írása már implementált, de nem indít feldolgozást, és `writeClosureEvidence = unproven` értéke nem változik ettől a tervtől.
 
 ## Decision
 
