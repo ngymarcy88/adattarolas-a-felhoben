@@ -236,3 +236,7 @@ A preview implementáció a signing utáni második saját-ACTIVE queryvel újra
 | WRITE_CLOSURE_UNPROVEN / DERIVED_CLEANUP_UNAVAILABLE | Attempt CLEANUP_BLOCKED; nem original-/job-failure | Egy korábbi feldolgozási próbálkozás tárhelyfoglalása még nem szabadítható fel. |
 
 Az API által dobott új hibák:409 THUMBNAIL_NOT_READY,409 PROCESSING_RETRY_NOT_ALLOWED,503 PROCESSING_UNAVAILABLE; üres details és meglévő wrapper. 404 FILE_NOT_FOUND/415 PREVIEW_NOT_ALLOWED/401 AUTH_REQUIRED/403 ORIGIN_NOT_ALLOWED/429 RATE_LIMITED a meglévő jelentéssel, a tervezett guardokban használva. Cleanup-hiba külön warning lehet SUCCEEDED mellett is. Ismeretlen decoder/worker exception safe PROCESSING_UNAVAILABLE vagy retry-keretes belső hiba, nem korlátlan újrapróbálás; konfiguráció/build ismeretlen processorverziója nem claimelhető és operátori jelzés.
+
+### Implementált thumbnail-storage belső hibák – 2026-10-29
+
+A readOriginal/writeDerived a meglévő generikus StorageError-üzenetet használja: INVALID_ARGUMENT, INVALID_RESPONSE, UNAVAILABLE; conditional read412/416 OBJECT_CHANGED, conditional write412 OBJECT_EXISTS és409 WRITE_CONFLICT. Az utóbbi kettő új belső adapterkód, nem új publikus HTTP-hiba. Az abort oka, providerbody, credential, kulcs és bájtok nem kerülnek az errorba/logba. Write timeout/abort vagy hibás200-meta eredménye bizonytalan lehet, nincs retry/delete/kvótarelease mellékhatás. A későbbi processing-service/API mapping továbbra nincs implementálva. A törlés és a proof nélküli cleanup-kapu változatlan.

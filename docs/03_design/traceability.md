@@ -93,3 +93,7 @@ A fenti új entitások/API/worker **nem implementáltak**. A második image-meta
 ### Processor-adatmodell implementációs határa – 2026-10-29
 
 ProcessingJob/ProcessingAttempt/DerivedObject → Prisma schema → 20261029000100_processing_model additív migráció: job logical unique, compound owner/file/job/attempt/key FK, result(job,kind)/attempt/key unique, NULL-biztos shape/hash/counter/time CHECK-ek. A repeatable opt-in scripts/verify-processing-schema.mjs eldobható PostgreSQL-en vizsgálja a migrációt és75 constraint-esetet; nem fut CI-ben és nem új alkalmazás-integration/e2e suite. A konkrét eredmény a tesztriportban. Processor, worker, registry, current-fence/monoton transition és tranzakciós reserved→used service még nincs; a DB-korlátok önmagukban nem könyvelnek és nem igazolnak S3-proofot.
+
+### Thumbnail storage I/O – implementált belső szelet, 2026-10-29
+
+ObjectStorage.readOriginal/writeDerived → S3StorageAdapter → Node Readable/bounded deadline vagy külön single-attempt S3 writer. Canonical derived key és safe hibák a storage modulban; unit bizonyíték storage-transfers.spec.ts + storage.spec.ts. Nincs HTTP/job/quota/processor/worker megvalósítás, a derived receipt nem DB-eredmény. Derived keyen HEAD/delete/presign van, full-read/adoption nincs. A storage delete nem váltja ki a closure-proof és accounting service kapuját.

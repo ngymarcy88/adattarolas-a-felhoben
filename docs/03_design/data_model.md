@@ -489,3 +489,7 @@ Az új migráció csak új enumokat/táblákat/indexeket/constraint-eket hoz lé
 - A közös modellek tartós processorKey/version/buildazonosságot tárolnak, de globális ProcessorRegistry/build-policy nincs implementálva. A jelenlegi derived kind csak THUMBNAIL és WebP-korlátú; metadata-processor új output/schema-szelete később kerül hozzáadásra.
 
 Az opt-in [eldobható PostgreSQL-verifier](../../scripts/verify-processing-schema.mjs) a [szintetikus SQL-esetekkel](../../backend/prisma/verification/processing-model.sql) ellenőrzi a valódi CHECK/FK/unique viselkedést, a régi adatok megőrzését, a friss és upgrade migrációt, valamint a Prisma strukturális egyezést. Ez nem alkalmazás-integration/e2e suite és nem job/recovery/kvóta-service működési bizonyíték. A futtatási eredmények a tesztriportban külön szerepelnek.
+
+### Storage I/O implementációs határ – 2026-10-29
+
+A külön adapterbővítés már bounded readOriginalt és egyszeri create-only writeDerived-ot biztosít a canonical attempt-kulcshoz. A write receipt nem Prisma DerivedObject és nem könyvelési igazolás: a későbbi service csak előzetesen commitolt R foglalás után hívhatja. Timeout/abort/409/412/hibás successmeta után nem csökkenthető reserved; a writeClosureEvidence továbbra unproven. A key/hash/size csak műszaki adat, nem lease-/ownership-/storage-quiescence proof. Nincs automatikus kvótaváltozás vagy jobindítás, és derived full-read/adoption még nincs ebben az adapterlépésben. Az összes fenti publication/cleanup/lifecycle invariáns megmarad.
