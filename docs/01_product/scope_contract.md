@@ -149,7 +149,7 @@ Az `MVP+` csak a `Core MVP` stabil működése után kezdhető el, és nem rész
 - Integration, contract és e2e tesztek, valamint CI/CD pipeline.
 - Admin felület, előfizetés, fizetéskezelés és komplex jogosultsági hierarchia.
 - Mappák, mobilalkalmazás és valós idejű kollaboráció.
-- Thumbnail-generálás, képfeldolgozás és videótranszkódolás.
+- Nagyvideós transzkódolás. A thumbnail és image-metadata feldolgozás az októberi kötelező mag része; az első thumbnail szerződése alább, implementációja még nincs.
 - Share-link visszavonás, hozzáférésszám-korlát és részletes analitika.
 - Teljes monitoring dashboard.
 - Videók MI-alapú metaadat-javaslata ugyanazon human-in-the-loop és privacy korlátok mellett.
@@ -175,3 +175,7 @@ A `Core MVP` később akkor tekinthető elkészültnek, ha:
 - az alap audit események érzékeny adat nélkül létrejönnek;
 - a dokumentáció megfelel a tényleges működésnek;
 - a hat core story MI-provider nélkül is teljesíthető.
+
+## Első thumbnail-processor elfogadási határa – terv, 2026-10-29
+
+Az [ADR-016](../02_architecture/adr/ADR-016-thumbnail-processing.md) az októberi első processor részeként felülvizsgálja a korábbi thumbnail-Later feltételezést. A jelenlegi original-preview mellett új, verziózott statikus512 WebP készülhet négy képformátumból, metadata nélkül, bounded Sharp-workerrel. Elfogadás: tartós job és restart recovery, egy logikai result, pontos derived reservation/used, külön retry és eredeti-fallback, owner/lifecycle-határ. Input/kvóta/processorhiba nem érvénytelenít eredeti feltöltést. A második metadata-processor, valódi resumable import, batch-mérések és teljes SZD2 elfogadás nem teljesülnek ettől az első szelettől. Nincs implementáció vagy teszt-PASS ebben a szerződésfrissítésben; a write-closure proof kapuja nyitott marad.

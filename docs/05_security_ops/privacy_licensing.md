@@ -101,3 +101,9 @@ Dependency hozzáadásakor rögzítendő:
 ## Storage SDK – 2026-10-23
 
 Az adapter közvetlen dependencyjei `@aws-sdk/client-s3` és `@aws-sdk/s3-request-presigner` 3.1156.0, Apache-2.0 licenccel; a root lockfile rögzíti a feloldást. Az SDK normál helyi használatban kizárólag a konfigurált MinIO-val kommunikál; nem szükséges AWS-fiók. Presigned URL hozzáférési képesség, nem naplózható. A kézi storage-próba kizárólag szintetikus képet és véletlen UUID-kat használ. A telepítés npm auditja 0 ismert sérülékenységet jelzett; ez nem teljes tranzitív licenc- vagy image-audit.
+
+## Thumbnail és Sharp – tervezett, 2026-10-29
+
+A [választott ADR-016](../02_architecture/adr/ADR-016-thumbnail-processing.md) helyi Sharp/libvips feldolgozást ír elő, nincs médiaátadás külső providernek. A thumbnail user-owned derived tartalom, ugyanazon privát bucket/owner/lifecycle és used/reserved kvóta alatt. EXIF/GPS/XMP/IPTC és eredeti ICC nem másolható a kimenetbe/logba; orientáció a pixelekre kerül. A thumbnailhez szükséges width/height/hash műszaki adat, nem az első metadata-extraction termékfunkciója. Fájlnevet/útvonalat/raw decoderhibát nem adunk a childnak vagy a publikus statusnak. Public read capability rövid életű, kizárólag memóriában kezelendő.
+
+[Sharp licence](https://github.com/lovell/sharp/blob/main/LICENSE) Apache-2.0; a [libvips upstream](https://www.libvips.org/) LGPL-2.1-or-later. Ez nem a teljes natív codec-csomag licencleltára: konkrét telepítési PR-ben verziók, tranzitív/bundled licencek, notice-ok és terjesztett image tartalma ellenőrizendő. A [Sharp installation](https://sharp.pixelplumbing.com/install/) platformfüggő binárisokat és megosztott npm-lockfile kockázatot dokumentál; Linux/WSL npm és a container build ellenőrzése külön kapu. Nincs új dependency a repóban ebben a feladatban; a natív kód/resource limit és codec-frissítés ellenőrzése még nyitott.

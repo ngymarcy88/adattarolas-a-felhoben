@@ -623,3 +623,45 @@ A `GalleryPanel` a védett `/app` oldalon, user.id-hez kötött példányban ind
 Nincs új backend-végpont vagy DTO. Az upload-kliens azonos fileId/ACTIVE confirm-sikeréből a köteg a futó hullám végén egy completionVersion jelzést képez. PUT-siker, PENDING vagy hibás confirm nem jelzés; ACTIVE init-replay nem új confirm és nem jelzés. Részleges siker és későbbi sikeres retry támogatott. UploadPanel ownerId-s eseménye → AccountPage aktuális-owner ellenőrzés → GalleryPanel refreshVersion → gallery.requestRefresh.
 
 A 300 ms-os összevonás egy függő elsőoldalas olvasást tart; futó lista/folytatás végét megvárja, nem abortálja feltöltésenként. Sikeres refresh cseréli az elemeket és a cursorláncot, ID-dedupe megmarad. Kézi refresh elfogyasztja a már ütemezett jelzést. Bármely olvasási hibára a függő automatikus kérések törlődnek; 429 Retry-After alatt új jelzés sem indít kérést, nincs automatikus cooldown-retry. Kézi retry marad. Dispose törli a timert és a késői eredményeket; 401-re a meglévő session-ürítés érvényes. A preview URL-ek tárolási/lejárati szabálya változatlan.
+
+## Első thumbnail-processor API – TERVEZETT, 2026-10-29
+
+**Ezek a végpontok nem léteznek.** Ez a dokumentáció nem módosítja a meglévő API runtime-ját. A [képpolicy és Sharp-választás](../02_architecture/adr/ADR-016-thumbnail-processing.md), illetve [job/attempt/result és derived kvóta](data_model.md#első-thumbnail-processor--tervezett-szerződés-2026-10-29) az irányadó. Az első kiadásban csak `thumbnail@1.0.0` fut; image-metadata későbbi processor. Meglévő GET /files hétmezős válasza, cursorja és eredeti preview-url válasza változatlan; új storage key/URL nem kerül a listába.
+
+### Indítás és a confirm határa
+
+Új, támogatott ACTIVE confirm ugyanazon DB-tranzakcióban tartós thumbnail-jobot hoz létre, vagy ugyanazt az egyedi jobot találja. A confirm 200-as válasza továbbra is az eredeti tárolási sikerét jelenti; nem vár decoderre, thumbnailre vagy derived kvótára. Sikertelen confirm nem indít jobot, ACTIVE replay nem dupláz. Feature előtti ACTIVE képek automatikus backfillje külön későbbi feladat; státuszuk NOT_SCHEDULED, új kép feltöltésével tesztelhető a teljes szelet. Thumbnailhiba/kvótahiány mellett az eredeti ACTIVE és eredeti-preview elérhető marad.
+
+### `POST /files/processing/status` – tervezett, összevont olvasás
+
+Cookie/session + aktuális DB-user + szokásos pontos Origin-ellenőrzés. A POST itt read-only batch-lekérdezés, nem indít jobot vagy kvótafoglalást. Content-Type application/json, strict body; példakérés:
+
+```json
+{"fileIds":["10000000-0000-4000-8000-000000000001"]}
+```
+
+`fileIds`: 1–20 különböző UUID, extra mező/duplikáció/rossz alak 400 VALIDATION_ERROR; kicsi body-limit az általános keret szerint. Csak saját ACTIVE, egyező és engedélyezett tényleges kép-MIME-jú eredetik; ha bármely ID idegen, hiányzó, pending vagy soft-deleted, az egész kérés egységes 404 FILE_NOT_FOUND, nincs részválasz vagy konkrét hibás ID.
+
+200 válasz: `{items:[...]}` a kért ID-k sorrendjében. Elemenként pontosan: `fileId`, `processorKey`, `processorVersion`, `state`, `retryRevision`, `attemptCount`, `nextAttemptAt`, `errorCode`, `retryable`, `result`, `cleanupPending`. `processorKey=thumbnail`, `processorVersion=1.0.0`; NOT_SCHEDULED esetén is ez a tervezett policy szerepel, attemptCount/retryRevision0 és result/error/date null. `state`: NOT_SCHEDULED vagy a dokumentált job-állapot. `result`: null vagy `{id,mimeType:"image/webp",sizeBytes,width,height,createdAt}`, csak publikált READY eredményből. `attemptCount` a generálási próbák teljes száma0..9; recovery-probe nem user-triggerelt új generálás. Az attemptCount generálási maximuma9, a külön recovery-probe kerete az adatmodellben szerepel. UTC dátumok/null; bájtok biztonságos pozitív JSON egészek. Nincs owner, bucket/key, SHA, ETag, fence, leaseOwner, provider message vagy URL. `cleanupPending` csak logikai figyelmeztetés: job-siker mellett is maradhat külön foglalás egy vesztes/uncertain candidate miatt. `retryable` csak a jelenleg engedélyezett kézi átmenetet jelenti; nem következik pusztán a state-ből.
+
+A státusz végpont nem jelent állandó pollingot. Későbbi UI: látható kártyák legfeljebb20 ID-s batchben, nemterminális állapotban legkorábban10s-onként; legfeljebb egy in-flight status read, rejtett lapon/oldalelhagyáskor stop, 429-re Retry-After. NOT_SCHEDULED/SUCCEEDED/FAILED/BLOCKED_QUOTA/CANCELLED nem pollol végtelenül. Eredeti/metaadatgaléria önállóan működik status-hibánál is.
+
+### `GET /files/{fileId}/thumbnail-url` – tervezett olvasási jog
+
+Body/query nélkül, szigorú UUID; session és aktuális owner/ACTIVE/source ellenőrzés minden kiadásnál. Idegen/hiányzó/pending/soft-deleted eredeti: egységes404 FILE_NOT_FOUND. Saját támogatott ACTIVE eredeti, de nincs READY thumbnail:409 THUMBNAIL_NOT_READY (ideértve NOT_SCHEDULED, várakozó, hibás és kvótablokkolt jobot). Saját ACTIVE nem engedélyezett típus:415 PREVIEW_NOT_ALLOWED. A meglévő original-preview ettől független marad; nincs észrevétlen original-fallback ezen a végponton.
+
+Csak a publikált result immutable kulcsából, HEAD/size/MIME és végső DB owner/ACTIVE/result/fingerprint újraellenőrzés után adható URL. Hiányzó vagy eltérő READY objektum503 PROCESSING_UNAVAILABLE, nem újragenerálás mellékhatással. Pontosan `{url,expiresAt}` response, ugyanúgy biztonságos inline/no-store read access az adapterből. Filename szerveres `thumbnail.webp`, MIME image/webp; nincs feltöltő által adott disposition vagy content type. Tervezett központi thumbnailPreviewTtlSeconds default60s (30..300); tényleges expiry legfeljebb ennek, a meglévő presignedUrlTtlSeconds értéknek és300s-nak a minimuma, lejárt hozzáférés nem adható ki. Más storage-origin, anonymous CORS/no-referrer img, URL csak kliensmemóriában és nem naplózható. Session/logout/soft delete a már kiadott URL-t nem revokálja azonnal.
+
+### `POST /files/{fileId}/processing/thumbnail/retry` – tervezett külön retry
+
+Cookie/session/aktuális user + pontos Origin szükséges. Strict body: `{"expectedRetryRevision":0}`, nemnegatív egész0..2, extra mező és ismeretlen query400 VALIDATION_ERROR. A revisiont a status válasz adja; a kliens ugyanazt küldi elveszett válasz újrapróbálásakor. Nem választhat processor-verziót, priorityt vagy outputparamétert. Idegen/hiányzó/pending/soft-deleted eredeti404; saját unsupported415 PREVIEW_NOT_ALLOWED.
+
+User → original → job tranzakciós ellenőrzés: csak FAILED/retryable, BLOCKED_QUOTA vagy restore utáni CANCELLED indítható, ha a forrás megfelelő és retryRevision<2. Current revisionnel CAS növeli a revisiont, új ciklus QUEUED, cycleAttemptCount0 és recoveryProbeCount0, totalAttemptCount és korábbi attempt/reservation/result nem törlődik. Ez202 `{fileId,processorKey,processorVersion,state,retryRevision}`; nem garantál kvótát vagy azonnali sikert.
+
+A jövőbeli revision ellenőrzése megelőzi a SUCCEEDED no-op szabályt: expectedRetryRevision > current revision esetén409. Egyébként kisebb, már alkalmazott revision visszajátszása200 ugyanilyen aktuális projekciót ad, új ciklus/attempt/foglalás nélkül. Jelenlegi vagy korábbi revisionnel SUCCEEDED job200 no-op, sikeres result nem íródik újra. Jövőbeli revision, nem retryable hiba, még futó/sorban álló aktuális revision, hiányzó job vagy kimerült keret409 PROCESSING_RETRY_NOT_ALLOWED. Ugyanazon revision párhuzamos kéréseiből egy nyer, a másik már replay. Nincs original újrafeltöltés vagy más processor reset. Hiányzó NOT_SCHEDULED régi kép ezzel nem backfill-elhető.
+
+### Tervezett közös válaszvédelem és hibák
+
+Mindhárom végpont success/error `Cache-Control: no-store`, meglévő nested error wrapper és X-Request-Id, üres details; szolgáltatói hiba/URL/stack nélkül. Auth401 AUTH_REQUIRED, explicit Origin403 ORIGIN_NOT_ALLOWED; auth infrastruktúrahiba503 SERVICE_UNAVAILABLE, processing DB/storage503 PROCESSING_UNAVAILABLE. Per-user limitek külön: status60 kérés/perc (batchenként egy), thumbnail-url60/perc, retry10/perc, bounded limiter-tár a meglévő mintával. 429 RATE_LIMITED + Retry-After, frontend nincs automatikus retry-hurok. Guard-limiter és előzetes auth/ownership a tényleges implementációban unit tesztelendő.
+
+Processorhibák a sikeres status200 `errorCode` mezőjében jelennek meg, nem a confirm HTTP-hibái. Kódjaikat és retry-politikájukat a [hibakatalógus](error_handling.md#thumbnail-processing--tervezett-hibák-2026-10-29) rögzíti. Nincs processor API vagy HTTP-működési evidence ebben a dokumentációs feladatban.

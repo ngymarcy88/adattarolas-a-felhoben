@@ -51,3 +51,7 @@ Soft delete és restore nem változtatja a used értéket. Csökkenés csak a k�
 ## Első upload-művelet és release – 2026-10-23
 
 A [tervezett UploadOperation](../../03_design/data_model.md#első-képfeltöltés-adatmodell-szerződése--2026-10-23) rögzíti a siker/hiba/lejárat és a foglalásfeloldás külön állapotát. REJECTED/EXPIRED nem csökkenti automatikusan a reservedet. Csak bizonyított íráslezárás és absence/delete után, a reservationReleasedAt jelzővel egy tranzakcióban történhet egyszeri levonás. Kitakarított, de még dedupe-megőrzés alatt álló PENDING_UPLOAD metadata már nem számít foglalásnak. FINALIZED esetén a foglalás ugyanannyi used-dá alakul, nem hibás-upload release történik. A companion modell és az új jelzők egyelőre dokumentáltak, a Prisma-séma változatlan.
+
+## Derived thumbnail – tervezett kiegészítés, 2026-10-29
+
+Az [ADR-016](ADR-016-thumbnail-processing.md) és a [derived accounting-szerződés](../../03_design/data_model.md#első-thumbnail-processor--tervezett-szerződés-2026-10-29) szerint ugyanazon User used/reserved számláló számolja az eredeti és thumbnail objektumokat. Bounded encode után pontos R bájt foglalás commitol az első candidate PUT előtt; egy nyertes result publikálása egyszeri reserved−R/used+R. Bizonytalan vagy vesztes attempt saját foglalása proof+cleanupig marad; új attempt külön R-t foglal. Soft delete/restore nem csökkent, RETIRED objektum is used; purge csak igazolt fizikai törlés után von le. Lease/timeout nem closure proof. Ez dokumentált bővítés, nem kész derived-könyvelés vagy megoldott cleanup-kapu.

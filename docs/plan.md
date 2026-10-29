@@ -77,7 +77,7 @@ Megőrzendő szabályok:
 - Méret, MIME allowlist és magic-number ellenőrzés; az eredeti fájlnév csak display metadata. A dekódoló processor erőforráskorlátait a részletes tervben rögzíteni kell.
 - Hiányzó vagy sikeresen takarított objektum után oldható foglalás; cleanup-hibánál a foglalás és retry-lehetőség megmarad.
 - Soft delete alatt a létező bináris objektum továbbra is foglal; restore nem dupláz használatot. Korábbi share-link nem éledhet újra.
-- Származtatott előnézet nem lehet elszámolatlan storage-kiskapu; a pontos rezervációs/elszámolási policy még specifikálandó az első processor előtt.
+- Származtatott előnézet nem lehet elszámolatlan storage-kiskapu; a thumbnail v1 pontos rezervációs/elszámolási terve már rögzített az ADR-016-ban és az adatmodellben; runtime és write-closure proof még nincs.
 - Rövid életű read URL és biztonságos Content-Disposition; veszélyes tartalom nem szolgálható ki inline.
 - Titok, token, hozzáférést adó URL, fájltartalom vagy szükségtelen személyes/EXIF-helyadat nem kerül logba.
 
@@ -103,7 +103,7 @@ Az API tartós állapota ne kizárólag folyamatmemóriában legyen. A korábbi 
 | Worker-feladatfoglalás és recovery | Hogyan ismerhető fel és folytatható a megszakadt munka konkurens duplázás nélkül; ne legyen elvárt „exactly once delivery” infrastruktúra |
 | Részleges és derived storage policy | Foglalás/finalizálás, limit, retry, sikertelen cleanup, törlés/restore és későbbi purge összhangja |
 | Lejáratok és megújítás | A korábbi 5 perces URL és 15 perces pending alapérték összehangolása a session-, auth- és folytathatósági időkkel |
-| Képdekódolás és metaadatkezelés | Támogatott formátumok, erőforráskorlátok, hiányzó adat és privacy-szabályok; konkrét könyvtár még nem választott |
+| Képdekódolás és metaadatkezelés | Támogatott formátumok, erőforráskorlátok, hiányzó adat és privacy-szabályok; thumbnailhez Sharp választott az ADR-016-ban; metadata-processor későbbi, telepítés/PoC még nincs |
 
 ## 5. Célzott dokumentációs átvezetés
 
@@ -134,3 +134,7 @@ A technikai alap ellenőrzését a 2026-10-19-i tesztriport rögzíti. A követk
 Az október 23-i első eredmény a kezdeti technikai alap állapotából öt napon belüli, magas kockázatú cél. Heti tényleges ráfordítás nélkül nem adható hiteles kapacitásígéret. A legnagyobb technikai kockázat a resumable/storage illesztés, a job-recovery és az eredeti/derived kvóta. Ezeket korai, szűk döntéssel és próbával kell csökkenteni.
 
 A tanári és közös belső dátumokat a [roadmap ütemezési táblája](milestones.md) külön kezeli; az október 22/23. és november 13/20. eltérést egyeztetni kell. Ha a novemberi működő mag elmarad, a januári befejezést újra kell ütemezni a témavezetővel. Az MI-MVP+ nem előfeltétele a kötelező lezárásnak.
+
+## Első thumbnail-szelet szerződésállapota – 2026-10-29
+
+Az [ADR-016](02_architecture/adr/ADR-016-thumbnail-processing.md), [API](03_design/api.md#első-thumbnail-processor-api--tervezett-2026-10-29) és [adatmodell](03_design/data_model.md#első-thumbnail-processor--tervezett-szerződés-2026-10-29) lezárja az első thumbnail tervezési választásait: Sharp, statikus512 WebP, közös interfész, verziózott job/attempt/result, PostgreSQL-claim/fence, bounded retry/recovery és pontos derived reservation. E részre a fenti „nyitott” táblák most implementációs/verifikációs kaput jelentenek; a teljes import-/metadata-szerződés továbbra is nyitott. Ugyanazon backend-kódból futó külön erőforrás-limitált worker szerep tervezett, nem új queue-platform. Sharp, worker, új séma/API és derived storage nincs implementálva. A bizonytalan írások closure-proofjának hiánya explicit CLEANUP_BLOCKED állapot, nem megoldott recovery/cleanup.
