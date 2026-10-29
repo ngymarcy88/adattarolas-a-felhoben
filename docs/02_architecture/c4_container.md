@@ -59,3 +59,7 @@ flowchart LR
 ## Skálázási feltétel
 
 A Backend API nem tárolhat tartós felhasználói vagy job állapotot folyamatmemóriában. Több API-példány ugyanazt a PostgreSQL és object storage állapotot használhatja; a session-affinitás nem lehet előfeltétel.
+
+## Thumbnail worker-szerep – tervezett, 2026-10-29
+
+Az [ADR-016](adr/ADR-016-thumbnail-processing.md) a kötelező thumbnailhez ugyanazon backend-kódból/image-ből futó külön worker folyamatot/Compose-szolgáltatást tervez, 512MiB/1CPU limittel és egy decode-gyermekkel. Ez a felső júliusi container-nézet kiegészítése; nem működő új container vagy elosztott platform. Adatút: API confirm → PostgreSQL tartós job; worker → PostgreSQL claim/fence/accounting; worker → storage adapter → eredeti bounded read/derived create-only write; külön gyermek → Sharp. A worker nem szolgál HTTP-t, a gyermeknek nincs hálózati/DB/storage credentialje. A bináris adat nem megy külső image-szolgáltatóhoz. A Redis/broker nélküli tervtől az opcionális MI-feldolgozás továbbra is független.

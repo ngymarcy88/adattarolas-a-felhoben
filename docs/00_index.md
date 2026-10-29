@@ -85,3 +85,7 @@ Az alkalmazásba tervezett MI-funkció és az AI-asszisztált fejlesztés külö
 - Test report csak ténylegesen futtatott parancsot és eredményt nevezhet PASS-nak.
 - Quickstart csak kipróbált parancsot tartalmazhat.
 - Minden fontos AI-asszisztált változás append-only Prompt Log és Verification Log bejegyzést kap.
+
+## Első thumbnail-szerződés – 2026-10-29, csak terv
+
+[ADR-016](02_architecture/adr/ADR-016-thumbnail-processing.md) → [adatmodell és derived accounting](03_design/data_model.md#első-thumbnail-processor--tervezett-szerződés-2026-10-29) → [tervezett API](03_design/api.md#első-thumbnail-processor-api--tervezett-2026-10-29). Sharp választott, nincs telepítés/séma/runtime. A felső, kezdeti scaffold-pillanatkép nem e szerződés futási bizonyítéka; az aktuális implementált upload/galéria és szerzői próbák a README-ben/tesztriportban követhetők.

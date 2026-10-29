@@ -47,3 +47,7 @@ Az ADR-ek elfogadott **tervezési döntéseket** rögzítenek. Elfogadott státu
 - [ADR-014: Asynchronous scrypt password hashing](ADR-014-password-hashing.md) – külön hash/check service, auth endpointok nélkül.
 
 - [ADR-015: Teljes alkalmazás Docker Compose-zal](ADR-015-full-app-compose.md) – frontend/backend/infrastruktúra és egyszeri inicializálás; valós konténerpróba még nyitott.
+
+## Első thumbnail-processor – tervezett implementáció
+
+- [ADR-016: Sharp thumbnail processor, durable jobs and derived accounting](ADR-016-thumbnail-processing.md) – elfogadott terv, 2026-10-29; nincs dependency/séma/runtime-változás. A részletes kanonikus [API](../../03_design/api.md#első-thumbnail-processor-api--tervezett-2026-10-29) és [adatmodell](../../03_design/data_model.md#első-thumbnail-processor--tervezett-szerződés-2026-10-29) a v1 képpolicyt, job/recoveryt és derived elszámolást rögzíti.

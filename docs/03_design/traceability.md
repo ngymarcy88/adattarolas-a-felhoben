@@ -77,3 +77,15 @@ US-03 metaadatgaléria: védett AccountPage → GalleryPanel → gallery/state.t
 US-03 képes galéria: GalleryCard → láthatóság → gallery/previews → api/preview → GET preview-url → GalleryImage; nagy nézet PreviewDialog natív modal, Escape/fókusz. Bizonyíték: preview-api.spec.ts, previews-state.spec.ts, preview-templates.spec.ts (42 új unit/template eset). Bounded queue, memory-only signed URL, külön képhiba, kézi retry, lejárat és account-élettartam tesztelt. Eredeti képet használ; thumbnail és valós browser/provider elfogadás külön kapu. A fenti korábbi metaadat-szelet kép nélküli határa ezzel bővült.
 
 US-02 → US-03 frissítés: upload/batch completionVersion (új ACTIVE confirm, leürült hullám) → UploadPanel completed(ownerId) → AccountPage refresh-signal → GalleryPanel refreshVersion → gallery/state requestRefresh (300 ms, egy függő elsőoldalas kérés). Bizonyíték: upload-batch.spec.ts (részleges siker és retry, all-fail/PUT100/ACTIVE replay/dispose), gallery-refresh.spec.ts (összevonás, futó lapozás/refresh, dedupe, hiba/429 és owner). A kézi teljes folyamat még nyitott a tesztriportban.
+
+## Első thumbnail-processor – tervezett traceability, 2026-10-29
+
+| Követelmény | Szerződés / komponens | Tervezett bizonyíték |
+|---|---|---|
+| Első beépített processor,512 statikus WebP, metadata nélkül | ADR-016 → ThumbnailProcessor/registry, közös process interfész | Formátum/frame/orientáció/alpha/metadata/határ unit fixture; később valódi output |
+| Tartós, verziózott eredmény és külön retry | Confirm → ProcessingJob → attempt/fence → DerivedObject; status/retry API | Commit/replay/unique/retryRevision és crash/fence unitok, majd DB/storage restart |
+| Derived quota/lifecycle | PontosR reservation, egy result publication, irreverzibilis cleanup claim és proof gate | Konkurens counter/race unitok; fizikai candidate/result és used/reserved mérés |
+| Galéria, eredeti továbbra használható | Batch status, thumbnail-url; későbbi kártya-illesztés, eredeti-preview változatlan | Későbbi unit/template és valódi browserhiba/fallback/owner próba |
+| Biztonságos natív decoder | Allowlist/32MiB/40Mpixel/512KiB/child timeout és limitált worker | Unit limit + valós cgroup/OOM/time/codec-allowlist ellenőrzés |
+
+A fenti új entitások/API/worker **nem implementáltak**. A második image-metadata processor, teljes resumable import és összehasonlító mérés külön kötelező későbbi szeletek. Nincs új runtime teszt-PASS vagy teljes milestone-zárás ebből a dokumentációból.

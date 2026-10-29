@@ -99,3 +99,15 @@ Egy scenario csak akkor jelölhető kipróbáltnak, ha létezik futó környezet
 ## Pending upload cleanup blokkolva
 
 A `WRITE_CLOSURE_UNPROVEN` azt jelenti, hogy az objektum és reservation szándékosan megmaradt: a worker nem tudja bizonyítani az összes kiadott PUT végét. Az URL lejárata vagy HEAD404 nem oldja fel. A `npm run uploads:cleanup` legfeljebb 50 jelöltet dolgoz fel, aggregált eredménnyel; korai retry a retryAfter-ig kimarad, a következő próbák maximum 1 órás backoffra kerülnek. Ne nullázd a reservedet, ne tölts ki proof-időpontot és ne törölj volume-ot. A provider/protokoll bizonyítási kapuját kell megoldani; receipt-pruning és aktív fájl purge továbbra is külön feladat. Storage-/DB-hibánál az objektum/marker és könyvelés részállapotából idempotens retry következik, nem kézi dupla decrement.
+
+## Thumbnail processing – tervezett operátori esetek, 2026-10-29
+
+**Nem működő parancsok/kipróbált eljárás.** Az [ADR-016](../02_architecture/adr/ADR-016-thumbnail-processing.md) implementációja után:
+
+- **Elakadt RUNNING / worker restart:** DB-idő, lease/fence és job-version/build ellenőrzése. Aktív lease-t ne lopjunk el; lejárat után bounded recovery. A decoder child kill/exit és SDK abort nem jelenti egy elindított storage PUT lezárását. Ne nullázzuk a retry-számlálót.
+- **PUT siker, publication bizonytalan:** job/result és attempt R/key/hash állapotának ellenőrzése; már SUCCEEDED no-op. WRITE_PENDING/STORED candidate csak új recovery fence alatt, bounded read/hash után adoptálható; ORPHANED/CLEANUP_BLOCKED nem. Ne indítsunk vak új írást vagy dupla könyvelést.
+- **BLOCKED_QUOTA / cleanupPending:** eredeti elérhető, nincs automatikus újragenerálás. Élő reservationök és hozzájuk tartozó objektumok leltára; bizonyítékot nem szabad secret/raw URL formában ticketbe tenni. Cleanup csak irreverzibilis claim + closure-proof + absence/delete után egyszeri levonás. `unproven` → CLEANUP_BLOCKED; nincs kézi timestamp vagy reserved=0 kerülőút.
+- **Resource-limit/decoderhiba:** safe errorCode, inputméret/pixelhatár, worker memória/CPU és child wall-time; eredeti tartalma/EXIF/raw libvips stack ne kerüljön logba. Hibás input nem automatikusan retryable, OOM/timeout véges keretes; codec/verzióváltozás új manifest/processor-policy.
+- **Soft delete/purge race:** parent ACTIVE-check, fence invalidálás és attempt státusz. Published resultot candidate-cleanup nem töröl; teljes purge külön idempotens lifecycle. A proofhiány miatt a nyilvántartás és foglalás nem dobható el.
+
+A valós kipróbálást verzióval/környezettel/eredménnyel később a tesztriport rögzíti. Ezeket nem jelöljük most sikeres incident-próbának.

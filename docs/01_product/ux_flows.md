@@ -174,3 +174,11 @@ A sikeres kézi listafrissítés a preview-hibákat is feloldja; a már használ
 Kiválasztás, init/PENDING, PUT 100%, sikertelen confirm és a korábban ACTIVE-ként visszajátszott init nem ad új frissítési jelzést. Új ACTIVE confirm után a leürült köteg egy jelzést ad; a hibás fájl későbbi sikeres retry-ja új jelzést ad, a sikeres testvérek újraküldése nélkül. A frontend confirm-kliense csak ugyanazon fájl ACTIVE válaszát fogadja el.
 
 A galéria 300 ms alatt összevonja a jelzéseket, futó lista/lapozás mögött egy függő frissítést tart. Első oldalról új láncot kezd, ID-dedupe mellett. A régi kártyák sikerig megmaradnak. Olvasási hiba után a függő automatikus kérés törlődik; 429-re nincs időzített ébredés. Kézi retry/listafrissítés szükséges. A listahiba nem változtatja a feltöltés sikerét. Az account-ID-s jelzés és keyed komponensek kizárják a korábbi fiók késői eseményét; oldalhagyás törli az időzítőt. Az automatikus listafrissítés nem oldja fel a korábbi preview-hibát, arra a külön kézi műveletek maradnak.
+
+## Thumbnail-állapotok – tervezett, 2026-10-29
+
+A jelenlegi eredeti-képes galéria változatlan. Az első thumbnail-szelet [API-terve](../03_design/api.md#első-thumbnail-processor-api--tervezett-2026-10-29) után: új ACTIVE confirmtól várakozó/feldolgozás alatti jelzés; READY thumbnail a kártyán, nagy előnézetben továbbra is eredeti. NOT_SCHEDULED régi képre nincs folyamatos polling vagy implicit backfill. Kimenet statikus, animációból első frame. Hibás thumbnail, dekódolási limit vagy BLOCKED_QUOTA mellett az eredeti megnyitható; a státusz/retry hibája nem üríti a galériát.
+
+Külön processor-retry csak dokumentált retryable állapotban, revisionnel, nem eredeti újraküldéssel; maxkét kézi ciklus, futó/sikeres testvér nem indul újra. Státusz batchben, maximum20 látható elem, legkorábban10s-onként, egy in-flight kérés; terminális állapot/rejtett lap/unmount leállít. A thumbnail URL csak szükség szerint, rövid TTL-lel/memóriában, közös maximum4 URL-kérés-korláttal; img-hibára kézi retry, nem végtelen URL-megújítás. A worker job-retry és a böngésző képletöltési retry két külön művelet.
+
+cleanupPending figyelmeztetés azt jelzi, hogy régi candidate foglalása még él; nem állítható, hogy a foglalás lejárattal felszabadul. Mindez tervezett UX, nem jelenlegi komponens vagy kipróbált viselkedés.

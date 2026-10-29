@@ -88,5 +88,20 @@ Az MVP+ komponensek hiánya vagy hibája nem akadályozhat auth-, upload-, list-
 - Controller nem hívhat közvetlenül Prisma vagy S3 klienst.
 - A domain/service réteg portokat használ külső szolgáltatásokhoz.
 - A cursor kódolja a rendezési kulcsot, de nem tartalmaz érzékeny adatot.
-- A job boundary nem jelent elfogadott queue dependency-t; a konkrét technológia későbbi ADR tárgya.
+- A job boundary nem jelent elfogadott queue dependency-t; a kötelező thumbnailhez az ADR-016 egyszerű PostgreSQL-job workert tervez, az opcionális MI külön későbbi döntés.
 - Audit események írása nem teheti közzé a művelethez használt credentialt vagy URL-t.
+
+## Első thumbnail processing – tervezett komponensek, 2026-10-29
+
+[ADR-016](adr/ADR-016-thumbnail-processing.md) és az [adatmodell](../03_design/data_model.md#első-thumbnail-processor--tervezett-szerződés-2026-10-29) a korábbi, csak opcionális MI-job határt kiegészíti a kötelező processing modullal:
+
+| Komponens | Határ |
+|---|---|
+| Confirm + ProcessingJobService | Egy DB commitban aktivál és unique jobot ír; nincs szinkron decode |
+| ProcessingWorker | DB poll/claim/lease/fence, tartós retry és recovery; nincs külön broker |
+| ProcessorRegistry + ThumbnailProcessor | Verziózott manifest, tiszta bájt → output interfész; Sharp limitált gyermekben, SDK/DB nélkül |
+| Derived lifecycle/accounting service | User→original→job→attempt lock-sorrend, pontosR reservation, egyszeri publication és proof-függő cleanup |
+| Storage adapter | Teljes bounded conditional read és create-only backend write még hozzáadandó, providerhívás csak itt |
+| Processing controller | Session/owner/origin, összevont státusz, thumbnail-url és külön retry; jelenleg nem létező végpontok |
+
+A második image-metadata processor később ugyanazt a registry/interface/job határt használja, nem a thumbnailbe épül. A generálási lease nem cleanup-proof; terminális candidate cleanup saját attempt-zár és bizonyíték alapján megy.

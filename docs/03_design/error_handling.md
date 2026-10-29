@@ -217,3 +217,22 @@ GET /files/{fileId}/preview-url: hibás UUID/query 400; nem létező/idegen/saj�
 Közös: AUTH_REQUIRED 401; a meglévő SessionGuard user-lekérdezési hibája SERVICE_UNAVAILABLE 503 (nem 401); explicit eltérő Origin ORIGIN_NOT_ALLOWED 403; külön per-user list/preview ablak túllépése RATE_LIMITED 429 és olvasható Retry-After; ismeretlen hiba INTERNAL_ERROR 500. Details mindig {}, no-store; providerhiba, signed URL, cursor és storage key nem kerül vissza/logba. A storage kép-GET hibája nem backend JSON-hiba: a UI képbetöltési hibát jelez, és nem talál ki belőle 401/404 domainkódot. Teljes státusz csak új jogosított API-kérésből ismert.
 
 A preview implementáció a signing utáni második saját-ACTIVE queryvel újraellenőriz: eltűnt/idegen/nem aktív sor FILE_NOT_FOUND, újonnan tiltott MIME PREVIEW_NOT_ALLOWED, változott storageKey/név/méret/egyéb MIME-metaadat STORAGE_UNAVAILABLE. Hibás/lejárt/túl hosszú presign-lejárat vagy érvénytelen URL ugyancsak STORAGE_UNAVAILABLE, capability nélkül. A megosztott FileIdPipe most kifejezett 36-karakteres UUID-határt ellenőriz, így a trailing newline nem válik DB-hibává.
+
+## Thumbnail processing – tervezett hibák, 2026-10-29
+
+**Nem implementált**, az [API](api.md#első-thumbnail-processor-api--tervezett-2026-10-29) és [adatmodell](data_model.md#első-thumbnail-processor--tervezett-szerződés-2026-10-29) kiegészítése. A workerhiba nem változtat sikeres confirmot HTTP-hibává, és nem törli az eredetit. A status válasz safe kódot tartalmaz; nyers Sharp/libvips/S3 exception, inputadat, storage key és EXIF nem kerül klienshez/logba.
+
+| Kód | Állapot / retry | Magyar felületi jelentés |
+|---|---|---|
+| PROCESSOR_INPUT_UNSUPPORTED | FAILED, nem retryable | Ehhez a képtípushoz nem készíthető kiskép. |
+| PROCESSOR_INPUT_INVALID | FAILED, nem retryable | A kép nem dekódolható kiskép készítéséhez. Az eredeti megmaradt. |
+| PROCESSOR_INPUT_LIMIT | FAILED, nem retryable | A kép túllépi a feldolgozási korlátot. |
+| PROCESSOR_OUTPUT_LIMIT | FAILED, nem retryable | Nem készíthető a korlátnak megfelelő kiskép. |
+| SOURCE_CHANGED | FAILED, nem retryable; operátori vizsgálat | A kép állapota megváltozott, a feldolgozás leállt. |
+| PROCESSOR_TIMEOUT / PROCESSOR_RESOURCE_LIMIT | RETRY_WAIT, keret után FAILED; kézi retry korlátozott | A feldolgozás erőforráskorlátba ütközött. |
+| PROCESSING_STORAGE_UNAVAILABLE / PROCESSING_DATABASE_UNAVAILABLE | RETRY_WAIT, keret után FAILED; kézi retry korlátozott | A kiskép feldolgozása átmenetileg nem fejezhető be. |
+| DERIVED_QUOTA_EXCEEDED | BLOCKED_QUOTA, nincs automatikus retry | A kisképhez nincs elég szabad tárhely. Az eredeti használható. |
+| SOURCE_NOT_ACTIVE | CANCELLED; restore után kézi retry kereten belül | A kép jelenleg nem dolgozható fel. |
+| WRITE_CLOSURE_UNPROVEN / DERIVED_CLEANUP_UNAVAILABLE | Attempt CLEANUP_BLOCKED; nem original-/job-failure | Egy korábbi feldolgozási próbálkozás tárhelyfoglalása még nem szabadítható fel. |
+
+Az API által dobott új hibák:409 THUMBNAIL_NOT_READY,409 PROCESSING_RETRY_NOT_ALLOWED,503 PROCESSING_UNAVAILABLE; üres details és meglévő wrapper. 404 FILE_NOT_FOUND/415 PREVIEW_NOT_ALLOWED/401 AUTH_REQUIRED/403 ORIGIN_NOT_ALLOWED/429 RATE_LIMITED a meglévő jelentéssel, a tervezett guardokban használva. Cleanup-hiba külön warning lehet SUCCEEDED mellett is. Ismeretlen decoder/worker exception safe PROCESSING_UNAVAILABLE vagy retry-keretes belső hiba, nem korlátlan újrapróbálás; konfiguráció/build ismeretlen processorverziója nem claimelhető és operátori jelzés.

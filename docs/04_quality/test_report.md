@@ -1,5 +1,16 @@
 # Test report
 
+## Első thumbnail-processor szerződés – 2026-10-29, csak dokumentáció
+
+**Verzió:** `docs/thumbnail-processor-contract`, `2373620` alap után (alkalmazáskód továbbra is a `2e68506` merge állapota). **Környezet/módszer:** WSL Bash, meglévő docs és runtime-interface-ek olvasása, Sharp/Jimp/libvips elsődleges dokumentációjának ellenőrzése. Szerződés: ADR-016 + API/adatmodell/UX/security/quality és roadmap.
+
+**Nem futtatott ellenőrzések:** Sharp-telepítés/PoC, új Prisma/migráció, képdekódolás, worker, API, quota/recovery és browser-próba. Nem készült dependency, kód, új teszt vagy működési PASS. A korábbi937 unit eredménye alább történeti adat, nem thumbnail-bizonyíték. A dokumentációs review a cleanup–adoption verseny kizárását és a generation-fence kontra cleanup-proof határt pontosította; a konkrét write-closure proof továbbra is implementációs kapu.
+
+**Végrehajtott dokumentációs ellenőrzés:** csak Markdown-változások, `git diff --check`, 157 helyi fájlhivatkozás és19 új thumbnail-anchor ellenőrzése PASS. Ez nem thumbnail runtime-teszt.
+
+**Nyitott elfogadási kapuk:** pontos dependency/codec és licencleltár; négyformátumos fixture-ek, frame/orientáció/metadata és erőforráslimitek; job/attempt/result/schema+egyediség; atomikus confirm, quota és retry/fence unitok; valós worker/DB/storage restart, ambiguous-write cleanup és galériaillesztés. Részletes lista a [tesztstratégiában](test_strategy.md#első-thumbnail-processor--tervezett-ellenőrzések-2026-10-29). A második metadata-processor és resumable-mérések későbbi feladatok. A lenti szerzői kézi galériapróbák eredeti képekre vonatkoznak.
+
+
 ## Feltöltés utáni összevont galériafrissítés – 2026-10-28
 
 **Verzió:** `feature/gallery-upload-refresh`, `ee26d1b` képesgaléria-alap után. **Környezet:** WSL Bash, Linux Node 22.23.2/npm 10.9.8; izolált Jest/Vitest, fake időzítő és szintetikus kép/API-válasz. Nincs új backend/séma/dependency.

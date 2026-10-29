@@ -193,3 +193,22 @@ A template render nem browser/hydration vagy teljes auth/DB/storage bizonyíték
 ### Feltöltés utáni összevont listafrissítés – 2026-10-28
 
 Upload-state unitok: több párhuzamos confirm egy hullámjelzés, részleges siker + hibás fájl külön retry-ja, PUT 100%/all-fail/ACTIVE-init-replay/dispose nem új jelzés. Gallery-state fake-timer unitok: 20 gyors jelzés egy read, aktív refresh/lapozás mögött egy trailing read, új cursorlánc/ID-dedupe, kézi refresh összevonás, hibánál timer törlése, 429 és session/dispose. Owner-jelzés külön izolált tesztje kizárja az előző usert. Nincs browser/DB/integration/e2e bizonyíték; a rövid kézi ellenőrzőlista a tesztriport új szakaszában nyitott.
+
+## Első thumbnail-processor – tervezett ellenőrzések, 2026-10-29
+
+**Nem lefutott tesztek.** Az [ADR-016](../02_architecture/adr/ADR-016-thumbnail-processing.md), [adatmodell](../03_design/data_model.md#első-thumbnail-processor--tervezett-szerződés-2026-10-29) és [API](../03_design/api.md#első-thumbnail-processor-api--tervezett-2026-10-29) implementációs elfogadási kapui; nem új integration/e2e engedély.
+
+| Csoport | Unit / izolált ellenőrzés később |
+|---|---|
+| Decoder/output | Szintetikus JPEG/PNG/WebP/GIF, animált GIF/WebP/APNG első frame, átlátszóság, EXIF forgatás+tükör, kis kép nem nagyítódik, portrait/landscape/extrém arány, WebP MIME/hash/méret, metadata/GPS/XMP/ICC hiánya |
+| Limit/adatvédelem | Exact/plus-one32MiB,40Mpixel,20000dimenzió,4csatorna,512KiBoutput; warning/truncated/malformed header; támogatott magic alatt rossz decoder; SVG/HTML/TIFF/AVIF/PDF és URL/path kizárva; nem teljes animáció-validálás |
+| Queue/identity | Confirm+job egy commit, confirm rollback és replay, unique job/result/owner FK, version/build/source-fingerprint és teljes source hash; nincs automatikus legacy backfill |
+| Quota | PontosR reservation commit írás előtt, egyenlő limit megengedett, konkurens eredeti/derived foglalás, egyszeri R reserved→used, blokkolt kvóta mellett eredeti használható |
+| Recovery/fencing | Két claim, heartbeat/lejárat/old worker, PUT előtt/után és DB-publication előtt/után crash-pontok; valid candidate adoption új fence alatt;9 generation/korlátozott recovery-probe, nincs számlálóreset restarttal |
+| Cleanup-race | Cleanup irréverzibilis ORPHANED claimje előtt/után ütemezett adoption; PUBLISHED sosem törölhető attempt-cleanupból. Lease/HEAD404/DELETE200 nem proof; régi candidate R megmarad az új winner mellett |
+| Lifecycle/API | Parent soft delete/restore és stale worker, purge részhiba/markerek; batch status ownership egész kérésre, old-state egységes404, thumbnail-url409/415/TTL/HEAD+finalrecheck; retryRevision CAS/replay/exhaustion; limiter/Origin/401 és safe error |
+| Frontend későbbi szelet | Pending/failed/quota/cleanup figyelmeztetés, eredeti fallback, thumbnail kártya/original modal; batch polling10s/20ID/egy in-flight, hidden/unmount stop, signed URL csak memory és max4 párhuzamos kérés |
+
+**Külön valódi környezeti kapuk, még nyitottak:** pontos Sharp/bináris telepítés root lockfile-lal WSL/Linux és a Debian-image-ben; codec-allowlist és fixture-eredmény; worker512MiB/1CPU/pids64 limit és child15s kill/OOM mérése (a mock timeout nem bizonyítja); tényleges DB/storage job/objektum/used/reserved darabszám ismételt delivery és restart előtt/után; parent lifecycle és másik user; ambiguous PUT és closure-proof/cleanup. A worker lefagyasztása, késői PUT és publication–cleanup verseny külön próbát igényel, nem elég egy normál restart. Az exact input/output és erőforráslimitek helyessége csak implementáció után válik futtatással igazolttá.
+
+Minden későbbi riport: commit, dátum, OS/browser/worker-image, fixture formátum/méret/pixelszám és hash (nem személyes fájl), lépések, elvárt/tényleges állapot és DB/storage/kvótamérés, idő/peak memória, bizonyíték. Sérült fájl mellett a jó képek és az eredetik használhatóságát is ellenőrizni kell. Thumbnail-siker nem második metadata-processor-, resumable-import- vagy teljes SZD2 PASS.
