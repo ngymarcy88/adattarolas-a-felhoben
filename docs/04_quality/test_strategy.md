@@ -224,3 +224,8 @@ A cross-row jobSUCCEEDED/result, aktuális fence/state history és User-counter 
 ### Thumbnail storage I/O unitok – 2026-10-29
 
 Az új storage-transfers.spec.ts mockolt SDK mellett vizsgálja a teljes conditional32MiB-limitű readet és512KiB write-ot. Pontos/plus-one/config cap, ETag/206/ContentRange/ContentLength, short/long/nonbinary/stalled/late stream, caller abort/preabort és teljes deadline; write snapshot/ChecksumSHA256/IfNoneMatch/maxAttempts1,400/409/412/503 és hibás successmeta; canonical original/derived key és végső sortörések; külön source-allowlist/derived-WebP, SDK-close egyszeriség. A régi storage tesztek regressziós kapuk. Ez nem valódi provider-kérés vagy új integration/e2e suite, nem képdekódolás/ownership/fence/quota-teszt. A fizikai DELETE után unproven marad a closure; derived recovery full-read és providerproof későbbi külön ellenőrzés.
+
+
+### Implementált thumbnail unitok – 2026-10-29
+
+Három Jest suite,107 eset:42 tényleges decoder-child/Sharp szintetikus kép,17 kontrollált process/IPC/deadline/abort,48 független WebP-header validálás. A fixture-ek futáskor kis szintetikus inputból keletkeznek; output újra Sharp-dekódolással formátum/méret/alpha/orientáció/pixel/metadata szerint ellenőrzött. Túlméretes pixelheaderhez nincs óriási raster allokálva. GIF/WebP/APNG frame0 és külön posteres APNG elutasítása külön eset. A fake child hibái nem natív OOM/time bizonyítékok. Worker/cgroup, DB/storage orchestration/recovery, Debian runtime, browser/UAT változatlanul nyitott; nem indult új integration/e2e suite.
