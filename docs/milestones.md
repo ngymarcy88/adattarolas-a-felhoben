@@ -144,6 +144,7 @@ A történeti MVP-0–MVP-7 helyett az alábbi **SZD2-0–SZD2-7** az aktuális 
 - [x] ACTIVE confirm utáni összevont galériafrissítés: részleges siker/retry, futó lekérés mögötti egy jelzés, új cursorlánc, owner/dispose és hiba/cooldown unitokkal; manuális ellenőrzőlista nyitott a tesztriportban.
 - [ ] Saját galéria és jogosult előnézet/letöltés; betöltési, üres és hibaállapotok.
 - [x] Első thumbnail tervezési szerződés: ADR-016 Sharp/statikus WebP, erőforráslimitek, közös interfész, tartós job/attempt/result, retry/recovery, derived quota/lifecycle és tervezett API; implementáció és proof-kapuk még nyitottak.
+- [x] Processor-adatmodell: ProcessingJob/ProcessingAttempt/DerivedObject séma és új additív migráció, ownership/unique/NULL-biztos sor-korlátokkal; worker/API/automatikus könyvelés nélkül.
 - [ ] Közös processor-interfész és első beépített processor, verziózott eredménnyel. Elsőként az előnézetkészítő javasolt; ez végrehajtási javaslat, a tanár általánosan első processort kér.
 - [ ] Eredeti és derived storage konzisztens elszámolása; minimális tartós job/result és audit, titkok nélkül.
 - [ ] Bemutatható commit, valós képernyőkép, tesztriport, kipróbált lokális telepítés és aktuális dolgozatrész.

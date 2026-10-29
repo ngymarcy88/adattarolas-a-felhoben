@@ -32,43 +32,46 @@ enum UploadTerminalErrorCode {
 }
 
 model User {
-  id                   String       @id @default(uuid()) @db.Uuid
-  email                String       @unique @db.VarChar(254)
-  passwordHash         String       @db.VarChar(255)
-  displayName          String       @db.VarChar(100)
-  usedStorageBytes     BigInt       @default(0)
-  reservedStorageBytes BigInt       @default(0)
+  id                   String            @id @default(uuid()) @db.Uuid
+  email                String            @unique @db.VarChar(254)
+  passwordHash         String            @db.VarChar(255)
+  displayName          String            @db.VarChar(100)
+  usedStorageBytes     BigInt            @default(0)
+  reservedStorageBytes BigInt            @default(0)
   storageLimitBytes    BigInt
-  createdAt            DateTime     @default(now()) @db.Timestamptz(3)
-  updatedAt            DateTime     @updatedAt @db.Timestamptz(3)
+  createdAt            DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime          @updatedAt @db.Timestamptz(3)
   uploadOperations     UploadOperation[]
   files                FileObject[]
   shareLinks           ShareLink[]
   auditEvents          AuditEvent[]
+  processingJobs       ProcessingJob[]
 }
 
 model FileObject {
-  id                   String         @id @default(uuid()) @db.Uuid
-  ownerId              String         @db.Uuid
-  originalName         String         @db.VarChar(255)
-  storageKey           String         @unique @db.VarChar(1024)
-  mimeType             String         @db.VarChar(100)
-  detectedMimeType     String?        @db.VarChar(100)
+  id                   String           @id @default(uuid()) @db.Uuid
+  ownerId              String           @db.Uuid
+  originalName         String           @db.VarChar(255)
+  storageKey           String           @unique @db.VarChar(1024)
+  mimeType             String           @db.VarChar(100)
+  detectedMimeType     String?          @db.VarChar(100)
   sizeBytes            BigInt
-  visibility           FileVisibility @default(PRIVATE)
-  status               FileStatus     @default(PENDING_UPLOAD)
-  uploadUrlExpiresAt   DateTime       @db.Timestamptz(3)
-  confirmBy            DateTime       @db.Timestamptz(3)
-  cleanupRetryAfter    DateTime?      @db.Timestamptz(3)
-  cleanupAttemptCount  Int            @default(0)
-  cleanupLastErrorCode String?        @db.VarChar(100)
-  deletedAt            DateTime?      @db.Timestamptz(3)
-  purgeAfter           DateTime?      @db.Timestamptz(3)
-  createdAt            DateTime       @default(now()) @db.Timestamptz(3)
-  updatedAt            DateTime       @updatedAt @db.Timestamptz(3)
-  owner                User           @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  visibility           FileVisibility   @default(PRIVATE)
+  status               FileStatus       @default(PENDING_UPLOAD)
+  uploadUrlExpiresAt   DateTime         @db.Timestamptz(3)
+  confirmBy            DateTime         @db.Timestamptz(3)
+  cleanupRetryAfter    DateTime?        @db.Timestamptz(3)
+  cleanupAttemptCount  Int              @default(0)
+  cleanupLastErrorCode String?          @db.VarChar(100)
+  deletedAt            DateTime?        @db.Timestamptz(3)
+  purgeAfter           DateTime?        @db.Timestamptz(3)
+  createdAt            DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime         @updatedAt @db.Timestamptz(3)
+  owner                User             @relation(fields: [ownerId], references: [id], onDelete: Restrict)
   shareLinks           ShareLink[]
   uploadOperation      UploadOperation?
+  processingJobs       ProcessingJob[]
+  derivedObjects       DerivedObject[]
 
   @@unique([id, ownerId])
   @@index([ownerId, status, createdAt(sort: Desc), id(sort: Desc)])
@@ -128,4 +131,139 @@ model AuditEvent {
 
   @@index([createdAt])
   @@index([resourceType, resourceId])
+}
+
+enum ProcessingJobState {
+  QUEUED
+  RUNNING
+  RETRY_WAIT
+  BLOCKED_QUOTA
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+enum ProcessingAttemptPhase {
+  PREPARING
+  WRITE_PENDING
+  STORED
+  PUBLISHED
+  ORPHANED
+  CLEANUP_BLOCKED
+  RELEASED
+}
+
+enum DerivedObjectKind {
+  THUMBNAIL
+}
+
+enum DerivedObjectState {
+  READY
+  RETIRED
+  PURGED
+}
+
+// Row shape is checked in migration SQL; cross-row accounting/publication is a future service transaction.
+model ProcessingJob {
+  id                        String              @id @default(uuid()) @db.Uuid
+  ownerId                   String              @db.Uuid
+  fileObjectId              String              @db.Uuid
+  processorKey              String              @db.VarChar(64)
+  processorVersion          String              @db.VarChar(32)
+  implementationFingerprint String              @db.Char(64)
+  sourceFingerprint         String              @db.Char(64)
+  state                     ProcessingJobState  @default(QUEUED)
+  leaseOwner                String?             @db.Uuid
+  leaseUntil                DateTime?           @db.Timestamptz(3)
+  fence                     BigInt              @default(0)
+  cycleAttemptCount         Int                 @default(0)
+  totalAttemptCount         Int                 @default(0)
+  recoveryProbeCount        Int                 @default(0)
+  retryRevision             Int                 @default(0)
+  nextAttemptAt             DateTime?           @db.Timestamptz(3)
+  lastErrorCode             String?             @db.VarChar(100)
+  retryable                 Boolean             @default(false)
+  finishedAt                DateTime?           @db.Timestamptz(3)
+  createdAt                 DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt                 DateTime            @updatedAt @db.Timestamptz(3)
+  owner                     User                @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  fileObject                FileObject          @relation(fields: [fileObjectId, ownerId], references: [id, ownerId], onDelete: Restrict)
+  attempts                  ProcessingAttempt[]
+  results                   DerivedObject[]
+
+  @@unique([ownerId, fileObjectId, processorKey, processorVersion], map: "ProcessingJob_logical_identity_key")
+  @@unique([id, ownerId, fileObjectId], map: "ProcessingJob_ownership_key")
+  @@index([state, nextAttemptAt])
+  @@index([state, leaseUntil])
+  @@index([ownerId, fileObjectId])
+}
+
+model ProcessingAttempt {
+  id                    String                 @id @default(uuid()) @db.Uuid
+  jobId                 String                 @db.Uuid
+  ownerId               String                 @db.Uuid
+  fileObjectId          String                 @db.Uuid
+  fence                 BigInt
+  ordinal               Int
+  phase                 ProcessingAttemptPhase @default(PREPARING)
+  sourceSha256          String?                @db.Char(64)
+  sourceETag            String?                @db.VarChar(256)
+  candidateKey          String                 @unique @db.VarChar(1024)
+  outputSha256          String?                @db.Char(64)
+  mimeType              String?                @db.VarChar(100)
+  width                 Int?
+  height                Int?
+  outputBytes           BigInt?
+  // Historical R, not an outstanding balance: finalization/release markers close the reservation.
+  reservedBytes         BigInt                 @default(0)
+  writeStartedAt        DateTime?              @db.Timestamptz(3)
+  writeSettledAt        DateTime?              @db.Timestamptz(3)
+  writesClosedAt        DateTime?              @db.Timestamptz(3)
+  closureEvidenceType   String?                @db.VarChar(64)
+  closureEvidenceRef    String?                @db.VarChar(255)
+  objectAbsentAt        DateTime?              @db.Timestamptz(3)
+  reservationReleasedAt DateTime?              @db.Timestamptz(3)
+  finalizedAt           DateTime?              @db.Timestamptz(3)
+  cleanupRetryAfter     DateTime?              @db.Timestamptz(3)
+  cleanupAttemptCount   Int                    @default(0)
+  createdAt             DateTime               @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime               @updatedAt @db.Timestamptz(3)
+  job                   ProcessingJob          @relation(fields: [jobId, ownerId, fileObjectId], references: [id, ownerId, fileObjectId], onDelete: Restrict)
+  result                DerivedObject?
+
+  @@unique([jobId, ordinal])
+  @@unique([id, jobId, ownerId, fileObjectId, candidateKey], map: "ProcessingAttempt_result_identity_key")
+  @@index([phase, cleanupRetryAfter])
+  @@index([jobId, phase])
+}
+
+model DerivedObject {
+  id                        String             @id @default(uuid()) @db.Uuid
+  ownerId                   String             @db.Uuid
+  fileObjectId              String             @db.Uuid
+  jobId                     String             @db.Uuid
+  attemptId                 String             @unique @db.Uuid
+  kind                      DerivedObjectKind  @default(THUMBNAIL)
+  processorVersion          String             @db.VarChar(32)
+  sourceFingerprint         String             @db.Char(64)
+  sourceSha256              String             @db.Char(64)
+  implementationFingerprint String             @db.Char(64)
+  publicationFence          BigInt
+  storageKey                String             @unique @db.VarChar(1024)
+  mimeType                  String             @db.VarChar(100)
+  sizeBytes                 BigInt
+  sha256                    String             @db.Char(64)
+  width                     Int
+  height                    Int
+  state                     DerivedObjectState @default(READY)
+  createdAt                 DateTime           @default(now()) @db.Timestamptz(3)
+  purgedAt                  DateTime?          @db.Timestamptz(3)
+  fileObject                FileObject         @relation(fields: [fileObjectId, ownerId], references: [id, ownerId], onDelete: Restrict)
+  job                       ProcessingJob      @relation(fields: [jobId, ownerId, fileObjectId], references: [id, ownerId, fileObjectId], onDelete: Restrict)
+  attempt                   ProcessingAttempt  @relation(fields: [attemptId, jobId, ownerId, fileObjectId, storageKey], references: [id, jobId, ownerId, fileObjectId, candidateKey], onDelete: Restrict)
+
+  // Full relation key is required by Prisma for the compound one-to-one relation.
+  @@unique([attemptId, jobId, ownerId, fileObjectId, storageKey], map: "DerivedObject_attempt_identity_key")
+  @@unique([jobId, kind])
+  @@index([ownerId, fileObjectId])
 }
