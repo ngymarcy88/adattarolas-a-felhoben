@@ -17,17 +17,31 @@
 
 **Bizonyíték:** `frontend/tests/upload-batch.spec.ts`, `gallery-refresh.spec.ts`, a módosított upload-template teszt és a teljes unit futás. Ezek izolált állapot-/template-próbák; a Vue-komponensek valódi browser/HTTP/DB/storage együttműködését nem igazolják.
 
-### Rövid kézi ellenőrzőlista – még nem végrehajtott
+### Kézi ellenőrzés – szerzői visszajelzés alapján sikeres, 2026-10-28
 
-Minden sor **NYITOTT**. Futtatáskor rögzítendő: pontos commit, dátum, böngésző/OS, indítási környezet, tényleges eredmény és bizonyíték hivatkozása. Előkészítés: helyi Compose, két külön tesztfiók (A/B), saját nem érzékeny képek; lapozáshoz legalább 21 kép két, legfeljebb 20-as kötegben. Részleges sikerhez tesztkörnyezetben egy hibás/szerver által elutasított képfájl. Bizonyítékba ne kerüljön cookie, signed URL vagy személyes adat. Saját próba nem külső UAT.
+**Kapcsolódó verzió:** `main`, `2e68506` (#28–#32 merge-je után). **Végrehajtó:** a szakdolgozat szerzője. **Környezet:** Windows, helyi Docker Compose; frontend `http://127.0.0.1:5173`, backend `http://127.0.0.1:3000/api/v1`, PostgreSQL és MinIO. A szolgáltatások a hibakereséskor healthy állapotúak voltak, a migráció és bucket-init 0 kóddal fejeződött be. A böngésző pontos típusa/verziója, a képek neve/darabszáma és a tesztfiókok részletei nem kerültek rögzítésre. A futó konténerek commitazonosítóját külön nem olvastuk ki.
 
-- [ ] **Üres galéria:** új A fióknál loading után üres állapot és feltöltési link, indokolatlan hiba/korábbi fiókkép nélkül.
-- [ ] **Több kép:** saját képek, helyes név/méret/dátum és kép; görgetéskor szükség szerinti betöltés. Networkben legfeljebb négy párhuzamos preview-url kérés.
-- [ ] **Lapozás:** További képek után nincs dupla kártya, hiba esetén a korábbiak megmaradnak. Feltöltés utáni refresh új első oldalt/cursorláncot ad.
-- [ ] **Előnézet:** kattintás/Enter/Space megnyit; Tab/Shift+Tab a modálban marad, Escape/Bezárás visszaadja a fókuszt. Képhiba után kézi retry működik, nincs ismétlődő URL-kérés.
-- [ ] **Feltöltés utáni megjelenés:** több jó kép párhuzamosan + egy hibás; csak új ACTIVE confirm után, a hullám végén frissül a lista. A jó képek megjelennek, a hibás nem; sikeres retry új frissítést ad. Networkben nincs fájlonkénti lista-kérésáradat; a galériahibát kézzel lehet újrapróbálni.
-- [ ] **Oldalfrissítés:** befejezett feltöltés után böngészőfrissítéskor ugyanazok a saját ACTIVE képek jelennek meg, duplikáció nélkül.
-- [ ] **Másik felhasználó:** A kijelentkezés → B belépés után nincs A-kártya/kép/URL; B saját feltöltése csak B listájában jelenik meg. A ismert fájl-ID-jére B preview-kérése 404, a lista sem ad A-adatot.
+**Bizonyíték és eredmény:** a szerző ebben a beszélgetésben a hétpontos ellenőrzőlista után jelezte: „az elozo feladatok tesztelése sikers volt”. Az alábbi főfolyamatok ezért **PASS – szerző által jelentett** státuszúak; Codex nem hajtotta végre őket böngészőben. Ez saját fejlesztői kézi ellenőrzés, nem külső UAT. A sikeres galériapróbához nem érkezett külön képernyőkép vagy hálózati mérési jegyzőkönyv.
+
+- [x] **Üres galéria:** üres állapot ellenőrzése – szerző által jelentett PASS.
+- [x] **Több kép:** feltöltött képek és metaadatok megjelenítése – szerző által jelentett PASS.
+- [x] **Lapozás:** További képek használata – szerző által jelentett PASS.
+- [x] **Előnézet:** képek nagy előnézetének használata – szerző által jelentett PASS.
+- [x] **Feltöltés utáni megjelenés:** sikeres feltöltés után automatikusan frissülő galéria – szerző által jelentett PASS.
+- [x] **Oldalfrissítés:** a feltöltött képek újratöltés után is megjelennek – szerző által jelentett PASS.
+- [x] **Másik felhasználó:** saját adatok elkülönítésének felületi ellenőrzése – szerző által jelentett PASS.
+
+**Talált hiba és újrapróba:** a kezdőlap „A kapcsolat nem ellenőrizhető” állapotot mutatott. A szerző által bemásolt böngészőhiba szerint az oldal eredete `http://localhost:5173` volt, miközben az engedélyezett frontend-origin `http://127.0.0.1:5173`. A két név eltérő origin. Codex HTTP-próbája a megfelelő originnel 200/`status: ok` és megfelelő Access-Control-Allow-Origin választ, localhost originnel 403/ORIGIN_NOT_ALLOWED választ adott; Windowsból is 200 volt a helyes health-kérés. A ténylegesen kiszolgált frontend bundle API-címe is `http://127.0.0.1:3000/api/v1` volt. Megoldás: a teljes frontend megnyitása a konfigurált `127.0.0.1:5173` címen. Ezután a szerző sikeres tesztelést jelzett. Alkalmazáskód vagy CORS-engedélylista nem változott.
+
+**Még külön bizonyítandó részletek:** a főfolyamatokra adott összesített visszajelzés önmagában nem igazolja az alábbi speciális negatív/mérési eseteket; ezek a korábbi részletes ellenőrzőlista nyitott részei maradnak:
+
+- [ ] Preview-kérések tényleges párhuzamosságának mérése (max. négy), listafrissítési kérésáradat és duplikáció hiányának hálózati igazolása.
+- [ ] Kényszerített kép-/lapozási hiba, lejárt URL, 429 és kézi retry, automatikus hibahurok nélkül.
+- [ ] Jó és hibás fájl közös kötege, külön sikeres retry és confirm előtti megjelenés kizárása valódi backenddel.
+- [ ] Teljes Tab/Shift+Tab/Enter/Space/Escape és fókusz-visszaadás részletes billentyűzetes jegyzőkönyve.
+- [ ] Másik user ismert fájl-ID-jére közvetlen preview-kérés 404-e, valamint fiókváltás közbeni késői válaszok célzott vizsgálata.
+
+Újabb futáskor a pontos verziót, dátumot, böngészőt, bemeneteket és tényleges eredményt a kapcsolódó bizonyítékkal együtt kell rögzíteni; cookie, signed URL és személyes adat nélkül. A korábbi unit/SSR-riportok alább az adott fejlesztési szelet akkori bizonyítékhatárát őrzik.
 
 
 ## Képes galéria és nagy előnézet – 2026-10-28
