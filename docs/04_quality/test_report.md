@@ -1,6 +1,35 @@
 # Test report
 
 
+
+## Explicit processing jobok és derived elszámolás – 2026-10-30
+
+**Verzió:** `feature/processing-state-service`, alap `fff8d19` (#37 tiszta processorra építve). **Környezet:** WSL Bash/Linux x64, Node22.23.2/npm10.9.8, Prisma7.10.1/Jest30.5.2; a már telepített Sharp0.35.5 kizárólag kis szintetikus WebP-fixture előállításához. A tesztportok in-memory Prisma/transaction- és storage-double-ok, valódi szerver vagy worker nélkül.
+
+| Ellenőrzés / lépések | Elvárt és tényleges eredmény |
+|---|---|
+| `npm run test --workspace backend -- --runTestsByPath test/processing-state.spec.ts` | **PASS:53/53**,22.318s; tartós állapotgép izolált Prisma-porton. |
+| `npm run test --workspace backend -- --runTestsByPath test/processing-publication.spec.ts` | **PASS:40/40**,28.852s;35 publisher-boundary és5 tényleges state+publisher kooperációs unit, külső I/O nélkül. |
+| `npm test` | **PASS:1209** =861 backend (20suite)+346 frontend (16file)+2 container helper. Backend105.420s, frontend3.36s. |
+| `npm run typecheck`, `npm run build` | **PASS**: Prisma generation, backend/frontend typecheck és Nest/Vite build. Nincs alkalmazásindítás/migrációdeploy. |
+| Ugyanaz a saját ACTIVE eredeti/version több párhuzamos create/claim hívással | Egy logikai job/aktuális claim; owner, MIME/config/source/build eltérés elutasított; User→File→Job→Attempt locksorrend és DB-clock: PASS. |
+| ExactR reservation replay, kvótahatár/+1, két job közös userkvótán és meglévő upload-foglalás mellett | Egy reservation, csak első commit PUT-jog; used+reserved+R korlát; BLOCKED_QUOTA nem ír/nem pollol: PASS. |
+| Két publisher/finalize egyszerre, state-replay; result/attempt/job/user/audit minden írásánál DB-fault | Egy nyertes/result/charge/audit; hiba minden részét rollbackeli: PASS. A fixture mutex és rollback, nem PostgreSQL izolációs bizonyíték. |
+| PUT létrehozza az objektum-double-t, majd elvész a válasz; következő attempt saját candidate-et publikál | Régi candidate R foglalása megmarad, új winner saját R-t used-ba könyvel;2 fizikai object-double,1 result,régi reserved+új used összeg helyes: PASS. |
+| Finalize audit-DB-hiba, majd ismétlés | STORED candidate és R megmarad, result/used/audit rollback; ismétlés új PUT nélkül egyszer véglegesít: PASS. |
+| Reservation/finalization commit sikerül, válasz elvész | Reservation után nincs vak PUT-jog (`pending`); finalization után ugyanaz a tartós winner no-op; nincs duplaírás/charge: PASS. |
+| Hibás receipt/hash/size/MIME/ETag/HEAD, abort és failure-mentés DB-hibája | Safe kód, nincs raw provideradat, DELETE vagy pozitív R-release; fallback WRITE_PENDING foglalás megmarad: PASS. |
+| Lease-expiry/heartbeat/commit közbeni lejárat, stale fence, mutable Claim/candidate átírása await közben | Régi jog nem éled újra, DB-óra dönt, elkülönített snapshotból történik a művelet: PASS. |
+|5s/30s retry,3/ciklus9teljes claim,2kézi ciklus; expectedRetryRevision replay/future/concurrent | Korlátos monoton számlálók, ugyanaz a retry elveszett válasz és későbbi FAILED után sem költ új ciklust; SUCCEEDED no-op: PASS. |
+| Cancel/restore és cleanup published/uncertain attempten | Inaktív parent CANCELLED, régi token invalid; restore explicit retry; R0 PREPARING zárható, pozitív R CLEANUP_BLOCKED, winner nem törölhető/charge nem vonható vissza: PASS. |
+
+**Review/javítás:** a service belépéskor másolja/freeze-eli a Claim és candidate primitív mezőit; első review ezt hiányolta. A retry required expectedRetryRevision CAS/replay-t kapott; SOURCE_NOT_ACTIVE tényleges inaktív forrást igényel és CANCELLED-et képez. Publisherben csak ismert forráshiba kerül explicit fail-re, ismeretlen DB-commit nem kompenzálható. Mindegyik végső regresszió sikeres. Az első tesztfixture Jest-realm miatti Date-instanceof eltérését javítottuk; termékkódot nem lazítottunk a fixture kedvéért.
+
+**Dokumentáció/biztonság:**55 helyi dokumentumlink és módosított fájl/frontend-bundle credential-scan PASS (secretértékek kiírása nélkül); `git diff --check` PASS. A README meglévő szerzői helyi módosítását a feladat nem érinti.
+
+**Nyitott:** valódi PostgreSQL-lock/konkurencia/rollback és MinIO/S3 receipt/HEAD/conditional-write együttműködés; worker, automatikus confirm-hook, API/galéria-thumbnail, cgroup/OOM/restart. Full-read candidate adoption, hiteles provider write-closure és pozitív R fizikai cleanup-release még nincs. Az in-memory object-/DB-double állapotai nem valós infrastruktúra-evidence. A meglévő régi75 SQL-constraint eset nem ennek a service-nek a futási bizonyítéka. Nincs új migráció, függőség, integration/e2e keretrendszer vagy CI-módosítás.
+
+
 ## Tiszta thumbnail processor – 2026-10-29
 
 **Verzió:** `feature/thumbnail-processor`, alap `899077b` (#35/#36 merge után), ennek a PR-nek a forrása. **Környezet:** WSL Bash/Linux x64, Node22.23.2/npm10.9.8, Sharp0.35.5/libvips8.18.7/libwebp1.6.0. Bemenetek futáskor előállított kis szintetikus képek; nincs személyes média, DB/storage vagy új integration/e2e suite.

@@ -229,3 +229,10 @@ Az új storage-transfers.spec.ts mockolt SDK mellett vizsgálja a teljes conditi
 ### Implementált thumbnail unitok – 2026-10-29
 
 Három Jest suite,107 eset:42 tényleges decoder-child/Sharp szintetikus kép,17 kontrollált process/IPC/deadline/abort,48 független WebP-header validálás. A fixture-ek futáskor kis szintetikus inputból keletkeznek; output újra Sharp-dekódolással formátum/méret/alpha/orientáció/pixel/metadata szerint ellenőrzött. Túlméretes pixelheaderhez nincs óriási raster allokálva. GIF/WebP/APNG frame0 és külön posteres APNG elutasítása külön eset. A fake child hibái nem natív OOM/time bizonyítékok. Worker/cgroup, DB/storage orchestration/recovery, Debian runtime, browser/UAT változatlanul nyitott; nem indult új integration/e2e suite.
+
+
+### Explicit processing-state és publication unitstratégia – 2026-10-30
+
+A Prisma-port tranzakcióit mutexes, rollbacket modellező izolált fixture ellenőrzi; a locksorrend és DB-clock lekérdezése megfigyelhető. Konkurens claim/reserve/finalize, külön jobok közös userkvótája, azonos végrehajtás replay-je, minden véglegesítési lépés DB-hibája, commit utáni elveszett válasz, lease/source/build eltérés és retry-keretek kapnak regressziót. A publisher külön mockolt storage receipt/HEAD és DB-service határon ellenőriz commit-before-PUT-ot, inputsnapshotot, egyszeri írási jogot, storage/DB részhibát és tiltott DELETE/release-t. A published winner védett, régi bizonytalan R megmarad.
+
+Ez nem valódi PostgreSQL-lock/transaction-izoláció vagy MinIO conditional-write/recovery bizonyíték. Worker/full-read adoption/provider-closure és végpont/browser elfogadás továbbra külön kapu; a schema korábbi SQL-verifier eredménye nem bizonyítja ezt a service-szeletet.

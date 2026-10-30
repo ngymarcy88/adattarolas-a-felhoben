@@ -6,7 +6,7 @@ Accepted – tervezési döntés; 2026-10-29.
 
 ## Implementation status
 
-**Részben implementált alap, 2026-10-29:** job/attempt/result séma, storage I/O, közös TypeScript `Processor` és explicit hívható `ThumbnailProcessor` elkészült. Root lockfile-ban pontos Sharp **0.35.5**, WSL Linux x64 runtime: libvips **8.18.7**, libwebp **1.6.0**. Nincs worker, Nest-regisztráció, confirmból indítás, új HTTP API vagy derived-könyvelő service. A galéria továbbra is eredetit mutat. A metadata-processor későbbi szelet.
+**Részben implementált alap, 2026-10-29:** job/attempt/result séma, storage I/O, közös TypeScript `Processor` és explicit hívható `ThumbnailProcessor` elkészült. Root lockfile-ban pontos Sharp **0.35.5**, WSL Linux x64 runtime: libvips **8.18.7**, libwebp **1.6.0**. 2026-10-30 óta explicit tranzakciós processing-state/publication service is van, derived-könyveléssel; nincs worker, Nest-regisztráció, confirmból indítás vagy új HTTP API. A galéria továbbra is eredetit mutat. A metadata-processor későbbi szelet.
 
 ## Context
 
@@ -83,3 +83,10 @@ Ellenőrizve: 2026-10-29. Az upstream képességek forrásai; a fenti limitek sa
 - [Sharp installation](https://sharp.pixelplumbing.com/install/): Node-API, Linux binárisok és platformfüggő lockfile-kockázat. A repo Node22/Debian célja dokumentáció alapján kompatibilis; WSL natív telepítés igazolt, Debian runtime külön nyitott kapu.
 - [Sharp LICENSE](https://github.com/lovell/sharp/blob/main/LICENSE): Apache-2.0; [libvips](https://www.libvips.org/): LGPL-2.1-or-later. A tranzitív codec licenceket a konkrét csomagnál leltározni kell.
 - [Jimp](https://jimp-dev.github.io/jimp/): alternatíva formátumlistája.
+
+
+## Explicit orchestration-szelet – 2026-10-30
+
+A feldolgozási állapot és kvóta már külön tranzakciós service-ben él; a publisher csak a foglalás első commitja után ír, az ismételt bizonytalan attempt nem kap új PUT-jogot. Result/állapot/R-átkönyvelés/audit atomikus. A DB/storage közötti hibák konzervatív tartós állapotot és foglalást hagynak, nem DELETE-alapú kompenzációt. A joblétrehozás explicit; confirm-integráció és a worker nem készült.
+
+A tervezett full-read recovery-adoption még nincs: lejárt írási candidate blokkolt, új generálás csak új kulccsal és új foglalással engedett a kereten belül. Ezzel a késői írás sem lesz elszámolatlan. A storage proof hiánya továbbra nem helyettesíthető timestamp/lease/HEAD404/DELETE200 értékkel. A biztonságos foglalásmegtartásnak tárhely-/üzemeltetési ára van; a hiteles cleanup-provider illesztése külön kapu.
