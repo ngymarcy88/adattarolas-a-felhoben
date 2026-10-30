@@ -240,3 +240,15 @@ Az API által dobott új hibák:409 THUMBNAIL_NOT_READY,409 PROCESSING_RETRY_NOT
 ### Implementált thumbnail-storage belső hibák – 2026-10-29
 
 A readOriginal/writeDerived a meglévő generikus StorageError-üzenetet használja: INVALID_ARGUMENT, INVALID_RESPONSE, UNAVAILABLE; conditional read412/416 OBJECT_CHANGED, conditional write412 OBJECT_EXISTS és409 WRITE_CONFLICT. Az utóbbi kettő új belső adapterkód, nem új publikus HTTP-hiba. Az abort oka, providerbody, credential, kulcs és bájtok nem kerülnek az errorba/logba. Write timeout/abort vagy hibás200-meta eredménye bizonytalan lehet, nincs retry/delete/kvótarelease mellékhatás. A későbbi processing-service/API mapping továbbra nincs implementálva. A törlés és a proof nélküli cleanup-kapu változatlan.
+
+
+### Implementált tiszta processor-hibák – 2026-10-29
+
+A `ProcessorError` nem HTTP-exception és nem indít retry-t: `PROCESSOR_INPUT_UNSUPPORTED`, `PROCESSOR_INPUT_INVALID`, `PROCESSOR_INPUT_LIMIT`, `PROCESSOR_OUTPUT_LIMIT`, `PROCESSOR_TIMEOUT`, `PROCESSOR_RESOURCE_LIMIT`, `PROCESSOR_ABORTED`, `PROCESSOR_INTERNAL_ERROR`. Egységes safe message: `Image processing failed.`; nincs raw Sharp/stack/path/inputadat. Nem támogatott MIME vagy külön posteres APNG UNSUPPORTED; támogatott MIME-mismatch/sérült dekódolás INVALID. Child signal RESOURCE_LIMIT, de önmagában nem bizonyít OOM-ot. Hibás IPC/fingerprint/hash/geometria INTERNAL_ERROR; méretprotokoll-túlcsordulás OUTPUT_LIMIT. Abort/timeout után megvárjuk a child kilépését. Az eredeti fájlt, DB-t, kvótát egyik sem módosítja; job/HTTP mapping a későbbi orchestration feladata.
+
+
+### Explicit processing-state és publication hibák – 2026-10-30
+
+A `ProcessingStateError` safe belső kódot ad (`PROCESSING_INVALID_ARGUMENT`, `PROCESSING_NOT_FOUND`, `SOURCE_NOT_ACTIVE`, `SOURCE_CHANGED`, `PROCESSING_POLICY_MISMATCH`, `PROCESSING_LEASE_LOST`, `PROCESSING_STATE_CONFLICT`, `PROCESSING_RETRY_EXHAUSTED`, `PROCESSING_DATABASE_UNAVAILABLE`), egységes message-gel, raw Prisma/stack/provideradat nélkül. Nincs új HTTP mapping. Kvótahiány tartós BLOCKED_QUOTA, automatikus retry nélkül; ismeretlen/policy-input hiba nem örökíthet tetszőleges error-stringet jobba. Transient hiba keretes5s/30s retryt kap, input/source hiba terminális.
+
+A `ProcessingPublicationError` storage-részhibát `PROCESSING_STORAGE_UNAVAILABLE`, caller abortot `PROCESSOR_ABORTED` kóddal jelez. Receipt/HEAD eltérés sem jogosít törlésre vagy kvótafelszabadításra. MarkStored/finalize DB-hibája külön marad a storage-failure ágtól: a commit lehet sikeres elveszett válasz mellett, ezért nincs vak fail/DELETE/PUT-kompenzáció. Sikertelen hibaállapot-mentés esetén is megmarad az előző tartós reservation. Cleanup proofhiány esetén CLEANUP_BLOCKED, nem implicit óra-alapú release.

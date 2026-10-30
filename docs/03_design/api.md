@@ -626,7 +626,7 @@ A 300 ms-os összevonás egy függő elsőoldalas olvasást tart; futó lista/fo
 
 ## Első thumbnail-processor API – TERVEZETT, 2026-10-29
 
-**Ezek a végpontok nem léteznek.** A tartós adatmodell sémája/migrációja már elkészült, de ez nem módosítja a meglévő API runtime-ját és nem indít jobot. A [képpolicy és Sharp-választás](../02_architecture/adr/ADR-016-thumbnail-processing.md), illetve [job/attempt/result és derived kvóta](data_model.md#első-thumbnail-processor--tervezett-szerződés-2026-10-29) az irányadó. Az első kiadásban csak `thumbnail@1.0.0` fut; image-metadata későbbi processor. Meglévő GET /files hétmezős válasza, cursorja és eredeti preview-url válasza változatlan; új storage key/URL nem kerül a listába.
+**Ezek a végpontok nem léteznek.** A tiszta Processor/ThumbnailProcessor már implementált, de csak explicit bináris transzformáció; nincs Nest-wiring, confirm-jobindítás vagy HTTP-ról meghívás. A tartós adatmodell sémája/migrációja már elkészült, de ez nem módosítja a meglévő API runtime-ját és nem indít jobot. A [képpolicy és Sharp-választás](../02_architecture/adr/ADR-016-thumbnail-processing.md), illetve [job/attempt/result és derived kvóta](data_model.md#első-thumbnail-processor--tervezett-szerződés-2026-10-29) az irányadó. Az első kiadásban csak `thumbnail@1.0.0` fut; image-metadata későbbi processor. Meglévő GET /files hétmezős válasza, cursorja és eredeti preview-url válasza változatlan; új storage key/URL nem kerül a listába.
 
 ### Indítás és a confirm határa
 
@@ -682,3 +682,8 @@ A10s deadline a transport sendet és olvasásnál az egész streamet lefedi. Cal
 Read412/416 OBJECT_CHANGED, write412 OBJECT_EXISTS, write409 WRITE_CONFLICT; nincs automatikus felülírás, retry, reconciliation vagy DELETE. Más transport/abort/timeout safe UNAVAILABLE; hibás méret/header/body/successmeta INVALID_RESPONSE; rossz argumentum INVALID_ARGUMENT még I/O előtt. A412 nem sikeres job/result-publication: később össze kell vetni a korábbi candidate-et a tartós attempttel. A writehiba/timeout/hibás successmeta akár már létező objektumot is jelenthet, így nem jogosít quota-release-re.
 
 A fizikai DELETE és writeClosureEvidence=unproven jelentése változatlan. Az adapter jelenleg **nem ad teljes derived-readet**, így a dokumentált recovery-adoption teljes bájt/hash-ellenőrzése még külön adapterlépést igényel. Nincs real-MinIO/S3/worker teszt ebben a unit-szeletben. Az [AWS PutObject](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html) és [conditional-write szerződés](https://docs.aws.amazon.com/AmazonS3/latest/userguide/conditional-writes.html) támasztja alá a create-only/412/409 mappinget; a kompatibilis provider tényleges viselkedése külön ellenőrizendő.
+
+
+### Processing service implementációs határ – 2026-10-30
+
+A belső state/publication service már explicit létrehozhat tartós jobot, claimet és candidate-et, tranzakciósan foglalhat/finalizálhat derived bájtokat. **Ez nem aktiválja a fenti tervezett HTTP végpontokat:** nincs controller/guard/DTO/confirm-hook vagy automatikus indítás ebben a szeletben. A meglévő upload/confirm/GET /files és eredeti-preview API változatlan. A Claim/fence/candidate/source-evidence belső típusok, nem kliens által megadható API-bemenetek; storage key, hash és lease-token nem publikus projekció.
