@@ -1,5 +1,29 @@
 # Test report
 
+
+## Tiszta thumbnail processor – 2026-10-29
+
+**Verzió:** `feature/thumbnail-processor`, alap `899077b` (#35/#36 merge után), ennek a PR-nek a forrása. **Környezet:** WSL Bash/Linux x64, Node22.23.2/npm10.9.8, Sharp0.35.5/libvips8.18.7/libwebp1.6.0. Bemenetek futáskor előállított kis szintetikus képek; nincs személyes média, DB/storage vagy új integration/e2e suite.
+
+| Ellenőrzés/lépés | Elvárt és tényleges eredmény |
+|---|---|
+| `npm run test --workspace backend -- --runTestsByPath test/thumbnail-boundary.spec.ts test/thumbnail-processor.spec.ts test/webp-output.spec.ts` | **PASS:107/107** (42 decoder,17 process-boundary,48 WebP-header),52.537s. Tényleges output újra-dekódolva; formátum/geometria/pixel/hash ellenőrzött. |
+| `npm test` | **PASS:1116** =2 container helper +768 backend (18 suite) +346 frontend (16 file). Backend100.332s, frontend5.05s. |
+| `npm run typecheck`, `npm run build` | **PASS**, Prisma generation és mindkét workspace. |
+| Buildelt `backend/dist` explicit processorhívása16×8 RGBA PNG-vel, output Sharp-decode | **PASS**: CJS child és JSON policy a buildben,16×8 alpha WebP. Nem HTTP/worker vagy container-runtime próba. |
+| JPEG/PNG/WebP/GIF; EXIF6/2, alpha, kicsi/nagy geometria, EXIF/ICC/XMP | Statikus WebP<=512×512, nincs felnagyítás, orientáció/tükrözés és metadata-strip: PASS. |
+| GIF/WebP/APNG frame0, külön poster/default APNG | Első frame pixeladata; külön posteres változat safe UNSUPPORTED: PASS. Ez ismert v1 korlát. |
+| Sérült/truncated/mismatch/unknown/path-like input,32MiB/40Mpixel/20000dim határ | Safe elutasítás; nincs tárolás/könyvelés: PASS. Nagy dimenzióhoz kis headerfixture, nem óriási raster. |
+| Snapshot, immutable manifest, child args/env, abort/time/deadline/protocol overflow | Safe kódok, bounded IPC, SIGKILL után close-ra vár; foglalt példány elutasít: PASS izolált fake-child esetekben. Nem natív OOM/OS-sandbox bizonyíték. |
+| Független WebP RIFF/VP8/VP8L/alpha/geometria/hash/protokoll vizsgálat | Valódi RGB/RGBA WebP elfogadott; metadata/animation/üres vagy hamis header/hibás méret elutasított: PASS. Nem második teljes pixeldekóder. |
+
+**Review:** backend/security független ellenőrzés után a szülő saját WebP-header vizsgálatot kapott; az eredeti üres RIFF elfogadási rés regresszióval javítva. Az APNG default-raster és first-animation-frame eltérése valós fixture-rel igazolt; a külön posteres változat elutasítása explicit ADR-policy. A kezdeti stale fixture/matcher assertionök a végső107-es futás előtt javítva.
+
+**Dokumentáció/biztonság:**78 helyi dokumentumlink, módosított fájlok és frontend-bundle rejtett credential-scan, `git diff --check`: PASS.
+
+**Nyitott:** worker/cgroup memory/CPU/pids/OOM és restart; Debian natív runtime; job/DB/storage/kvóta/publikálás/recovery; HTTP/galéria thumbnail és user acceptance. A jelenlegi galéria változatlanul eredetit használ. Nincs automatikus indítás vagy tényleges derived output az objektumtárban.
+
+
 ## Thumbnail storage I/O adapter – 2026-10-29
 
 **Verzió:** `feature/thumbnail-storage-io`, `06e4286` adatmodell után. **Környezet:** WSL Bash, Linux Node22.23.2/npm10.9.8, Jest és mockolt AWS SDK/Node Readable/fake timer. Nincs új dependency, Prisma/migráció, kvótakezelés, processor, worker vagy HTTP-végpont ebben az incrementben. A futó MinIO/application DB adatait a unitok nem érintették.
