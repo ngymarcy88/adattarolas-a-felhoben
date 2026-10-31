@@ -27,4 +27,5 @@ export interface AppConfig {
   allowedMimeTypes: AllowedMimeType[];
   maxUploadBytes: number;
   presignedUrlTtlSeconds: number;
+  thumbnailPreviewTtlSeconds: number;
 }

@@ -97,6 +97,7 @@ export function validateEnvironment(env: Record<string, unknown>): AppConfig {
     allowedMimeTypes: allowedMimeTypes as AllowedMimeType[],
     maxUploadBytes: integer('MAX_UPLOAD_BYTES', 104857600, 1, 104857600),
     presignedUrlTtlSeconds: integer('PRESIGNED_URL_TTL_SECONDS', 300, 1, 300),
+    thumbnailPreviewTtlSeconds: integer('THUMBNAIL_PREVIEW_TTL_SECONDS', 60, 30, 300),
   };
   if (invalid.size) {
     throw new Error(`Invalid configuration variables: ${[...invalid].sort().join(', ')}`);

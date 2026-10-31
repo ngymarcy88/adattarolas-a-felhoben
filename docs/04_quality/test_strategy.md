@@ -202,7 +202,7 @@ Upload-state unitok: több párhuzamos confirm egy hullámjelzés, részleges si
 
 ## Első thumbnail-processor – tervezett ellenőrzések, 2026-10-29
 
-**Nem lefutott tesztek.** Az [ADR-016](../02_architecture/adr/ADR-016-thumbnail-processing.md), [adatmodell](../03_design/data_model.md#első-thumbnail-processor--tervezett-szerződés-2026-10-29) és [API](../03_design/api.md#első-thumbnail-processor-api--tervezett-2026-10-29) implementációs elfogadási kapui; nem új integration/e2e engedély.
+**Nem lefutott tesztek.** Az [ADR-016](../02_architecture/adr/ADR-016-thumbnail-processing.md), [adatmodell](../03_design/data_model.md#első-thumbnail-processor--tervezett-szerződés-2026-10-29) és [API](../03_design/api.md#első-thumbnail-processor-api--implementált-2026-10-31) implementációs elfogadási kapui; nem új integration/e2e engedély.
 
 | Csoport | Unit / izolált ellenőrzés később |
 |---|---|
@@ -254,3 +254,8 @@ A valódi UploadConfirmService és ProcessingStateService közös mockolt Prisma
 A valódi worker/state/publication service-ek közös mutexes/rollbackes DB-double és storage-port mellett teszteltek, a processor maga mockolt (a meglévő külön processor-suite valódi szintetikus képeket dekódol). Promise-gate és fake timer idézi elő a fizikai slot/heartbeat/abort/drain/late-result versenyeket; a DB-clock külön vezérelt. Recovery-fence, full-read evidence, writepending/stored crashpontok, read-only probe-budget, generation-budget végén adoption, rollback/lostack, candidate-hash/header/source hiba, source delete/restore, claim-gap race és closure nélküli R-retention külön esetek. Derived adapter ugyanazon bounded full-read primitíven keresztül kap SDK/stream unitokat.
 
 Ezek nem tényleges PostgreSQL lockok, container OOM vagy processzkilövéses recovery. A tesztriport manuális listája NYITOTT mindaddig, amíg azonosított verzióval, kontrollált szintetikus inputtal, tényleges DB+object-count+kvóta ellenőrzéssel végre nem hajtják. A Compose config validálása nem indítási/erőforrás-limit bizonyíték.
+
+
+### Processing API unitok – 2026-10-31
+
+Strict DTO/UUID/body/query, session/Origin route-wiring, külön bounded per-user rate budget, egész batch ownership, ACTIVE/allowlist/verzió/build/forrás, explicit safe projekció és csak READY+SUCCEEDED eredmény. Thumbnail HEAD/size/MIME, fixed inline név, TTL-minimum, lejárt/hibás aláírás és signing utáni metaadatváltozás; retry valódi state-service CAS-szal párhuzamos és lost-response replay, SUCCEEDED no-op, jövőbeli revision, végleges hibák és keret. Storage/DB belső hibák nem szivároghatnak. Ezek izolált unitok, nem futó HTTP/valódi PostgreSQL/MinIO elfogadás. A fájllista/original-preview regresszióit a meglévő teljes unitkör fedi.

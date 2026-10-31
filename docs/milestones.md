@@ -150,6 +150,7 @@ A történeti MVP-0–MVP-7 helyett az alábbi **SZD2-0–SZD2-7** az aktuális 
 - [x] Explicit processing-state/publication service: tartós job/claim/retry, tranzakciós derived reservation/result/accounting/audit, bizonytalan íráskor megtartott R; unit ellenőrzés. Worker/confirm-hook/full-read recovery és hiteles cleanup-release külön nyitott.
 - [x] Friss sikeres confirm tranzakciójában tartós, egyedi thumbnail-job; rollback/replay/kizárt állapot unitok, worker/backfill nélkül.
 - [x] Bounded thumbnail-worker és fenced full-read recovery implementációja, külön Compose-szerep/DB-job/probe keret; unitok. Valódi cgroup/OOM/MinIO/DB/restart és UI-eredmény elfogadása még nyitott.
+- [x] Saját ACTIVE képek processing status / thumbnail-url / külön retry backendje: strict batch, aktuális verzió/forrás, publikált eredmény ellenőrzése, rövid URL és bounded idempotens retry; unitok. Thumbnail UI és valódi HTTP/DB/storage elfogadás nyitott.
 - [ ] Eredeti és derived storage konzisztens elszámolása; minimális tartós job/result és audit, titkok nélkül.
 - [ ] Bemutatható commit, valós képernyőkép, tesztriport, kipróbált lokális telepítés és aktuális dolgozatrész.
 

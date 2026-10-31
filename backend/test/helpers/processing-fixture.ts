@@ -49,7 +49,7 @@ function apply(row: Row, data: Row): void {
   }
 }
 
-export function processingFixture() {
+export function processingFixture(policy: ProcessingPolicy = processingPolicy) {
   const fixture = {
     now: new Date('2026-10-30T12:00:00.000Z'),
     store: {
@@ -158,5 +158,5 @@ export function processingFixture() {
   };
   const config = { getOrThrow: () => ({ allowedMimeTypes: ['image/png', 'image/jpeg', 'image/webp', 'image/gif'], maxUploadBytes: 104857600 }) } as unknown as ConfigService;
   return Object.assign(fixture, { tx, db, config,
-    service: new ProcessingStateService(db as unknown as PrismaService, config, processingPolicy) });
+    service: new ProcessingStateService(db as unknown as PrismaService, config, policy) });
 }

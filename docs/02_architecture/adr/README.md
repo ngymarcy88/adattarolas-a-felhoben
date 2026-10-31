@@ -50,4 +50,4 @@ Az ADR-ek elfogadott **tervezési döntéseket** rögzítenek. Elfogadott státu
 
 ## Első thumbnail-processor – tervezett implementáció
 
-- [ADR-016: Sharp thumbnail processor, durable jobs and derived accounting](ADR-016-thumbnail-processing.md) – elfogadott terv, 2026-10-29; nincs dependency/séma/runtime-változás. A részletes kanonikus [API](../../03_design/api.md#első-thumbnail-processor-api--tervezett-2026-10-29) és [adatmodell](../../03_design/data_model.md#első-thumbnail-processor--tervezett-szerződés-2026-10-29) a v1 képpolicyt, job/recoveryt és derived elszámolást rögzíti.
+- [ADR-016: Sharp thumbnail processor, durable jobs and derived accounting](ADR-016-thumbnail-processing.md) – elfogadott terv, 2026-10-29; nincs dependency/séma/runtime-változás. A részletes kanonikus [API](../../03_design/api.md#első-thumbnail-processor-api--implementált-2026-10-31) és [adatmodell](../../03_design/data_model.md#első-thumbnail-processor--tervezett-szerződés-2026-10-29) a v1 képpolicyt, job/recoveryt és derived elszámolást rögzíti.

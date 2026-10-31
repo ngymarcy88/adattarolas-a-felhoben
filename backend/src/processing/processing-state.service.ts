@@ -20,6 +20,12 @@ type Tx = Prisma.TransactionClient;
 function error(code: ConstructorParameters<typeof ProcessingStateError>[0]): never { throw new ProcessingStateError(code); }
 const add = (time: Date, ms: number) => new Date(time.getTime() + ms);
 
+/** Canonical original identity snapshot shared by scheduling, execution and read projections. */
+export function processingSourceFingerprint(file: Pick<FileObject, 'id' | 'storageKey' | 'sizeBytes' | 'detectedMimeType'>): string {
+  return createHash('sha256').update(JSON.stringify({ fileId: file.id, storageKey: file.storageKey,
+    sizeBytes: file.sizeBytes.toString(), detectedMimeType: file.detectedMimeType })).digest('hex');
+}
+
 /** Internal explicit state machine. No worker, storage I/O, automatic scheduling or proof inference. */
 export class ProcessingStateService {
   private readonly policy: ProcessingPolicy;
@@ -92,8 +98,7 @@ export class ProcessingStateService {
     }
   }
   private sourceFingerprint(file: FileObject): string {
-    return createHash('sha256').update(JSON.stringify({ fileId: file.id, storageKey: file.storageKey,
-      sizeBytes: file.sizeBytes.toString(), detectedMimeType: file.detectedMimeType })).digest('hex');
+    return processingSourceFingerprint(file);
   }
   private source(file: FileObject, active = true): void {
     if (active && (file.status !== 'ACTIVE' || file.deletedAt !== null)) error('SOURCE_NOT_ACTIVE');
@@ -220,21 +225,27 @@ export class ProcessingStateService {
   }
 
   async retry(ownerId: string, fileId: string, jobId: string, expectedRetryRevision: number): Promise<ProcessingJob> {
+    return (await this.retryWithOutcome(ownerId, fileId, jobId, expectedRetryRevision)).job;
+  }
+
+  /** HTTP can distinguish the CAS winner from concurrent/lost-response replay without a racy pre-read. */
+  async retryWithOutcome(ownerId: string, fileId: string, jobId: string, expectedRetryRevision: number): Promise<{ job: ProcessingJob; changed: boolean }> {
     if (!Number.isSafeInteger(expectedRetryRevision) || expectedRetryRevision < 0 || expectedRetryRevision > 2) {
       error('PROCESSING_INVALID_ARGUMENT');
     }
     return this.locked(ownerId, fileId, jobId, async (tx, view) => {
       const job = this.job(view); const now = await this.now(tx);
       if (expectedRetryRevision > job.retryRevision) error('PROCESSING_STATE_CONFLICT');
-      if (expectedRetryRevision < job.retryRevision || job.state === 'SUCCEEDED') return job;
+      if (expectedRetryRevision < job.retryRevision || job.state === 'SUCCEEDED') return { job, changed: false };
       if (!job.retryable || !['FAILED', 'BLOCKED_QUOTA', 'CANCELLED'].includes(job.state)) error('PROCESSING_STATE_CONFLICT');
       if (job.retryRevision >= 2 || job.totalAttemptCount >= 9) error('PROCESSING_RETRY_EXHAUSTED');
       for (const attempt of view.attempts) {
         if (!['WRITE_PENDING', 'STORED'].includes(attempt.phase)) await this.retire(tx, attempt, now);
       }
-      return tx.processingJob.update({ where: { id: jobId }, data: { state: 'QUEUED', cycleAttemptCount: 0,
+      const updated = await tx.processingJob.update({ where: { id: jobId }, data: { state: 'QUEUED', cycleAttemptCount: 0,
         recoveryProbeCount: 0, retryRevision: job.retryRevision + 1, fence: job.fence + 1n,
         nextAttemptAt: null, lastErrorCode: null, retryable: false, finishedAt: null, leaseOwner: null, leaseUntil: null, updatedAt: now } });
+      return { job: updated, changed: true };
     });
   }
 
