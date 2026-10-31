@@ -1,6 +1,38 @@
 # Test report
 
 
+## TH-01/TH-02 javítás és helyi reteszt – 2026-10-31
+
+**Eredmény: a kártyathumbnail hibája javítva és tényleges böngészőben újratesztelve.** A korábbi sikertelen mérés lent változatlanul megmarad; a teljes SZD2/recovery/UAT kapuk ettől nem zárulnak le.
+
+**Verzió:** kód `a3a80a801da24e0c392389a982c2463897ac2ca2`, a bemergelt #40–44 utáni `c0835ab` mainről. Futó frontend image `sha256:d81ee86bdbf0380d2a951718ec810b091f03daac1671a5e81229826ecf490f72`, bundle `index-4CUQyOjH.js`; backend/worker változatlan. **Környezet:**2026-10-31,20:41–20:49 UTC /21:41–21:49 Budapest; WSL/Linux Node22.23.2/npm10.9.8, Docker26.1.1/PostgreSQL17.9/MinIO, külön Windows Chrome156 headless tesztprofil/natív CDP. Meglévő volume-ok megtartva; új A/B szintetikus fiókok. Bemenet ismét17316B1024×768 PNG és41B sérült PNG-prefix; a friss browser.png a valódi file chooser és upload gomb útján ment fel. [Titokmentes reteszt-artefakt](../assets/evidence/thumbnail-fix-retest-2026-10-31.json).
+
+**Igazolt ok és változás:** külön watcher kezelte a result-invalidálást és a láthatóság szerinti igényt. Ha a láthatóvá válás és SUCCEEDED ugyanabban a Vue batchben érkezett, az igény elindulhatott az invalidálás előtt, amely utána törölte/megszakította az új kérést. Kliensoldalra fordított valódi SFC + Vue host renderer egységtesztben a régi kóddal a thumbnail cache-entry undefined maradt. Egy közös watcher most előbb invalidál, utána kér URL-t. A TH-02 upload-siker szövege a galériában követhető feldolgozást jelzi. Nincs új dependency, tesztframework vagy API/storage/quota változás.
+
+**Automatikus ellenőrzés:** a célzott diagnosztika előbb reprodukálta a hibát (két alaphelyzet PASS, ugyanabban a batchben érkező visibility/result FAIL). Javítás után az egyszeri végső `npm test`:1042 backend +405 frontend +2 helper = **1449 PASS**,3 új klienskomponens-regresszió. A teszt a rendes QUEUED→SUCCEEDED lifecycle-t, az egy batchen belüli versenyt, a manuális image retry-t és az új result-azonosságot is ellenőrzi. Workspace typecheck és build PASS. Ezek node/host-renderer unitok, nem új integration/e2e framework és nem a böngészős bizonyíték helyettesítői.
+
+| Végrehajtott helyi reteszt | Tényleges eredmény |
+|---|---|
+| Korábbi és új frontend elkülönítése, kényszerített újratöltés. | **PASS:** a Chrome először a korábbi `index-DelJx3FS.js` csomagot használta; cache-bypass reload után igazoltan `index-4CUQyOjH.js`. Az alábbi elfogadás már ezen az új dokumentumon/builden történt, nem diagnosztikai kézi cache-feltöltéssel. |
+| Meglévő saját valid.png kártya viewportba görgetése. | **PASS:** a komponens önállóan thumbnail-url kérést indított,512×384 image complete=true; a sérült testvér külön FAILED állapotban maradt. |
+| Új browser.png választása → Feltöltés indítása → ACTIVE confirm/job → kész thumbnail → automatikus galériafrissítés. | **PASS:** UI1/1 sikeres, három saját kártya; browser.png és valid.png két valóban betöltött512×384 thumbnail, eredeti listafrissítési gomb nélkül. Az upload üzenete már a feldolgozási állapot galériában követését írja. |
+| Browser.png nagy előnézet, Escape, fókusz. | **PASS:** az eredeti1024×768-as kép teljesen betöltött, miközben a két kártyakép512×384 maradt. Anonymous/no-referrer képek; Escape bezárta a dialogot és a fókusz a browser.png nyitógombjára került. Resource timing összesen2 thumbnail-url és1 original-preview kérést mutatott. |
+| Valódi HTTP/DB/MinIO ellenőrzés a friss A/B fiókon. | **PASS a megismételt esetekben:** worker nélkül tartós QUEUED, érvényes WebP és teljes GET/hash; sérült PNG permanent FAILED/409retry, idegen API-k404/anonymous status401. Quota17316B mellett BLOCKED_QUOTA, második original init409; keretemelés után párhuzamos retry202/200, egy result, successful replay200. |
+| Browser fiókcsere B-re és kijelentkezés. | **PASS:** B-n egyetlen quota.png kártya, A három fájlja nincs jelen; a tényleges kijelentkezés a login oldalra vitt, képek nélkül. |
+| DB/storage végső összevetés. | **PASS:** A3original/2READY/5objektum, used35645B; B1original/1READY/2objektum, used17802B. Mindkettő reserved0; teljes prefix-lista/HEAD/GET/SHA egyezés. B kerete vissza1GiB. |
+
+A backend-próbák egy része a frontend javítását megelőző alapállapotban futott; backendkód/image változatlan, a friss UI-feltöltés DB/storage ellenőrzése már a javított frontend után történt. Hard restartot és két worker versenyét **nem ismételtem meg** a frontend-javítás miatt: a korábbi, alább megőrzött mérés érvényes határa marad. Továbbra is nyitott a >20 elemes browserlapozás, valódi hidden/unmount hálózati abort, más recovery-pontok/élő régi worker, bizonytalan cleanup/proof, OOM és külső UAT. A backend quota/R-invariánsok nem változtak.
+
+![4. ábra – Javított galéria: kész thumbnail és elkülönített sérült kép](../assets/screenshots/thumbnail-gallery-fixed-2026-10-31.png)
+
+*4. ábra: a frissen feltöltött browser.png valódi kártyaképe, mellette a sérült eredeti elkülönített hibás feldolgozási állapota.*
+
+![5. ábra – A javított galéria mellett továbbra is az eredeti nyílik meg](../assets/screenshots/thumbnail-preview-fixed-2026-10-31.png)
+
+*5. ábra: browser.png nagy előnézete az eredeti1024×768 képből. A kártyák512×384 thumbnailt használnak.*
+
+
+
 ## Első thumbnail-folyamat: valódi helyi ellenőrzés – 2026-10-31
 
 **Összeredmény: NEM ELFOGADOTT.** A backend-folyamat, a tartós job, a sérült kép elkülönítése, a külön retry, a STORED restart recovery, a duplikációvédelem és a kvóta a végrehajtott esetekben sikeres. A galéria kártyáján a kész thumbnail **nem jelenik meg (TH-01)**, ezért a teljes feltöltés → galéria acceptance nem zárható le. Ez fejlesztői technikai ellenőrzés, nem külső UAT.

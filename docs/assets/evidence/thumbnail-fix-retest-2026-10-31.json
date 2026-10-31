@@ -1,0 +1,473 @@
+{
+  "testedCodeCommit": "a3a80a801da24e0c392389a982c2463897ac2ca2",
+  "baseMain": "c0835abe19e55651d9a9316ead57aee817b03029",
+  "mergedPrerequisites": [
+    40,
+    41,
+    42,
+    43,
+    44
+  ],
+  "date": "2026-10-31",
+  "frontendBundle": "index-4CUQyOjH.js",
+  "frontendImage": "sha256:d81ee86bdbf0380d2a951718ec810b091f03daac1671a5e81229826ecf490f72",
+  "environment": {
+    "node": "22.23.2",
+    "docker": "26.1.1",
+    "postgres": "17.9",
+    "sharp": "0.35.5",
+    "browser": "Windows Chrome156 headless, isolated test profile, native CDP"
+  },
+  "regression": {
+    "oldCodeSameBatch": "FAIL: cache entry undefined after visibility and SUCCEEDED in one update batch",
+    "fix": "Invalidate before requesting access in one watcher",
+    "unitCount": 1449,
+    "newClientTests": 3
+  },
+  "inputs": [
+    {
+      "name": "valid",
+      "user": "A",
+      "bytes": 17316,
+      "sha256": "5c2f69063d5453e7e9dcebafd7f81d837477d74eb826b424cdcae43bce7523a8"
+    },
+    {
+      "name": "corrupt",
+      "user": "A",
+      "bytes": 41,
+      "sha256": "d0210d3c084fe5faf5813cfc987191128a3808c5a6d966ef4b128194fc5d020d"
+    },
+    {
+      "name": "quota",
+      "user": "B",
+      "bytes": 17316,
+      "sha256": "5c2f69063d5453e7e9dcebafd7f81d837477d74eb826b424cdcae43bce7523a8"
+    },
+    {
+      "name": "browser",
+      "user": "A",
+      "bytes": 17316,
+      "sha256": "5c2f69063d5453e7e9dcebafd7f81d837477d74eb826b424cdcae43bce7523a8"
+    }
+  ],
+  "events": [
+    {
+      "at": "2026-10-31T20:41:00.887Z",
+      "name": "runtime",
+      "commit": "c0835abe19e55651d9a9316ead57aee817b03029",
+      "node": "v22.23.2",
+      "frontendOrigin": "http://127.0.0.1:5173",
+      "backendOrigin": "http://127.0.0.1:3000"
+    },
+    {
+      "at": "2026-10-31T20:41:01.595Z",
+      "name": "account_created",
+      "label": "A"
+    },
+    {
+      "at": "2026-10-31T20:41:02.231Z",
+      "name": "account_created",
+      "label": "B"
+    },
+    {
+      "at": "2026-10-31T20:41:03.532Z",
+      "name": "active_and_durable_job",
+      "label": "valid",
+      "originalBytes": 17316,
+      "state": "QUEUED"
+    },
+    {
+      "at": "2026-10-31T20:41:03.544Z",
+      "name": "queued_persists_worker_stopped"
+    },
+    {
+      "at": "2026-10-31T20:41:05.919Z",
+      "name": "job_observed",
+      "label": "valid",
+      "state": "QUEUED",
+      "attemptCount": 0,
+      "errorCode": null
+    },
+    {
+      "at": "2026-10-31T20:41:06.833Z",
+      "name": "job_observed",
+      "label": "valid",
+      "state": "RUNNING",
+      "phase": "STORED",
+      "attemptCount": 1,
+      "errorCode": null
+    },
+    {
+      "at": "2026-10-31T20:41:07.139Z",
+      "name": "job_observed",
+      "label": "valid",
+      "state": "SUCCEEDED",
+      "phase": "PUBLISHED",
+      "attemptCount": 1,
+      "errorCode": null
+    },
+    {
+      "at": "2026-10-31T20:41:07.217Z",
+      "name": "ready_bytes_and_urls",
+      "label": "valid",
+      "thumbnailBytes": 486,
+      "width": 512,
+      "height": 384,
+      "mime": "webp",
+      "ttlSeconds": 60,
+      "originalShaMatches": true
+    },
+    {
+      "at": "2026-10-31T20:41:07.281Z",
+      "name": "active_and_durable_job",
+      "label": "corrupt",
+      "originalBytes": 41,
+      "state": "QUEUED"
+    },
+    {
+      "at": "2026-10-31T20:41:07.284Z",
+      "name": "job_observed",
+      "label": "corrupt",
+      "state": "QUEUED",
+      "attemptCount": 0,
+      "errorCode": null
+    },
+    {
+      "at": "2026-10-31T20:41:08.511Z",
+      "name": "job_observed",
+      "label": "corrupt",
+      "state": "RUNNING",
+      "phase": "PREPARING",
+      "attemptCount": 1,
+      "errorCode": null
+    },
+    {
+      "at": "2026-10-31T20:41:08.815Z",
+      "name": "job_observed",
+      "label": "corrupt",
+      "state": "FAILED",
+      "phase": "RELEASED",
+      "attemptCount": 1,
+      "errorCode": "PROCESSOR_INPUT_INVALID"
+    },
+    {
+      "at": "2026-10-31T20:41:08.847Z",
+      "name": "corrupt_isolated_permanent_failure",
+      "originalActive": true,
+      "retryStatus": 409
+    },
+    {
+      "at": "2026-10-31T20:41:08.884Z",
+      "name": "ownership_and_session_exclusion",
+      "foreignStatus": 404,
+      "anonymousStatus": 401
+    },
+    {
+      "at": "2026-10-31T20:41:08.890Z",
+      "name": "gallery_api_contains_originals",
+      "count": 2,
+      "renderedBrowser": false
+    },
+    {
+      "at": "2026-10-31T20:41:08.910Z",
+      "name": "db_storage_quota",
+      "user": "A",
+      "files": 2,
+      "readyResults": 1,
+      "objects": 3,
+      "objectBytes": 17843,
+      "usedBytes": "17843",
+      "reservedBytes": "0",
+      "limitBytes": "1073741824"
+    },
+    {
+      "at": "2026-10-31T20:46:26.825Z",
+      "name": "active_and_durable_job",
+      "label": "quota",
+      "originalBytes": 17316,
+      "state": "QUEUED"
+    },
+    {
+      "at": "2026-10-31T20:46:26.837Z",
+      "name": "job_observed",
+      "label": "quota",
+      "state": "QUEUED",
+      "attemptCount": 0,
+      "errorCode": null
+    },
+    {
+      "at": "2026-10-31T20:46:27.757Z",
+      "name": "job_observed",
+      "label": "quota",
+      "state": "RUNNING",
+      "phase": "PREPARING",
+      "attemptCount": 1,
+      "errorCode": null
+    },
+    {
+      "at": "2026-10-31T20:46:28.063Z",
+      "name": "job_observed",
+      "label": "quota",
+      "state": "BLOCKED_QUOTA",
+      "phase": "RELEASED",
+      "attemptCount": 1,
+      "errorCode": "DERIVED_QUOTA_EXCEEDED"
+    },
+    {
+      "at": "2026-10-31T20:46:28.128Z",
+      "name": "db_storage_quota",
+      "user": "B",
+      "files": 1,
+      "readyResults": 0,
+      "objects": 1,
+      "objectBytes": 17316,
+      "usedBytes": "17316",
+      "reservedBytes": "0",
+      "limitBytes": "17316"
+    },
+    {
+      "at": "2026-10-31T20:46:28.156Z",
+      "name": "original_quota_rejection",
+      "status": 409
+    },
+    {
+      "at": "2026-10-31T20:46:28.209Z",
+      "name": "concurrent_processor_retry",
+      "statuses": [
+        202,
+        200
+      ],
+      "revisions": [
+        1,
+        1
+      ]
+    },
+    {
+      "at": "2026-10-31T20:46:28.214Z",
+      "name": "job_observed",
+      "label": "quota",
+      "state": "QUEUED",
+      "phase": "RELEASED",
+      "attemptCount": 1,
+      "errorCode": null
+    },
+    {
+      "at": "2026-10-31T20:46:29.736Z",
+      "name": "job_observed",
+      "label": "quota",
+      "state": "RUNNING",
+      "phase": "PREPARING",
+      "attemptCount": 2,
+      "errorCode": null
+    },
+    {
+      "at": "2026-10-31T20:46:30.041Z",
+      "name": "job_observed",
+      "label": "quota",
+      "state": "SUCCEEDED",
+      "phase": "PUBLISHED",
+      "attemptCount": 2,
+      "errorCode": null
+    },
+    {
+      "at": "2026-10-31T20:46:30.056Z",
+      "name": "db_storage_quota",
+      "user": "B",
+      "files": 1,
+      "readyResults": 1,
+      "objects": 2,
+      "objectBytes": 17802,
+      "usedBytes": "17802",
+      "reservedBytes": "0",
+      "limitBytes": "1073741824"
+    },
+    {
+      "at": "2026-10-31T20:46:30.087Z",
+      "name": "successful_retry_noop"
+    },
+    {
+      "at": "2026-10-31T20:48:07.974Z",
+      "name": "job_observed",
+      "label": "browser",
+      "state": "SUCCEEDED",
+      "phase": "PUBLISHED",
+      "attemptCount": 1,
+      "errorCode": null
+    },
+    {
+      "at": "2026-10-31T20:48:08.081Z",
+      "name": "ready_bytes_and_urls",
+      "label": "browser",
+      "thumbnailBytes": 486,
+      "width": 512,
+      "height": 384,
+      "mime": "webp",
+      "ttlSeconds": 60,
+      "originalShaMatches": true
+    },
+    {
+      "at": "2026-10-31T20:48:08.126Z",
+      "name": "ready_bytes_and_urls",
+      "label": "quota",
+      "thumbnailBytes": 486,
+      "width": 512,
+      "height": 384,
+      "mime": "webp",
+      "ttlSeconds": 60,
+      "originalShaMatches": true
+    },
+    {
+      "at": "2026-10-31T20:48:08.146Z",
+      "name": "db_storage_quota",
+      "user": "A",
+      "files": 3,
+      "readyResults": 2,
+      "objects": 5,
+      "objectBytes": 35645,
+      "usedBytes": "35645",
+      "reservedBytes": "0",
+      "limitBytes": "1073741824"
+    },
+    {
+      "at": "2026-10-31T20:48:08.158Z",
+      "name": "db_storage_quota",
+      "user": "B",
+      "files": 1,
+      "readyResults": 1,
+      "objects": 2,
+      "objectBytes": 17802,
+      "usedBytes": "17802",
+      "reservedBytes": "0",
+      "limitBytes": "1073741824"
+    },
+    {
+      "at": "2026-10-31T20:48:08.195Z",
+      "name": "fixed_source_version",
+      "codeCommit": "a3a80a801da24e0c392389a982c2463897ac2ca2",
+      "frontendBundle": "index-4CUQyOjH.js"
+    }
+  ],
+  "browser": {
+    "cacheBypassed": true,
+    "gallery": {
+      "phase": "images",
+      "images": [
+        {
+          "alt": "browser.png",
+          "complete": true,
+          "width": 512,
+          "height": 384,
+          "anonymous": "anonymous",
+          "referrer": "no-referrer"
+        },
+        {
+          "alt": "valid.png",
+          "complete": true,
+          "width": 512,
+          "height": 384,
+          "anonymous": "anonymous",
+          "referrer": "no-referrer"
+        }
+      ],
+      "dialogOpen": false,
+      "focusLabel": null,
+      "states": [
+        "3 betöltött kép",
+        "Kiskép elkészült",
+        "A kiskép feldolgozása sikertelen",
+        "Kiskép elkészült",
+        "1 / 1 sikeres · 0 hibás"
+      ]
+    },
+    "original": {
+      "phase": "images",
+      "images": [
+        {
+          "alt": "browser.png",
+          "complete": true,
+          "width": 512,
+          "height": 384,
+          "anonymous": "anonymous",
+          "referrer": "no-referrer"
+        },
+        {
+          "alt": "valid.png",
+          "complete": true,
+          "width": 512,
+          "height": 384,
+          "anonymous": "anonymous",
+          "referrer": "no-referrer"
+        },
+        {
+          "alt": "browser.png",
+          "complete": true,
+          "width": 1024,
+          "height": 768,
+          "anonymous": "anonymous",
+          "referrer": "no-referrer"
+        }
+      ],
+      "dialogOpen": true,
+      "focusLabel": null,
+      "states": [
+        "3 betöltött kép",
+        "Kiskép elkészült",
+        "A kiskép feldolgozása sikertelen",
+        "Kiskép elkészült",
+        "1 / 1 sikeres · 0 hibás"
+      ]
+    },
+    "escape": {
+      "phase": "images",
+      "images": [
+        {
+          "alt": "browser.png",
+          "complete": true,
+          "width": 512,
+          "height": 384,
+          "anonymous": "anonymous",
+          "referrer": "no-referrer"
+        },
+        {
+          "alt": "valid.png",
+          "complete": true,
+          "width": 512,
+          "height": 384,
+          "anonymous": "anonymous",
+          "referrer": "no-referrer"
+        }
+      ],
+      "dialogOpen": false,
+      "focusLabel": "Nagy előnézet: browser.png",
+      "states": [
+        "3 betöltött kép",
+        "Kiskép elkészült",
+        "A kiskép feldolgozása sikertelen",
+        "Kiskép elkészült",
+        "1 / 1 sikeres · 0 hibás"
+      ]
+    },
+    "networkAfterOriginal": {
+      "thumbnailRequests": 2,
+      "originalRequests": 1,
+      "statusRequests": 3
+    },
+    "accountB": {
+      "cards": 1,
+      "names": [
+        "quota.png"
+      ],
+      "noAImages": true
+    },
+    "logout": {
+      "loginPage": true
+    },
+    "TH01": "PASS",
+    "TH02": "PASS"
+  },
+  "limits": [
+    "No external UAT",
+    "No repeat of hard-restart/OOM/unknown-write cleanup during this frontend fix; previous scoped evidence remains",
+    "No >20 card browser pagination or hidden-page abort experiment"
+  ]
+}
