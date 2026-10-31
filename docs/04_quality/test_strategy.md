@@ -264,3 +264,8 @@ Strict DTO/UUID/body/query, session/Origin route-wiring, külön bounded per-use
 ### Thumbnail galéria unit/template – 2026-10-31
 
 Strict processing kliens (batch/order/version/public fields, safe error/timeout/abort/Retry-After), fake-clock láthatósági scheduler (20 ID,10s globális spacing, egy in-flight, fairness, terminal stop, hiba utáni kézi retry), régi/fiókváltás utáni válasz eldobása és revision-megtartó manuális processor-retry. Közös thumbnail/original URL-sor4 fizikai slot, abort mellett is; külön image-error/no-loop memóriaállapot. SSR-kártya/modal template és page-visibility adapter lifecycle-unit ellenőrzi az eltérő URL-forrást, állapotokat/gombokat, visibilitychange/unmount abortot és listener cleanupot. Ez nem valódi DOM/böngészős vagy DB/MinIO elfogadás; az ellenőrzőlista a meglévő tesztriportban marad nyitott.
+
+
+### Thumbnail watcher-regresszió – 2026-10-31
+
+Az SSR template nem futtatja az onMounted/láthatóság/watch ütemezést, ezért önmagában nem védi a thumbnail betöltését. A már telepített Vue compiler/TypeScript és Vue host renderer a tényleges kliens SFC-kódot fordítja/futtatja izolált unitban, új framework nélkül. Külön eset a visibility és SUCCEEDED ugyanabban a batchben: az invalidálásnak meg kell előznie az új URL-kérést; a cache READY marad, image-error után csak kézi retry, új result-azonosság egyszer invalidál. A komponens és a teljes parent lifecycle is fut; a tényleges Chrome/DB/MinIO bizonyíték külön a tesztriportban szerepel.

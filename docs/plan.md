@@ -156,3 +156,6 @@ Az [ADR-016](02_architecture/adr/ADR-016-thumbnail-processing.md), [API](03_desi
 
 
 2026-10-31-i tényleges helyi ellenőrzés: HTTP/DB/MinIO confirm/job/thumbnail, sérült kép, két worker/confirm-replay, bounded retry, kvóta, ownership és SIGKILL utáni STORED-adoption sikeres a tesztriport konkrét eseteiben. A teljes galéria-elfogadás **FAIL (TH-01)**: kész státusz mellett nincs thumbnail URL-kérés/kártyakép; az eredeti modal működik. Javítás/reteszt szükséges, más recovery-pontok és külső UAT nyitott.
+
+
+2026-10-31-i javítás/reteszt: TH-01 két watcher közti invalidálási verseny reprodukálva és javítva; új UI-feltöltésből kész thumbnail a kártyán, eredeti a modalban, Escape/fókusz és A/B elkülönítés ténylegesen ellenőrizve. TH-02 szöveg javítva. A korábbi FAIL történeti evidence marad; teljes SZD2/recovery/UAT továbbra a nyitott kapuk szerint.
