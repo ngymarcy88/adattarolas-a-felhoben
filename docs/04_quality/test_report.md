@@ -1,6 +1,35 @@
 # Test report
 
 
+## Processing status, thumbnail URL és kézi retry API – 2026-10-31
+
+**Verzió:** `feature/processing-api`, a `7444945` worker-commitjára építve. **Környezet:** WSL/Linux Node22.23.2/npm10.9.8, Jest30.5.2/Prisma7.10.1; valódi API/state-service, mutexes/rollbackes izolált Prisma-port, mockolt storage, szintetikus UUID/metadata és fake clock. Nincs valódi HTTP/DB/MinIO indítás.
+
+**Futtatás:** az első root `npm test` 787 backend +346 frontend +2 helper esetet sikeresen futtatott, de négy backend-suite TypeScript-hibával megállt: a safe hibát dobó arrow helper miatt a retry visszatérési típusa undefined-ot is megengedett. Deklarált never-visszatérésű függvényre javítva. A négy érintett suite stabil forráson célzott újrafutása **255/255 PASS,43.929s** (`processing-api`, `processing-http`, `file-preview`, `file-list`). Együtt **1390 egyedi teszteset igazolt**, ebből103 új (96 API/HTTP-unit,7 TTL-config). Ez külön futások összesítése, nem hibátlan teljes első kör állítása. Workspace typecheck és build PASS. Compose config --quiet,139 helyi dokumentumútvonal, credential- és diff-ellenőrzés PASS; konténer nem indult.
+
+| Ellenőrzött unitcsoport | Elvárt és tényleges eredmény |
+|---|---|
+| Session/Origin route-guardok, strict JSON/body/query/UUID és batchhatár | PASS: meglévő session-guard, explicit Origin a POST-okon, 1–20 distinct canonical UUID; extra mező/duplikáció/coercion elutasítva. |
+| Mindhárom API ownership/ACTIVE/MIME/current-version/build/source | PASS: idegen/hiányzó/pending/törölt404, saját unsupported415; az egész batch meghiúsul, nincs ID-részlet vagy részválasz. |
+| Status projection, sorrend, csak publikált eredmény és cleanup warning | PASS: explicit safe mezők, nincs key/hash/owner/lease/URL, nincs scheduling vagy kvótamutáció; ismeretlen belső hibakód maszkolva. |
+| Thumbnail HEAD, fixed inline/WebP, TTL és signing utáni újraellenőrzés | PASS: méret/MIME/READY/source/ownership eltérés vagy hibás/lejárt access nem adható vissza, nincs original-fallback vagy regenerálás. |
+| Külön 60/60/10 perces user budget és bounded4096 identity map | PASS: független ablakok, másik user kerete külön, Retry-After és lejárat/kapacitás kezelve. |
+| Valódi retry-CAS párhuzamos/lost-response és SUCCEEDED replay | PASS: egy202 nyertes, replay200, jövőbeli revision409; sikeres eredmény, régi reservation és attempt nem resetelődik. |
+| Retry-keret, végleges hiba, restore és ellenőrzések közti állapotváltozás | PASS: két kézi ciklus/összesen9 generálás, nem retryable/futó/job nélküli állapot409; törlés/owner-váltás404. |
+| Eredeti-preview és fájllista | PASS: meglévő regressziós suite-ok; szerződésük és frontendjük változatlan. |
+
+### Valódi processing HTTP/DB/storage elfogadás – NYITOTT
+
+Minden pontnál rögzítendő a tesztelt commit, dátum, környezet, szintetikus bemenet, lépések, elvárt/tényleges eredmény és titokmentes bizonyíték. Kiadott URL, cookie vagy storage key ne szerepeljen képen/naplóban.
+
+- [ ] Friss PNG/JPEG feltöltés és ACTIVE confirm után saját cookie + pontos Origin mellett batch status; worker végén SUCCEEDED + WebP eredménymetaadat. Régi job nélküli kép NOT_SCHEDULED, nincs backfill.
+- [ ] Másik user/hiányzó/pending/törölt fájl mindhárom API-n404; vegyes batch egészében404; session nélkül401. Saját unsupported kép415, nem kész thumbnail409.
+- [ ] Kész thumbnail-url200: fixed inline thumbnail.webp/image/webp, valós képbájtok és legfeljebb konfigurált TTL. Lejárat után régi URL nem használható; eredeti-preview és lista továbbra működik.
+- [ ] Kontrollált, külön tesztkörnyezetben előidézett retryable hiba vagy BLOCKED_QUOTA után azonos revision párhuzamos/elveszett válaszú retry-ja: egy202, replay200; DB-ben nincs duplikált result/usage. Sikeres job retry-ja200 no-op; jövőbeli revision és kimerült keret409.
+- [ ] Valódi DB/storage hiba safe503; request ID/no-store és rate-limit429/Retry-After. Nincs raw provideradat. A worker restart/cgroup/OOM kapui az alábbi külön listában változatlanul nyitottak.
+
+
+
 
 
 

@@ -218,9 +218,9 @@ Közös: AUTH_REQUIRED 401; a meglévő SessionGuard user-lekérdezési hibája 
 
 A preview implementáció a signing utáni második saját-ACTIVE queryvel újraellenőriz: eltűnt/idegen/nem aktív sor FILE_NOT_FOUND, újonnan tiltott MIME PREVIEW_NOT_ALLOWED, változott storageKey/név/méret/egyéb MIME-metaadat STORAGE_UNAVAILABLE. Hibás/lejárt/túl hosszú presign-lejárat vagy érvénytelen URL ugyancsak STORAGE_UNAVAILABLE, capability nélkül. A megosztott FileIdPipe most kifejezett 36-karakteres UUID-határt ellenőriz, így a trailing newline nem válik DB-hibává.
 
-## Thumbnail processing – tervezett hibák, 2026-10-29
+## Thumbnail processing – implementált API-hibák, 2026-10-31
 
-**Nem implementált**, az [API](api.md#első-thumbnail-processor-api--tervezett-2026-10-29) és [adatmodell](data_model.md#első-thumbnail-processor--tervezett-szerződés-2026-10-29) kiegészítése. A workerhiba nem változtat sikeres confirmot HTTP-hibává, és nem törli az eredetit. A status válasz safe kódot tartalmaz; nyers Sharp/libvips/S3 exception, inputadat, storage key és EXIF nem kerül klienshez/logba.
+**A status/thumbnail-url/retry API implementált**, az [API](api.md#első-thumbnail-processor-api--implementált-2026-10-31) és [adatmodell](data_model.md#első-thumbnail-processor--tervezett-szerződés-2026-10-29) kiegészítése. A workerhiba nem változtat sikeres confirmot HTTP-hibává, és nem törli az eredetit. A status válasz safe kódot tartalmaz; nyers Sharp/libvips/S3 exception, inputadat, storage key és EXIF nem kerül klienshez/logba.
 
 | Kód | Állapot / retry | Magyar felületi jelentés |
 |---|---|---|
@@ -235,11 +235,11 @@ A preview implementáció a signing utáni második saját-ACTIVE queryvel újra
 | SOURCE_NOT_ACTIVE | CANCELLED; restore után kézi retry kereten belül | A kép jelenleg nem dolgozható fel. |
 | WRITE_CLOSURE_UNPROVEN / DERIVED_CLEANUP_UNAVAILABLE | Attempt CLEANUP_BLOCKED; nem original-/job-failure | Egy korábbi feldolgozási próbálkozás tárhelyfoglalása még nem szabadítható fel. |
 
-Az API által dobott új hibák:409 THUMBNAIL_NOT_READY,409 PROCESSING_RETRY_NOT_ALLOWED,503 PROCESSING_UNAVAILABLE; üres details és meglévő wrapper. 404 FILE_NOT_FOUND/415 PREVIEW_NOT_ALLOWED/401 AUTH_REQUIRED/403 ORIGIN_NOT_ALLOWED/429 RATE_LIMITED a meglévő jelentéssel, a tervezett guardokban használva. Cleanup-hiba külön warning lehet SUCCEEDED mellett is. Ismeretlen decoder/worker exception safe PROCESSING_UNAVAILABLE vagy retry-keretes belső hiba, nem korlátlan újrapróbálás; konfiguráció/build ismeretlen processorverziója nem claimelhető és operátori jelzés.
+Az API által dobott új hibák:409 THUMBNAIL_NOT_READY,409 PROCESSING_RETRY_NOT_ALLOWED,503 PROCESSING_UNAVAILABLE; üres details és meglévő wrapper. 404 FILE_NOT_FOUND/415 PREVIEW_NOT_ALLOWED/401 AUTH_REQUIRED/403 ORIGIN_NOT_ALLOWED/429 RATE_LIMITED a meglévő jelentéssel, a külön status/URL/retry guardokban használva. Cleanup-hiba külön warning lehet SUCCEEDED mellett is. Ismeretlen decoder/worker exception safe PROCESSING_UNAVAILABLE vagy retry-keretes belső hiba, nem korlátlan újrapróbálás; konfiguráció/build ismeretlen processorverziója nem claimelhető és operátori jelzés.
 
 ### Implementált thumbnail-storage belső hibák – 2026-10-29
 
-A readOriginal/writeDerived a meglévő generikus StorageError-üzenetet használja: INVALID_ARGUMENT, INVALID_RESPONSE, UNAVAILABLE; conditional read412/416 OBJECT_CHANGED, conditional write412 OBJECT_EXISTS és409 WRITE_CONFLICT. Az utóbbi kettő új belső adapterkód, nem új publikus HTTP-hiba. Az abort oka, providerbody, credential, kulcs és bájtok nem kerülnek az errorba/logba. Write timeout/abort vagy hibás200-meta eredménye bizonytalan lehet, nincs retry/delete/kvótarelease mellékhatás. A későbbi processing-service/API mapping továbbra nincs implementálva. A törlés és a proof nélküli cleanup-kapu változatlan.
+A readOriginal/writeDerived a meglévő generikus StorageError-üzenetet használja: INVALID_ARGUMENT, INVALID_RESPONSE, UNAVAILABLE; conditional read412/416 OBJECT_CHANGED, conditional write412 OBJECT_EXISTS és409 WRITE_CONFLICT. Az utóbbi kettő új belső adapterkód, nem új publikus HTTP-hiba. Az abort oka, providerbody, credential, kulcs és bájtok nem kerülnek az errorba/logba. Write timeout/abort vagy hibás200-meta eredménye bizonytalan lehet, nincs retry/delete/kvótarelease mellékhatás. A processing API a storage-hibákat safe PROCESSING_UNAVAILABLE-ra képezi. A törlés és a proof nélküli cleanup-kapu változatlan.
 
 
 ### Implementált tiszta processor-hibák – 2026-10-29

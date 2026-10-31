@@ -1,6 +1,9 @@
 import { HttpException } from '@nestjs/common';
 
 const apiErrors = {
+  PROCESSING_UNAVAILABLE: { status: 503, message: 'A képfeldolgozás átmenetileg nem érhető el.' },
+  THUMBNAIL_NOT_READY: { status: 409, message: 'A kiskép még nem érhető el.' },
+  PROCESSING_RETRY_NOT_ALLOWED: { status: 409, message: 'A feldolgozás ebben az állapotban nem próbálható újra.' },
   PREVIEW_NOT_ALLOWED: { status: 415, message: 'Ehhez a fájlhoz nem érhető el képelőnézet.' },
   CURSOR_INVALID: { status: 400, message: 'A lapozási azonosító érvénytelen. Frissítsd a listát.' },
   FILE_NOT_FOUND: { status: 404, message: 'A fájl nem található.' },

@@ -177,7 +177,7 @@ A galéria 300 ms alatt összevonja a jelzéseket, futó lista/lapozás mögött
 
 ## Thumbnail-állapotok – tervezett, 2026-10-29
 
-A jelenlegi eredeti-képes galéria változatlan. Az első thumbnail-szelet [API-terve](../03_design/api.md#első-thumbnail-processor-api--tervezett-2026-10-29) után: új ACTIVE confirmtól várakozó/feldolgozás alatti jelzés; READY thumbnail a kártyán, nagy előnézetben továbbra is eredeti. NOT_SCHEDULED régi képre nincs folyamatos polling vagy implicit backfill. Kimenet statikus, animációból első frame. Hibás thumbnail, dekódolási limit vagy BLOCKED_QUOTA mellett az eredeti megnyitható; a státusz/retry hibája nem üríti a galériát.
+A jelenlegi eredeti-képes galéria változatlan. Az első thumbnail-szelet [API-terve](../03_design/api.md#első-thumbnail-processor-api--implementált-2026-10-31) után: új ACTIVE confirmtól várakozó/feldolgozás alatti jelzés; READY thumbnail a kártyán, nagy előnézetben továbbra is eredeti. NOT_SCHEDULED régi képre nincs folyamatos polling vagy implicit backfill. Kimenet statikus, animációból első frame. Hibás thumbnail, dekódolási limit vagy BLOCKED_QUOTA mellett az eredeti megnyitható; a státusz/retry hibája nem üríti a galériát.
 
 Külön processor-retry csak dokumentált retryable állapotban, revisionnel, nem eredeti újraküldéssel; maxkét kézi ciklus, futó/sikeres testvér nem indul újra. Státusz batchben, maximum20 látható elem, legkorábban10s-onként, egy in-flight kérés; terminális állapot/rejtett lap/unmount leállít. A thumbnail URL csak szükség szerint, rövid TTL-lel/memóriában, közös maximum4 URL-kérés-korláttal; img-hibára kézi retry, nem végtelen URL-megújítás. A worker job-retry és a böngésző képletöltési retry két külön művelet.
 

@@ -528,3 +528,10 @@ Minden recovery-probe során a worker teljes bounded, ETag-hez kötött original
 A worker generation-fallback `preferRecovery` védelmet kér: ha a recovery-claim és generation-claim között a lease lejár vagy candidate keletkezik, a generation nem retire-olja azt; a következő poll recoveryt végez. Hiány/hibás candidate esetén failRecovery(abandon) tartós CLEANUP_BLOCKED-et és megőrzött R-t hagy, majd csak kereten belüli új attemptet enged. Átmeneti probe-hiba megtartja az adoptálható candidate-et. Unknown PUT/HEAD/DB-commit kimenet után a worker nem kompenzál: WRITE_PENDING/STORED/SUCCEEDED a restart igazsága. A tényleges closure-proof és pozitív R-release változatlanul nincs implementálva.
 
 A sikeres full-read adoption nem jelent exactly-once fizikai írást minden részhiba mellett: későn befejeződő régi PUT után lehet több teljesen lefoglalt candidate, de csak egy logikai result és egyszeri used-charge. Nincs séma/migráció vagy új queue. A tényleges cgroup/OOM/DB/storage/restart bizonyíték a manuális kapu része, nem a unit fixture-é.
+
+
+### Processing API-projekció és retry-CAS – 2026-10-31
+
+Nincs új séma vagy migráció. A status 1–20 saját ACTIVE képre RepeatableRead tranzakcióban olvas explicit file/job/result/attempt mezőket; a kért sorrendet tartja, részleges ownership-választ nem ad. Csak aktuális thumbnail@1.0.0 build/forrás és READY+SUCCEEDED, PUBLISHED attempttel egyező eredmény publikálható. A response nem tartalmaz kulcsot, hash-t, lease-t vagy URL-t. A thumbnail-url HEAD/size/MIME után aláír, majd friss DB-projekcióval ellenőrzi az eredményazonosságot és hozzáférést. A read nem claimel vagy módosít kvótát.
+
+A retryWithOutcome a meglévő zárolt retry-CAS-t használja; a tranzakció adja vissza, hogy ténylegesen új ciklust indított-e. Csak ez a kimenet ad HTTP202-t; replay/SUCCEEDED no-op200. A régi retry metódus kompatibilis marad. Legfeljebb két kézi ciklus, összesen kilenc generálás; régi reservation/result és sikeres eredmény nem törlődik. A cleanupPending csak ORPHANED/CLEANUP_BLOCKED pozitív, be nem számolt/fel nem szabadított foglalás jelzése, nem release vagy bizonyított closure.

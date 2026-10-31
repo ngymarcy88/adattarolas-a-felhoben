@@ -17,7 +17,7 @@ describe('validateEnvironment', () => {
     const config = validateEnvironment(validEnvironment());
     expect(config).toMatchObject({
       environment: 'local', host: '127.0.0.1', port: 3000, jwtExpiresIn: '1h', jwtTtlSeconds: 3600, defaultUserStorageLimitBytes: 1073741824,
-      maxUploadBytes: 104857600, presignedUrlTtlSeconds: 300,
+      maxUploadBytes: 104857600, presignedUrlTtlSeconds: 300, thumbnailPreviewTtlSeconds: 60,
       storage: { forcePathStyle: true, publicEndpoint: 'http://localhost:9000' },
       allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'video/mp4', 'video/webm'],
     });
@@ -76,5 +76,14 @@ describe('validateEnvironment', () => {
       expect((error as Error).message).not.toContain(env.JWT_SECRET);
       expect((error as Error).message).not.toContain(env.DATABASE_URL);
     }
+  });
+});
+
+describe('Thumbnail preview TTL configuration', () => {
+  it.each(['30', '300'])('accepts bounded thumbnail TTL %s', value => {
+    expect(validateEnvironment({ ...validEnvironment(), THUMBNAIL_PREVIEW_TTL_SECONDS: value }).thumbnailPreviewTtlSeconds).toBe(Number(value));
+  });
+  it.each(['29', '301', '1.5', 'abc', '-1'])('rejects thumbnail TTL %s without echoing its value', value => {
+    expect(() => validateEnvironment({ ...validEnvironment(), THUMBNAIL_PREVIEW_TTL_SECONDS: value })).toThrow('THUMBNAIL_PREVIEW_TTL_SECONDS');
   });
 });
