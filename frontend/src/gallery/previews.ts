@@ -66,9 +66,42 @@ export function createPreviews(client: PreviewClient, onUnauthorized: () => void
     Object.assign(entry, { phase: 'error', url: null, expiresAt: 0, retryable: true,
       error: 'A kép nem tölthető be. Ellenőrizd a kapcsolatot, majd próbáld újra.' });
   }
+  function invalidate(id: string) {
+    delete state.entries[id];
+    for (const job of jobs) if (job.id === id) job.controller.abort();
+    for (let i = queue.length - 1; i >= 0; i--) if (queue[i].id === id) queue.splice(i, 1);
+  }
   function clearErrors() {
     if (!disposed) for (const id of Object.keys(state.entries)) if (state.entries[id].phase === 'error') delete state.entries[id];
   }
-  return { state, request: (id: string) => schedule(id, false), retry: (id: string) => schedule(id, true), retain, imageFailed, clearErrors, dispose: stop };
+  return { state, request: (id: string) => schedule(id, false), retry: (id: string) => schedule(id, true), retain, imageFailed, clearErrors, invalidate, dispose: stop };
 }
 export type Previews = ReturnType<typeof createPreviews>;
+
+
+/** Both URL kinds share four physical requests; abort does not release an active slot before settlement. */
+export function createPreviewPool() {
+  let running = 0;
+  const queue: (() => void)[] = [];
+  function pump() { while (running < 4 && queue.length) queue.shift()!(); }
+  return (client: PreviewClient): PreviewClient => ({
+    get(id, signal) {
+      return new Promise((resolve, reject) => {
+        const cancel = () => {
+          const index = queue.indexOf(start);
+          if (index >= 0) queue.splice(index, 1);
+          signal.removeEventListener('abort', cancel);
+          reject(new PreviewRequestError('unavailable'));
+        };
+        const start = () => {
+          signal.removeEventListener('abort', cancel);
+          if (signal.aborted) { cancel(); return; }
+          running++;
+          void Promise.resolve().then(() => client.get(id, signal)).then(resolve, reject).finally(() => { running--; pump(); });
+        };
+        if (signal.aborted) { reject(new PreviewRequestError('unavailable')); return; }
+        signal.addEventListener('abort', cancel, { once: true }); queue.push(start); pump();
+      });
+    },
+  });
+}

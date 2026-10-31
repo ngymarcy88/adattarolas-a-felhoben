@@ -1,6 +1,35 @@
 # Test report
 
 
+## Thumbnail a galériakártyán – 2026-10-31
+
+**Verzió:** `feature/gallery-thumbnails`, a `3a5a086` processing API-ra építve. **Környezet:** WSL/Linux Node22.23.2/npm10.9.8, Vitest5/Vue3.5, SSR template, fake timer/visibility adapter és mockolt fetch. Szintetikus UUID/JSON/URL; nincs valódi kép/HTTP/DB/MinIO vagy böngészős renderpróba.
+
+**Ellenőrzés:** az első összevont `npm test` backend1042/1042 +helper2/2 PASS; frontend394 PASS/8 FAIL, összesen402 eset. A hibák: az array-alapú it.each a tömböt több argumentumra bontotta; a disabled CSS-osztály tévesen disabled attribútumnak számított; az SSR-re fordított SFC nem volt custom rendererrel mountolható. A két tesztelvárás javítva, a lifecycle-próba helyett a valódi állapotkezelő és a komponens által használt page-visibility adapter izolált unitja fut. A három érintett suite célzott újrafutása36/36 PASS; összesítve **1446 egyedi eset igazolt,56 új unit/template**. Ez nem hibátlan első teljes futás állítása. Workspace typecheck és build PASS.
+
+| Unit/template helyzet | Elvárt és tényleges eredmény |
+|---|---|
+| Processing kliens strict batch/order/version/mezők, safe error/timeout/abort | PASS: credentialed no-store JSON, nincs nyers providerhiba, Retry-After kezelve; külön thumbnail-url végpont. |
+| Látható kártyák,20 ID maximum,10s globális spacing, lassú kérés és több batch | PASS: egy in-flight read, összevonás/fairness, nincs fájlonkénti időzítő vagy kérésáradat. |
+| Terminális állapot és olvasási hiba | PASS: NOT_SCHEDULED/SUCCEEDED/FAILED/BLOCKED_QUOTA/CANCELLED nem pollol; hibás batch kézi státusz-retry-t vár,429-et nem kerül meg. |
+| Rejtett lap, listaeltávolítás és dispose | PASS: abort, késői válasz eldobás, időzítő/listener-takarítás; visszatéréskor csak szükséges read folytatódik. Adapter/state-unit, nem valódi navigációs DOM-próba. |
+| Processor-retry dupla kattintás, elveszett válasz,409, keret/siker | PASS: egyszerre egy mutáció, azonos revision marad elveszett válaszra, csak kézi mutáció-retry; siker/keret/futó job nem generálódik újra. |
+| Thumbnail/original képforrás és külön hibák | PASS: kártya thumbnail-cache, modal original-cache; várakozó/futó/hibás szöveg és külön status/processor/image retry, az eredeti gomb engedélyezett marad. |
+| Közös fizikai URL-sor és memória | PASS: összesen4 aktív thumbnail/original kérés; queued abort eltávolít, aktív abort csak settlement után ad slotot. Invalidált/régi reply nem állít vissza URL-t, nincs automatikus image-error hurok. |
+
+### Kézi böngészős thumbnail-elfogadás – NYITOTT
+
+Minden pontnál azonosított commit, dátum/környezet, nem érzékeny bemenet, lépések, tényleges eredmény és titokmentes bizonyíték szükséges. Network URL/cookie/signed query ne kerüljön képre vagy naplóba.
+
+- [ ] Új, például1024×768 PNG/JPEG feltöltése: kártyán kész statikus WebP thumbnail (maximum512px), nagy előnézetben eredeti. Escape/fókusz-visszaadás működik.
+- [ ] Külön tesztkörnyezetben worker megállításával várakozó állapot, visszaindítás után feldolgozás/kész eredmény. A túl gyorsan lefutó RUNNING állapot nem megfigyelt → nem jelölhető igazoltnak.
+- [ ] Kontrollált retryable processorhiba/kvótablokkolás: külön processor-retry gomb, nincs original-újrafeltöltés; eredeti nagy előnézet elérhető. DB/result/object/usage nem duplázódik; sikeres eredmény nem indítható újra.
+- [ ] Thumbnail letöltési hiba/lejárt hozzáférés: külön kézi kép-retry, nincs folyamatos URL-megújítás; eredeti megnyílik. Status-hiba mellett a már betöltött lista megmarad.
+- [ ] Több kép/lapozás/görgetés: maximum20 ID/status kérés, egy in-flight, kezdések közt legalább10s; közös maximum4 thumbnail/original URL-kérés. Nincs duplikált kártya.
+- [ ] Rejtett lap és oldalelhagyás: status fetch abort és nincs további polling; visszatéréskor megfelelő folytatás. Logout/fiókváltás után korábbi account státusza/URL-je nem kerül elő; localStorage/sessionStorage nem tartalmaz hozzáférést.
+
+
+
 ## Processing status, thumbnail URL és kézi retry API – 2026-10-31
 
 **Verzió:** `feature/processing-api`, a `7444945` worker-commitjára építve. **Környezet:** WSL/Linux Node22.23.2/npm10.9.8, Jest30.5.2/Prisma7.10.1; valódi API/state-service, mutexes/rollbackes izolált Prisma-port, mockolt storage, szintetikus UUID/metadata és fake clock. Nincs valódi HTTP/DB/MinIO indítás.

@@ -259,3 +259,8 @@ Ezek nem tényleges PostgreSQL lockok, container OOM vagy processzkilövéses re
 ### Processing API unitok – 2026-10-31
 
 Strict DTO/UUID/body/query, session/Origin route-wiring, külön bounded per-user rate budget, egész batch ownership, ACTIVE/allowlist/verzió/build/forrás, explicit safe projekció és csak READY+SUCCEEDED eredmény. Thumbnail HEAD/size/MIME, fixed inline név, TTL-minimum, lejárt/hibás aláírás és signing utáni metaadatváltozás; retry valódi state-service CAS-szal párhuzamos és lost-response replay, SUCCEEDED no-op, jövőbeli revision, végleges hibák és keret. Storage/DB belső hibák nem szivároghatnak. Ezek izolált unitok, nem futó HTTP/valódi PostgreSQL/MinIO elfogadás. A fájllista/original-preview regresszióit a meglévő teljes unitkör fedi.
+
+
+### Thumbnail galéria unit/template – 2026-10-31
+
+Strict processing kliens (batch/order/version/public fields, safe error/timeout/abort/Retry-After), fake-clock láthatósági scheduler (20 ID,10s globális spacing, egy in-flight, fairness, terminal stop, hiba utáni kézi retry), régi/fiókváltás utáni válasz eldobása és revision-megtartó manuális processor-retry. Közös thumbnail/original URL-sor4 fizikai slot, abort mellett is; külön image-error/no-loop memóriaállapot. SSR-kártya/modal template és page-visibility adapter lifecycle-unit ellenőrzi az eltérő URL-forrást, állapotokat/gombokat, visibilitychange/unmount abortot és listener cleanupot. Ez nem valódi DOM/böngészős vagy DB/MinIO elfogadás; az ellenőrzőlista a meglévő tesztriportban marad nyitott.

@@ -3,33 +3,37 @@ import { createSSRApp } from 'vue';
 import { renderToString } from 'vue/server-renderer';
 import GalleryCard from '../src/components/GalleryCard.vue';
 import PreviewDialog from '../src/components/PreviewDialog.vue';
+import { createProcessing } from '../src/gallery/processing';
+import { processingStatus } from './helpers/processing-fixture';
 import { createPreviews } from '../src/gallery/previews';
 import { mountModal, restoreModalFocus, observeVisible } from '../src/gallery/modal';
 import { galleryFile } from './helpers/gallery-fixture';
 const file = galleryFile(1, { originalName: '<script>test</script>.jpg' });
 function fixture() {
-  const get = vi.fn(); const previews = createPreviews({ get }); previews.retain([file.id]); return { get, previews };
+  const get = vi.fn(); const previews = createPreviews({ get }); previews.retain([file.id]);
+  const processing = createProcessing({ status: vi.fn(), retry: vi.fn() }); processing.retain([file.id]); processing.setVisible(file.id, true); processing.state.entries[file.id].status = processingStatus(1, 'SUCCEEDED');
+  return { get, previews, processing };
 }
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 describe('Image/card/native modal SSR templates', () => {
   it('does not fetch in SSR or on card registration and offers a keyboard-native open button', async () => {
-    const { get, previews } = fixture(); const html = await renderToString(createSSRApp(GalleryCard, { file, previews, now: Date.now() }));
+    const { get, previews, processing } = fixture(); const html = await renderToString(createSSRApp(GalleryCard, { file, previews, processing, now: Date.now() }));
     expect(get).not.toHaveBeenCalled(); expect(html).toContain('type="button"'); expect(html).toContain('Nagy előnézet:');
     expect(html).toContain('&lt;script&gt;'); expect(html).not.toContain('<script>'); expect(html).not.toContain('<img');
   });
   it('renders only a memory URL as a credential-free lazy image, never a download link', async () => {
-    const { previews } = fixture(); previews.state.entries[file.id] = { phase: 'ready', url: 'https://storage.invalid/synthetic', expiresAt: Date.now() + 10000, version: 1, error: '', retryable: false, retryAt: 0 };
-    const html = await renderToString(createSSRApp(GalleryCard, { file, previews, now: Date.now() }));
+    const { previews, processing } = fixture(); previews.state.entries[file.id] = { phase: 'ready', url: 'https://storage.invalid/synthetic', expiresAt: Date.now() + 10000, version: 1, error: '', retryable: false, retryAt: 0 };
+    const html = await renderToString(createSSRApp(GalleryCard, { file, previews, processing, now: Date.now() }));
     expect(html).toContain('<img'); expect(html).toContain('crossorigin="anonymous"'); expect(html).toContain('referrerpolicy="no-referrer"'); expect(html).toContain('loading="lazy"');
     expect(html).not.toContain('<a'); expect(html).toContain('Kép betöltése…');
   });
   it('renders separate image errors and manual retry/cooldown', async () => {
-    const { previews } = fixture(); previews.state.entries[file.id] = { phase: 'error', url: null, expiresAt: 0, version: 1, error: 'Képhiba.', retryable: true, retryAt: 30000 };
-    const html = await renderToString(createSSRApp(GalleryCard, { file, previews, now: 0 }));
-    expect(html).toContain('role="alert"'); expect(html).toContain('Képhiba.'); expect(html).toContain('30 mp'); expect(html).toMatch(/disabled[^>]*>Kép újrapróbálása/); expect(html).not.toContain('<img');
+    const { previews, processing } = fixture(); previews.state.entries[file.id] = { phase: 'error', url: null, expiresAt: 0, version: 1, error: 'Képhiba.', retryable: true, retryAt: 30000 };
+    const html = await renderToString(createSSRApp(GalleryCard, { file, previews, processing, now: 0 }));
+    expect(html).toContain('role="alert"'); expect(html).toContain('Képhiba.'); expect(html).toContain('30 mp'); expect(html).toMatch(/disabled[^>]*>Kiskép újrapróbálása/); expect(html).not.toContain('<img');
   });
   it('renders a labelled modal dialog with autofocus close and Escape guidance', async () => {
-    const { previews } = fixture(); const html = await renderToString(createSSRApp(PreviewDialog, { file, previews, now: Date.now() }));
+    const { previews, processing } = fixture(); const html = await renderToString(createSSRApp(PreviewDialog, { file, previews, now: Date.now() }));
     expect(html).toContain('<dialog'); expect(html).toContain('aria-modal="true"'); expect(html).toContain('aria-labelledby="preview-dialog-title"');
     expect(html).toContain('autofocus'); expect(html).toContain('Escape'); expect(html).toContain('Bezárás'); expect(html).toContain('&lt;script&gt;');
   });

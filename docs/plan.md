@@ -150,3 +150,6 @@ Az [ADR-016](02_architecture/adr/ADR-016-thumbnail-processing.md), [API](03_desi
 
 
 2026-10-31-i API-szelet: implementált saját ACTIVE képek összevont processing statusa, kész thumbnail rövid életű megtekintési URL-je és külön, revision-CAS alapú korlátozott kézi retry. A fájllista/original-preview változatlan; thumbnail UI, valódi HTTP/DB/MinIO és restart bizonyíték továbbra nyitott.
+
+
+2026-10-31-i galéria-szelet: kész thumbnail a kártyán, nagy előnézetben eredeti; elkülönített státusz/hiba/kézi processor-retry, összevont maximum20 ID/10s/egy in-flight polling, visibility/unmount abort, közös négyes memory-only URL-sor. Implementált unit/template szinten; valós pipeline/böngésző és restart elfogadás továbbra külön nyitott kapu.
