@@ -157,8 +157,18 @@ export class S3StorageAdapter implements ObjectStorage {
 
   async readOriginal(key: string, expected: ObjectHead, maxBytes: number, signal?: AbortSignal): Promise<Uint8Array> {
     assertOriginalKey(key);
+    return this.readComplete(key, expected, maxBytes, Math.min(this.config.maxUploadBytes, MAX_ORIGINAL_BYTES), signal);
+  }
+
+  async readDerived(key: string, expected: ObjectHead, signal?: AbortSignal): Promise<Uint8Array> {
+    assertDerivedKey(key);
+    if (expected?.contentType !== 'image/webp') throw new StorageError('INVALID_ARGUMENT');
+    return this.readComplete(key, expected, MAX_DERIVED_BYTES, MAX_DERIVED_BYTES, signal);
+  }
+
+  private async readComplete(key: string, expected: ObjectHead, maxBytes: number, cap: number,
+    signal?: AbortSignal): Promise<Uint8Array> {
     const size = expected?.sizeBytes; const etag = expected?.etag;
-    const cap = Math.min(this.config.maxUploadBytes, MAX_ORIGINAL_BYTES);
     if (!Number.isSafeInteger(maxBytes) || maxBytes < 1 || maxBytes > cap ||
         !Number.isSafeInteger(size) || size < 1 || size > maxBytes || !this.validEtag(etag)) {
       throw new StorageError('INVALID_ARGUMENT');

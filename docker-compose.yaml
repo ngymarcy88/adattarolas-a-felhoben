@@ -78,7 +78,7 @@ services:
       context: .
       target: backend
     image: cloudvault-backend:local
-    environment:
+    environment: &backend-environment
       APP_ENV: ${APP_ENV:-local}
       BACKEND_HOST: 0.0.0.0
       BACKEND_PORT: 3000
@@ -111,6 +111,26 @@ services:
       timeout: 3s
       retries: 20
       start_period: 10s
+    init: true
+
+  thumbnail-worker:
+    build:
+      context: .
+      target: backend
+    image: cloudvault-backend:local
+    command: ["node", "scripts/container-entrypoint.mjs", "thumbnail-worker"]
+    environment: *backend-environment
+    depends_on:
+      db-migrate:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
+    mem_limit: 512m
+    memswap_limit: 512m
+    cpus: 1.0
+    pids_limit: 64
+    stop_grace_period: 45s
+    restart: unless-stopped
     init: true
 
   frontend:

@@ -91,12 +91,14 @@ export function processingFixture() {
   const model = (table: Table) => ({
     findUnique: jest.fn(async ({ where }: Row) => clone(fixture.store[table].find((row) => matches(row, where)) ?? null)),
     findFirst: jest.fn(async ({ where = {} }: Row = {}) => clone(fixture.store[table].find((row) => matches(row, where)) ?? null)),
-    findMany: jest.fn(async ({ where = {}, orderBy }: Row = {}) => {
+    findMany: jest.fn(async ({ where = {}, orderBy, take, select }: Row = {}) => {
       let rows = fixture.store[table].filter((row) => matches(row, where));
       for (const ordering of (Array.isArray(orderBy) ? orderBy : orderBy ? [orderBy] : []).reverse()) {
         const [key, direction] = Object.entries(ordering)[0]!;
         rows = rows.slice().sort((a, b) => (a[key]! < b[key]! ? -1 : a[key]! > b[key]! ? 1 : 0) * (direction === 'desc' ? -1 : 1));
       }
+      if (take !== undefined) rows = rows.slice(0, take);
+      if (select) rows = rows.map(row => Object.fromEntries(Object.keys(select).filter(key => select[key]).map(key => [key, row[key]])));
       return clone(rows);
     }),
     create: jest.fn(async ({ data }: Row) => {
@@ -123,7 +125,7 @@ export function processingFixture() {
     }),
   });
   const tx = {
-    $executeRaw: jest.fn(async () => 0),
+    $executeRaw: jest.fn(async (_parts: TemplateStringsArray, ..._values: unknown[]) => 0),
     $queryRaw: jest.fn(async (parts: TemplateStringsArray, ...values: unknown[]) => {
       const sql = parts.join('?');
       if (/clock_timestamp/i.test(sql)) { fixture.log.push('clock'); return [{ now: new Date(fixture.now.getTime()) }]; }

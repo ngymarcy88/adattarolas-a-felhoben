@@ -21,7 +21,7 @@ export class ProcessingPublicationService {
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage) {}
 
   async publish(claim: Claim, output: ThumbnailResult, source: { sha256: string; etag: string },
-    signal?: AbortSignal): Promise<PublicationOutcome> {
+    signal?: AbortSignal, recoverUncertainWrite = false): Promise<PublicationOutcome> {
     // Capture all caller-owned data before the first await. TS readonly alone is not an ownership boundary.
     const token: Claim = Object.freeze({ ownerId: claim.ownerId, fileId: claim.fileId, jobId: claim.jobId,
       attemptId: claim.attemptId, leaseOwner: claim.leaseOwner, fence: claim.fence,
@@ -74,7 +74,9 @@ export class ProcessingPublicationService {
       // fail() never releases R and cannot overwrite a concurrent winner. Even if DB is unavailable,
       // the committed WRITE_PENDING reservation remains the authoritative conservative fallback.
       const aborted = signal?.aborted || error instanceof ProcessingPublicationError && error.code === 'PROCESSOR_ABORTED';
-      await this.state.fail(token, aborted ? 'PROCESSOR_ABORTED' : 'PROCESSING_STORAGE_UNAVAILABLE').catch(() => undefined);
+      if (!recoverUncertainWrite) {
+        await this.state.fail(token, aborted ? 'PROCESSOR_ABORTED' : 'PROCESSING_STORAGE_UNAVAILABLE').catch(() => undefined);
+      }
       throw new ProcessingPublicationError(aborted ? 'PROCESSOR_ABORTED' : 'PROCESSING_STORAGE_UNAVAILABLE');
     }
     // These errors are deliberately outside the storage catch: a DB response may be lost AFTER commit.

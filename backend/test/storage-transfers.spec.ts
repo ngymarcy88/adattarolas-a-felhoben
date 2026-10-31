@@ -265,3 +265,26 @@ describe('single-attempt derived writes', () => {
     adapter.onModuleDestroy(); adapter.onModuleDestroy(); expect(destroy).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('Recovery candidate full read', () => {
+  it('conditionally reads a complete derived WebP independently of the original upload cap', async () => {
+    const f = fixture(1); const body = Readable.from([Buffer.from([1, 2, 3, 4])]); f.send.mockResolvedValue(range(body));
+    const bytes = await f.adapter.readDerived(derived, { ...expected, contentType: 'image/webp' });
+    expect(Buffer.from(bytes)).toEqual(Buffer.from([1, 2, 3, 4]));
+    expect(f.send.mock.calls[0][0].input).toMatchObject({ Key: derived, Range: 'bytes=0-3', IfMatch: expected.etag });
+    expect(body.destroyed).toBe(true); expect(f.adapter.writeClosureEvidence).toBe('unproven');
+  });
+  it.each([0, 524289, NaN, Infinity])('rejects invalid candidate size %s before I/O', async sizeBytes => {
+    const f = fixture(); await expect(f.adapter.readDerived(derived, { ...expected, sizeBytes, contentType: 'image/webp' }))
+      .rejects.toMatchObject({ code: 'INVALID_ARGUMENT' }); expect(f.send).not.toHaveBeenCalled();
+  });
+  it('rejects original keys, non-WebP metadata, truncated data and pre-abort', async () => {
+    const f = fixture();
+    await expect(f.adapter.readDerived(original, { ...expected, contentType: 'image/webp' })).rejects.toMatchObject({ code: 'INVALID_ARGUMENT' });
+    await expect(f.adapter.readDerived(derived, expected)).rejects.toMatchObject({ code: 'INVALID_ARGUMENT' });
+    const abort = new AbortController(); abort.abort();
+    await expect(f.adapter.readDerived(derived, { ...expected, contentType: 'image/webp' }, abort.signal)).rejects.toMatchObject({ code: 'UNAVAILABLE' });
+    expect(f.send).not.toHaveBeenCalled(); f.send.mockResolvedValue(range(Readable.from([Buffer.from([1])])));
+    await expect(f.adapter.readDerived(derived, { ...expected, contentType: 'image/webp' })).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
+  });
+});

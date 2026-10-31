@@ -6,6 +6,7 @@ import { FileIdPipe, UploadConfirmGuard } from '../src/files/upload-confirm.guar
 import { FilesController } from '../src/files/files.controller';
 import { UploadConfirmService } from '../src/files/upload-confirm.service';
 import type { FileObject } from '../src/generated/prisma/client';
+import { ProcessingModule } from '../src/processing/processing.module';
 import { FilesModule } from '../src/files/files.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
@@ -281,7 +282,7 @@ describe('Atomic upload confirmation and durable thumbnail scheduling', () => {
     expect(await f.processing.enqueueConfirmedFile(f.tx as never, active)).toBeNull(); expect(f.jobs).toHaveLength(0);
   });
   it('only registers a state-service factory using the same thumbnail build descriptor, with no worker provider', () => {
-    const providers = Reflect.getMetadata('providers', FilesModule) as Array<{ provide?: unknown; inject?: unknown[]; useFactory?: Function }>;
+    const providers = Reflect.getMetadata('providers', ProcessingModule) as Array<{ provide?: unknown; inject?: unknown[]; useFactory?: Function }>;
     const factory = providers.find(provider => provider.provide === ProcessingStateService)!;
     expect(factory.inject).toEqual([PrismaService, ConfigService]); const f = uploadFixture();
     expect(factory.useFactory!(f.db, f.config)).toBeInstanceOf(ProcessingStateService);

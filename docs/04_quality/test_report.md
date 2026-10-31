@@ -3,6 +3,44 @@
 
 
 
+
+## Thumbnail-worker és fenced recovery – 2026-10-31
+
+**Verzió:** `feature/thumbnail-worker`, a `728d276` confirm-hookra építve. **Környezet:** WSL/Linux Node22.23.2/npm10.9.8, Prisma7.10.1/Jest30.5.2, Sharp0.35.5 kis szintetikus PNG/WebP fixture előállításához. A worker/state/publication valódi application-service, de a DB/storage portok izolált double-ok, a processor mockolt. A korábbi külön processor-suite végzi a valódi native-dekódolás unitvizsgálatát.
+
+**Első ellenőrzés:** root npm testben915 backend eset és346 frontend,2 helper PASS; az új recovery-suite mockjának TypeScript tuple-hibája miatt az egész parancs nem volt sikeres. Ezt fixture-típusjavítás követte. A célzott worker+recovery újrafutás42 PASS; a záróreview további cancel/restore és két-claim közti lease-race regressziója után a stabil végső célzott futás44/44 PASS (33.115s:24 recovery+20 worker). A módosult backend typecheck és build stabil forráson PASS; frontend typecheck/build korábban PASS. Összesített, külön futásokból igazolt helyi lefedés1287 egyedi eset (939 backend+346frontend+2helper),50 új unit; ez nem külön új teljes helyi futtatás. Az átfedő signature-változtatás miatt a backend build stabil forráson ismétlendő; az érintetlen frontend typecheck/build PASS. Ez nem egy hibátlan teljes helyi futás állítása.
+
+| Unit-szituáció | Elvárt eredmény / ellenőrzési határ |
+|---|---|
+| Két worker és több egymásra hívott poll | Egy current claim/physical decoder-slot, egy PUT/result/charge/audit; nem memóriabeli flag a processzek közti jogosultság. |
+| Régi worker decode-ja lease-takeover után fejeződik be | Késői eredmény nem publikál, nem ír második objektumot. |
+| Heartbeat, megújítási hiba,60s attempt timeout, shutdown közbeni fizikai PUT | Abort, slot/drain megvárása; nincs új job I/O/drain közben, unknownR megmarad. |
+| PREPARING crash, reservation commit/PUT előtt, WRITE_PENDING és STORED recovery | R0 lezárható; érvényes teljes candidate új fence alatt új PUT/R nélkül véglegesíthető; hiánynál régi R megmarad és új attempt sajátR-t igényel. |
+| Sérült candidate hash/header, eltérő forrás, átmeneti derived-read hiba | Invalid candidate nem publikálható; transient probe ugyanazzal az R-rel retry, source-változás terminális. |
+| Recovery publication DB-lépésenkénti rollback/lost-ack, exhausted generation budget | Egy result/charge; új recovery-fence nem módosít producerfence-et vagy total countot; valid candidate budgetvégén is véglegesíthető. |
+| Két recovery/generation claim közti lease-expiry | Generation fallback nem retire-olhat adoptálható candidate-et; következő poll recovery. |
+|3probe/ciklus és crash-only ismétlés,5s/30s, source delete/restore | Tartós keretek restartkor is; cleanup-blockolt candidate nem éled újra, restore explicit keretes retry. |
+| Bounded derived adapterread, key/type/size/truncated/preabort | Maximum512KiB/10s conditionalread; változatlan unproven closure, nincs DELETE vagy pozitívR-release. |
+| Compose config --quiet | **PASS**. Ez csak konfigurációvalidálás, nem image startup/cgroup/OOM vagy működő DB/storage bizonyíték. |
+
+**Dokumentum- és konfigurációellenőrzés:**73 helyi link, dokumentumazonosságok, credential-scan, diff-check, container-entrypoint syntax és Compose config PASS. Alkalmazás/konténer indítás nem történt. A dokumentumszerkesztés két téves teljes másolását a diff alapján javítottuk.
+
+### Valódi restart-próba – NYITOTT, nem végrehajtott
+
+Minden sorhoz rögzítendő: commit/image, dátum, OS/Docker-verzió, szintetikus bemenetek, lépések, elvárt/tényleges DB+storage állapot és bizonyíték. Személyes médiát ne használj. A galéria még eredeti képet mutat, ezért a UI-siker önmagában nem thumbnail-evidence.
+
+- [ ] Teljes Compose build/start: thumbnail-worker fut, backend elérhető; a worker cgroup512MiB/swap plafon,1CPU/64pids ténylegesen érvényes. A config PASS nem pipálja ki ezt.
+- [ ] Új kis képköteg confirm után job QUEUED→RUNNING→SUCCEEDED; fájlonként egy DerivedObject, helyes hash/geometria/object-count és used/reserved. Régi job nélküli képekhez nem indul backfill.
+- [ ] Graceful `docker compose stop -t 45 thumbnail-worker`, majd `docker compose up -d thumbnail-worker`: abort/drain után a poolok zárulnak, a már kész munka nem ismétlődik.
+- [ ] Kontrollált hard stop: `docker compose kill -s SIGKILL thumbnail-worker`, majd `docker compose up -d thumbnail-worker`. Nem lejárt90s lease-t az új processz nem veszi át; lejárat után előrehalad.
+- [ ] A PREPARING/R0, WRITE_PENDING/PUT előtti, sikeres PUT de DB-finalize előtti és STORED ablakot **ténylegesen megfigyelve** ismételt hard stop. Nem sikerült elkapni a fázist → marad NYITOTT. Meglevő jó candidate új publicationFence alatt adoptálható, nincs új PUT/charge; hiány/uncertain állapotnál régiR marad.
+- [ ] Két workerreplika mellett egy logikai result és egyszeri charge; késői régi worker nem publikál. Konténerenként egy decoder-slot; összesített párhuzam a replikaszámmal nő.
+- [ ] Storage/DB kiesés és helyreállás, korrupt kép és tényleges erőforrás/OOM eset: tartós keretek/backoff, eredeti továbbra ACTIVE; nincs nyers hiba/URL/key a logban.
+- [ ] Végül a DB job/attempt/result/számlálók és MinIO objektumok tényleges egyeztetése: published bytes egyszerused, uncertain candidate-ek reserved. Ne nullázz fence-et/számlálót/proofot és ne törölj kötetet a próba sikeresnek láttatásához.
+
+**Nyitott további kapuk:** provider write-closure és pozitívR fizikai cleanup-release; thumbnail/status/retry API és galéria-integráció. A fenti unitok és a korábbi SQL-schema verifier ezeket nem igazolják.
+
+
 ## Confirm → tartós thumbnail-job – 2026-10-31
 
 **Verzió:** `feature/confirm-thumbnail-job`, alap `905abea` (merge-elt #37/#38/#39). **Környezet:** WSL/Linux, Node22.23.2/npm10.9.8, Jest30.5.2/Prisma7.10.1. Bemenet szintetikus1×1 PNG és JPEG/GIF/WebP signature-fixture; fake clock a korábbi2026-10-24-i upload-deadline körül, mockolt Prisma/storage portok. Nincs valódi DB/storage/worker indítás.

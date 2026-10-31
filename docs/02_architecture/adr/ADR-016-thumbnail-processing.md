@@ -95,3 +95,10 @@ A tervezett full-read recovery-adoption még nincs: lejárt írási candidate bl
 ## Tartós confirm-hook – 2026-10-31
 
 Az új ACTIVE átmenet jobja az eredeti aktiválásával, receipt/accountinggal és audittal egyetlen Prisma-tranzakcióba került. Commit utáni eventre vagy Promise-ra épülő enqueue nem adna crashbiztos atomikusságot, ezért ilyen nincs. Jobmentési DB-hiba a még pending állapotot visszagörgeti; a későbbi processor hibája az ACTIVE eredetit nem érinti. Replay nem backfill, a meglévő logikai identity unique korlát megmarad. Csak a state-service kapott FilesModule factory-bekötést a közös descriptorral; nincs ProcessingWorker/publisher/processor automatikus futtatás.
+
+
+## Bounded worker és recovery – 2026-10-31
+
+A tervezett külön worker szerep implementált: közös backend image, PostgreSQL-jobok és meglévő adapter/processor-interfész, új broker nélkül. A Compose-worker fix512MiB RAM/swap,1CPU,64pids;2s poll/15s heartbeat/60s attempt/90s lease, processzenként1slot. Az entrypoint SIGTERM/SIGINT esetén előbb abortál/drainel, csak utána zár DB/storage contextet. A gyermek kilépése és heartbeat lezárása előtt nincs következő job. A HTTP AppModule nem regisztrál processing workert.
+
+Valid old candidate új recovery-fence alatt teljes feltételes source/candidate-read és hash/type/size/header ellenőrzéssel adoptálható, új PUT/R nélkül, külön3probe/ciklus kerettel. Hiány/sérülés irreverzibilis cleanup-blockot és megtartott R-t ad; generálási fallback csak új attempt/key/R és a megmaradt keret mellett. A kétféle claim közti race-t a generation lock alatti candidate-guard zárja. A provider write-closure proof hiánya változatlan. Unitok és Compose-config ellenőrzés készülnek; tényleges runtime/cgroup/OOM/restart még nyitott manuális kapu, nem kész mért ígéret.

@@ -16,6 +16,8 @@ export interface ObjectStorage {
   head(key: string): Promise<ObjectHead | null>;
   /** Complete conditional image input, bounded by both configured and processor limits. */
   readOriginal(key: string, expected: ObjectHead, maxBytes: number, signal?: AbortSignal): Promise<Uint8Array>;
+  /** Bounded conditional full candidate read for recovery, never an authorization or closure proof. */
+  readDerived(key: string, expected: ObjectHead, signal?: AbortSignal): Promise<Uint8Array>;
   /** One create-only attempt. An error may have an unknown outcome; never infer quota release. */
   writeDerived(input: { key: string; bytes: Uint8Array; signal?: AbortSignal }): Promise<DerivedWriteReceipt>;
   readPrefix(key: string, expected: ObjectHead, maxBytes: number): Promise<Uint8Array>;
