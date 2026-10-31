@@ -140,23 +140,43 @@ export class ProcessingStateService {
     return attempt;
   }
 
-  async createJob(ownerId: string, fileId: string): Promise<ProcessingJob> {
-    return this.locked(ownerId, fileId, null, async (tx, view) => {
-      this.source(view.file);
-      const existing = await tx.processingJob.findFirst({ where: { ownerId, fileObjectId: fileId,
-        processorKey: this.policy.key, processorVersion: this.policy.version } });
-      if (existing) {
-        await tx.$queryRaw`SELECT "id" FROM "ProcessingJob" WHERE "id" = ${existing.id}::uuid FOR UPDATE`;
-        const current = await tx.processingJob.findUnique({ where: { id: existing.id } });
-        if (!current) error('PROCESSING_NOT_FOUND');
-        this.job({ ...view, job: current }); return current;
+  /** Caller must hold User and FileObject locks in this SAME transaction; never call after commit.
+   * Only the fresh PENDING→ACTIVE confirm path uses this hook. ACTIVE replay must not backfill.
+   * This creates durable intent only: no decoder, worker, I/O or derived reservation.
+   */
+  async enqueueConfirmedFile(tx: Tx, confirmedFile: FileObject): Promise<ProcessingJob | null> {
+    const file = Object.freeze({ ...confirmedFile });
+    this.ids(file.ownerId, file.id);
+    if (file.status !== 'ACTIVE' || file.deletedAt !== null || !file.detectedMimeType ||
+        file.mimeType !== file.detectedMimeType || !this.policy.supportedMimeTypes.includes(file.detectedMimeType) ||
+        !this.allowedMimeTypes.includes(file.detectedMimeType)) return null;
+    return this.ensureJob(tx, file);
+  }
+
+  private async ensureJob(tx: Tx, file: FileObject): Promise<ProcessingJob> {
+    this.source(file);
+    const existing = await tx.processingJob.findFirst({ where: { ownerId: file.ownerId, fileObjectId: file.id,
+      processorKey: this.policy.key, processorVersion: this.policy.version } });
+    if (existing) {
+      await tx.$queryRaw`SELECT "id" FROM "ProcessingJob" WHERE "id" = ${existing.id}::uuid FOR UPDATE`;
+      const current = await tx.processingJob.findUnique({ where: { id: existing.id } });
+      if (!current) error('PROCESSING_NOT_FOUND');
+      if (current.ownerId !== file.ownerId || current.fileObjectId !== file.id || current.processorKey !== this.policy.key ||
+          current.processorVersion !== this.policy.version || current.implementationFingerprint !== this.policy.implementationFingerprint) {
+        error('PROCESSING_POLICY_MISMATCH');
       }
-      const now = await this.now(tx);
-      return tx.processingJob.create({ data: { id: randomUUID(), ownerId, fileObjectId: fileId,
-        processorKey: this.policy.key, processorVersion: this.policy.version,
-        implementationFingerprint: this.policy.implementationFingerprint, sourceFingerprint: this.sourceFingerprint(view.file),
-        state: 'QUEUED', createdAt: now, updatedAt: now } });
-    });
+      if (current.sourceFingerprint !== this.sourceFingerprint(file)) error('SOURCE_CHANGED');
+      return current;
+    }
+    const now = await this.now(tx);
+    return tx.processingJob.create({ data: { id: randomUUID(), ownerId: file.ownerId, fileObjectId: file.id,
+      processorKey: this.policy.key, processorVersion: this.policy.version,
+      implementationFingerprint: this.policy.implementationFingerprint, sourceFingerprint: this.sourceFingerprint(file),
+      state: 'QUEUED', createdAt: now, updatedAt: now } });
+  }
+
+  async createJob(ownerId: string, fileId: string): Promise<ProcessingJob> {
+    return this.locked(ownerId, fileId, null, (tx, view) => this.ensureJob(tx, view.file));
   }
 
   async claim(ownerId: string, fileId: string, jobId: string, leaseOwner: string): Promise<Claim | null> {

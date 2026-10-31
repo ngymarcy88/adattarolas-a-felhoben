@@ -4,6 +4,10 @@ import { FileIdPipe, UploadConfirmGuard } from './upload-confirm.guard';
 import { UploadCleanupService } from './upload-cleanup.service';
 import { UploadCleanupWorker } from './upload-cleanup.worker';
 import { Module } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { PrismaService } from '../prisma/prisma.service';
+import { ProcessingStateService } from '../processing/processing-state.service';
+import { thumbnailProcessingPolicy } from '../processing/thumbnail-processor';
 import { AuthModule } from '../auth/auth.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { StorageModule } from '../storage/storage.module';
@@ -18,5 +22,7 @@ import { FilePreviewService } from './file-preview.service';
 import { FilePreviewGuard } from './file-preview.guard';
 
 @Module({ imports: [AuthModule, PrismaModule, StorageModule], controllers: [FilesController],
-  providers: [FilePreviewService, FilePreviewGuard, FileListService, FileListQueryPipe, FileListGuard, UploadStateService, UploadConfirmService, FileIdPipe, UploadConfirmGuard, UploadCleanupService, UploadCleanupWorker, UploadInitService, UploadInitValidationPipe, UploadInitGuard] })
+  providers: [{ provide: ProcessingStateService, inject: [PrismaService, ConfigService],
+    useFactory: (prisma: PrismaService, config: ConfigService) => new ProcessingStateService(prisma, config, thumbnailProcessingPolicy) },
+    FilePreviewService, FilePreviewGuard, FileListService, FileListQueryPipe, FileListGuard, UploadStateService, UploadConfirmService, FileIdPipe, UploadConfirmGuard, UploadCleanupService, UploadCleanupWorker, UploadInitService, UploadInitValidationPipe, UploadInitGuard] })
 export class FilesModule {}

@@ -100,3 +100,6 @@ Ez a napló a projekt szempontjából fontos AI-promptokat és azok eredményét
 
 
 | P-047 | 2026-10-31 | Takarékos agent-munkafolyamat. | AGENTS rövidítése, alapból egy agent, tesztfuttatások összevonása a fontos ellenőrzések megtartásával. | Kanonikus dokumentumokra hivatkozó rövid útmutató; célzott olvasás, egy végső ellenőrzési kör, indokolt hibakeresési kivételek. | AGENTS.md, test_strategy.md és AI-naplók. | Nincs alkalmazáskód/CI változás; nincs subagent vagy alkalmazásteszt. A helyi README-módosítás érintetlen. |
+
+
+| P-048 | 2026-10-31 | Confirm és tartós thumbnail-job összekötése. | Friss ACTIVE képhez egy job/verzió, atomikus enqueue/aktiválás, replay és kizárt állapot unitok; ne várjon processorra és ne backfill-eljen. | Meglévő Prisma transaction clientbe illesztett enqueueConfirmedFile/ensureJob, FilesModule state factory közös descriptorral; bővített rollback/lost-response unit fixture. | Backend files/processing és upload-confirm unitok; API/adatmodell/ADR/terv/quality/AI docs. | Egy agent, előzetes célzott futás nélkül egy összevont végső ellenőrzés. Nincs worker/publisher/decoder-indítás vagy migráció; helyi README érintetlen. |
