@@ -97,3 +97,6 @@ Ez a napló a projekt szempontjából fontos AI-promptokat és azok eredményét
 
 
 | P-046 | 2026-10-30 | Tartós job/state és derived accounting service. | Explicit jobcreation/transitions/finalization, tranzakciós quota, konkurencia/idempotencia és DB-storage részhibák; worker nélkül. | ProcessingStateService és külön publisher: claim/DBclock/fence/retryCAS, pontosR/egyszeriPUT-jog, atomikus result/accounting/audit, retainuncertainreservation;93 új unit. | backend processing state/types/publication, state/publication tests/fixture; meglévő ADR/design/security/quality/plan/milestone/AI docs. | Független review alapján state Claim-snapshot, expectedRetryRevision CAS és SOURCE_NOT_ACTIVE cancellation javítva. README szerzői helyi módosítása megőrizve. Nincs worker/confirm/API/adoption/providerproof. |
+
+
+| P-047 | 2026-10-31 | Takarékos agent-munkafolyamat. | AGENTS rövidítése, alapból egy agent, tesztfuttatások összevonása a fontos ellenőrzések megtartásával. | Kanonikus dokumentumokra hivatkozó rövid útmutató; célzott olvasás, egy végső ellenőrzési kör, indokolt hibakeresési kivételek. | AGENTS.md, test_strategy.md és AI-naplók. | Nincs alkalmazáskód/CI változás; nincs subagent vagy alkalmazásteszt. A helyi README-módosítás érintetlen. |
