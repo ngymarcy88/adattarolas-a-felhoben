@@ -14,6 +14,12 @@ A unit-first fejlesztés nem a végső SZD2 elfogadási kapu. Az októberi célh
 - Playwright vagy más e2e/UI tesztek;
 - A unit CI-n túli build/typecheck quality gate és coverage enforcement.
 
+## Ellenőrzések összevonása – 2026-10-31
+
+Az [AGENTS.md](../../AGENTS.md) szerint a tesztek a részfeladat stabil implementációja után, egy összevont körben fussanak. Kész kód-PR-nél a végső unit/typecheck/build kör helyettesíti az előzetes, azonos célzott futást; korábbi részlépésnél elég az érintett suite/workspace. Konkrét hiba vizsgálatára korábbi célzott futás megengedett. Javítás után először az érintett ellenőrzést ismételjük; sikeres szélesebb kört csak új releváns változás vagy fennmaradó kockázat indokol.
+
+Csak dokumentáció módosításakor diff/link/konzisztencia-ellenőrzés kell, alkalmazásteszt/build/typecheck nem. A meglévő GitHub Actions eseményei és tesztköre változatlanok. Ez a futtatások ismétlését csökkenti; az üzleti, biztonsági és SZD2 elfogadási követelmények megmaradnak.
+
 ## Engedélyezett unit CI – 2026-10-22
 
 A szerző kifejezett kérésére a korábban későbbre tervezett CI első, szűk része most bevezetésre kerül: [GitHub Actions Tests](../../.github/workflows/tests.yml). Események: PR a mainre, push a mainre, valamint default branchre kerülés után kézi indítás. Ubuntu 24.04, `.nvmrc` szerinti Node, root lockfile és `npm ci`; utána Prisma Client generálás szintetikus URL-lel és a teljes meglévő `npm test`. Ez az aktuális root scripthez igazodik, ezért későbbi scriptváltozásnál a workflow és a dokumentáció együtt ellenőrizendő.
