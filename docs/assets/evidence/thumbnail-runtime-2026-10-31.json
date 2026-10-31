@@ -1,0 +1,608 @@
+{
+  "testedCommit": "46eb5b0000bf86fc3d66e5064452a2159cd085d1",
+  "date": "2026-10-31",
+  "environment": {
+    "node": "v22.23.2",
+    "dockerServer": "26.1.1",
+    "postgres": "17.9",
+    "sharp": "0.35.5",
+    "libvips": "8.18.7",
+    "browser": "Windows Chrome 156.0.8078.74 headless / isolated test profile / native CDP",
+    "worker": {
+      "memoryBytes": 536870912,
+      "memorySwapBytes": 536870912,
+      "nanoCpus": 1000000000,
+      "pidsLimit": 64,
+      "image": "sha256:e2a70f893f70ca0d07f6397b639f24544ad61d5df693f322e65ca0d7e43a020c"
+    }
+  },
+  "inputs": [
+    {
+      "label": "valid",
+      "user": "A",
+      "sizeBytes": 17316,
+      "sha256": "5c2f69063d5453e7e9dcebafd7f81d837477d74eb826b424cdcae43bce7523a8"
+    },
+    {
+      "label": "corrupt",
+      "user": "A",
+      "sizeBytes": 41,
+      "sha256": "d0210d3c084fe5faf5813cfc987191128a3808c5a6d966ef4b128194fc5d020d"
+    },
+    {
+      "label": "quota",
+      "user": "B",
+      "sizeBytes": 17316,
+      "sha256": "5c2f69063d5453e7e9dcebafd7f81d837477d74eb826b424cdcae43bce7523a8"
+    },
+    {
+      "label": "duplicate",
+      "user": "A",
+      "sizeBytes": 17316,
+      "sha256": "5c2f69063d5453e7e9dcebafd7f81d837477d74eb826b424cdcae43bce7523a8"
+    },
+    {
+      "label": "restart",
+      "user": "A",
+      "sizeBytes": 28520588,
+      "sha256": "5cb221bd9faa293d618342945227168f93f5927b2716d1cd0d45f609b834a04e"
+    },
+    {
+      "label": "browser",
+      "user": "A",
+      "sizeBytes": 17316,
+      "sha256": "5c2f69063d5453e7e9dcebafd7f81d837477d74eb826b424cdcae43bce7523a8"
+    }
+  ],
+  "interrupted": {
+    "at": "2026-10-31T14:33:08.338Z",
+    "state": "RUNNING",
+    "phase": "STORED",
+    "reservedBytes": "58552",
+    "totalUserReserved": "58552",
+    "attemptCount": 1,
+    "producerFence": "1",
+    "jobFence": "1",
+    "finalized": false
+  },
+  "migrations": [
+    "20261018000100_initial_core",
+    "20261023000100_upload_operations",
+    "20261029000100_processing_model"
+  ],
+  "audit": [
+    {
+      "action": "PROCESSING_SUCCEEDED",
+      "count": 5
+    },
+    {
+      "action": "UPLOAD_CONFIRMED",
+      "count": 6
+    }
+  ],
+  "events": [
+    {
+      "at": "2026-10-31T14:29:54.580Z",
+      "name": "runtime",
+      "commit": "46eb5b0000bf86fc3d66e5064452a2159cd085d1",
+      "node": "v22.23.2",
+      "frontendOrigin": "http://127.0.0.1:5173",
+      "backendOrigin": "http://127.0.0.1:3000"
+    },
+    {
+      "at": "2026-10-31T14:29:55.277Z",
+      "name": "account_created",
+      "label": "A"
+    },
+    {
+      "at": "2026-10-31T14:29:55.889Z",
+      "name": "account_created",
+      "label": "B"
+    },
+    {
+      "at": "2026-10-31T14:29:57.190Z",
+      "name": "active_and_durable_job",
+      "label": "valid",
+      "originalBytes": 17316,
+      "state": "QUEUED"
+    },
+    {
+      "at": "2026-10-31T14:29:57.205Z",
+      "name": "queued_persists_worker_stopped"
+    },
+    {
+      "at": "2026-10-31T14:30:00.394Z",
+      "name": "job_observed",
+      "label": "valid",
+      "state": "QUEUED",
+      "attemptCount": 0,
+      "errorCode": null
+    },
+    {
+      "at": "2026-10-31T14:30:01.003Z",
+      "name": "job_observed",
+      "label": "valid",
+      "state": "RUNNING",
+      "phase": "PREPARING",
+      "attemptCount": 1,
+      "errorCode": null
+    },
+    {
+      "at": "2026-10-31T14:30:01.308Z",
+      "name": "job_observed",
+      "label": "valid",
+      "state": "SUCCEEDED",
+      "phase": "PUBLISHED",
+      "attemptCount": 1,
+      "errorCode": null
+    },
+    {
+      "at": "2026-10-31T14:30:01.391Z",
+      "name": "ready_bytes_and_urls",
+      "label": "valid",
+      "thumbnailBytes": 486,
+      "width": 512,
+      "height": 384,
+      "mime": "webp",
+      "ttlSeconds": 60,
+      "originalShaMatches": true
+    },
+    {
+      "at": "2026-10-31T14:30:01.446Z",
+      "name": "active_and_durable_job",
+      "label": "corrupt",
+      "originalBytes": 41,
+      "state": "QUEUED"
+    },
+    {
+      "at": "2026-10-31T14:30:01.449Z",
+      "name": "job_observed",
+      "label": "corrupt",
+      "state": "QUEUED",
+      "attemptCount": 0,
+      "errorCode": null
+    },
+    {
+      "at": "2026-10-31T14:30:02.965Z",
+      "name": "job_observed",
+      "label": "corrupt",
+      "state": "FAILED",
+      "phase": "RELEASED",
+      "attemptCount": 1,
+      "errorCode": "PROCESSOR_INPUT_INVALID"
+    },
+    {
+      "at": "2026-10-31T14:30:03.033Z",
+      "name": "corrupt_isolated_permanent_failure",
+      "originalActive": true,
+      "retryStatus": 409
+    },
+    {
+      "at": "2026-10-31T14:30:03.066Z",
+      "name": "ownership_and_session_exclusion",
+      "foreignStatus": 404,
+      "anonymousStatus": 401
+    },
+    {
+      "at": "2026-10-31T14:30:03.071Z",
+      "name": "gallery_api_contains_originals",
+      "count": 2,
+      "renderedBrowser": false
+    },
+    {
+      "at": "2026-10-31T14:30:03.088Z",
+      "name": "db_storage_quota",
+      "user": "A",
+      "files": 2,
+      "readyResults": 1,
+      "objects": 3,
+      "objectBytes": 17843,
+      "usedBytes": "17843",
+      "reservedBytes": "0",
+      "limitBytes": "1073741824"
+    },
+    {
+      "at": "2026-10-31T14:30:35.679Z",
+      "name": "active_and_durable_job",
+      "label": "quota",
+      "originalBytes": 17316,
+      "state": "QUEUED"
+    },
+    {
+      "at": "2026-10-31T14:30:35.688Z",
+      "name": "job_observed",
+      "label": "quota",
+      "state": "QUEUED",
+      "attemptCount": 0,
+      "errorCode": null
+    },
+    {
+      "at": "2026-10-31T14:30:36.906Z",
+      "name": "job_observed",
+      "label": "quota",
+      "state": "BLOCKED_QUOTA",
+      "phase": "RELEASED",
+      "attemptCount": 1,
+      "errorCode": "DERIVED_QUOTA_EXCEEDED"
+    },
+    {
+      "at": "2026-10-31T14:30:36.938Z",
+      "name": "db_storage_quota",
+      "user": "B",
+      "files": 1,
+      "readyResults": 0,
+      "objects": 1,
+      "objectBytes": 17316,
+      "usedBytes": "17316",
+      "reservedBytes": "0",
+      "limitBytes": "17316"
+    },
+    {
+      "at": "2026-10-31T14:30:36.957Z",
+      "name": "original_quota_rejection",
+      "status": 409
+    },
+    {
+      "at": "2026-10-31T14:30:37.012Z",
+      "name": "concurrent_processor_retry",
+      "statuses": [
+        202,
+        200
+      ],
+      "revisions": [
+        1,
+        1
+      ]
+    },
+    {
+      "at": "2026-10-31T14:30:37.016Z",
+      "name": "job_observed",
+      "label": "quota",
+      "state": "QUEUED",
+      "phase": "RELEASED",
+      "attemptCount": 1,
+      "errorCode": null
+    },
+    {
+      "at": "2026-10-31T14:30:38.842Z",
+      "name": "job_observed",
+      "label": "quota",
+      "state": "RUNNING",
+      "phase": "PREPARING",
+      "attemptCount": 2,
+      "errorCode": null
+    },
+    {
+      "at": "2026-10-31T14:30:39.147Z",
+      "name": "job_observed",
+      "label": "quota",
+      "state": "SUCCEEDED",
+      "phase": "PUBLISHED",
+      "attemptCount": 2,
+      "errorCode": null
+    },
+    {
+      "at": "2026-10-31T14:30:39.159Z",
+      "name": "db_storage_quota",
+      "user": "B",
+      "files": 1,
+      "readyResults": 1,
+      "objects": 2,
+      "objectBytes": 17802,
+      "usedBytes": "17802",
+      "reservedBytes": "0",
+      "limitBytes": "1073741824"
+    },
+    {
+      "at": "2026-10-31T14:30:39.178Z",
+      "name": "successful_retry_noop"
+    },
+    {
+      "at": "2026-10-31T14:31:04.861Z",
+      "name": "second_real_worker_started"
+    },
+    {
+      "at": "2026-10-31T14:31:05.203Z",
+      "name": "active_and_durable_job",
+      "label": "duplicate",
+      "originalBytes": 17316,
+      "state": "QUEUED"
+    },
+    {
+      "at": "2026-10-31T14:31:05.257Z",
+      "name": "job_observed",
+      "label": "duplicate",
+      "state": "QUEUED",
+      "attemptCount": 0,
+      "errorCode": null
+    },
+    {
+      "at": "2026-10-31T14:31:05.561Z",
+      "name": "job_observed",
+      "label": "duplicate",
+      "state": "RUNNING",
+      "phase": "PREPARING",
+      "attemptCount": 1,
+      "errorCode": null
+    },
+    {
+      "at": "2026-10-31T14:31:05.866Z",
+      "name": "job_observed",
+      "label": "duplicate",
+      "state": "SUCCEEDED",
+      "phase": "PUBLISHED",
+      "attemptCount": 1,
+      "errorCode": null
+    },
+    {
+      "at": "2026-10-31T14:31:05.942Z",
+      "name": "ready_bytes_and_urls",
+      "label": "duplicate",
+      "thumbnailBytes": 486,
+      "width": 512,
+      "height": 384,
+      "mime": "webp",
+      "ttlSeconds": 59,
+      "originalShaMatches": true
+    },
+    {
+      "at": "2026-10-31T14:31:05.959Z",
+      "name": "db_storage_quota",
+      "user": "A",
+      "files": 3,
+      "readyResults": 2,
+      "objects": 5,
+      "objectBytes": 35645,
+      "usedBytes": "35645",
+      "reservedBytes": "0",
+      "limitBytes": "1073741824"
+    },
+    {
+      "at": "2026-10-31T14:31:10.472Z",
+      "name": "db_storage_quota",
+      "user": "A",
+      "files": 3,
+      "readyResults": 2,
+      "objects": 5,
+      "objectBytes": 35645,
+      "usedBytes": "35645",
+      "reservedBytes": "0",
+      "limitBytes": "1073741824"
+    },
+    {
+      "at": "2026-10-31T14:31:10.491Z",
+      "name": "duplicate_delivery_two_workers",
+      "confirmReplies": [
+        200,
+        200,
+        200,
+        200
+      ],
+      "jobs": 1,
+      "results": 1,
+      "generationAttempts": 1,
+      "usageStable": true
+    },
+    {
+      "at": "2026-10-31T14:31:11.121Z",
+      "name": "second_worker_removed"
+    },
+    {
+      "at": "2026-10-31T14:32:07.481Z",
+      "name": "active_and_durable_job",
+      "label": "restart",
+      "originalBytes": 28520588,
+      "state": "QUEUED"
+    },
+    {
+      "at": "2026-10-31T14:32:11.958Z",
+      "name": "hard_stop_snapshot",
+      "state": "RUNNING",
+      "phase": "STORED",
+      "attemptCount": 1,
+      "leaseUntil": "2026-10-31T14:33:41.084Z"
+    },
+    {
+      "at": "2026-10-31T14:32:20.004Z",
+      "name": "restart_respects_live_lease",
+      "remainingSeconds": 81
+    },
+    {
+      "at": "2026-10-31T14:32:20.007Z",
+      "name": "job_observed",
+      "label": "restart",
+      "state": "RUNNING",
+      "phase": "STORED",
+      "attemptCount": 1,
+      "errorCode": null
+    },
+    {
+      "at": "2026-10-31T14:33:41.795Z",
+      "name": "job_observed",
+      "label": "restart",
+      "state": "SUCCEEDED",
+      "phase": "PUBLISHED",
+      "attemptCount": 1,
+      "errorCode": null
+    },
+    {
+      "at": "2026-10-31T14:33:42.051Z",
+      "name": "ready_bytes_and_urls",
+      "label": "restart",
+      "thumbnailBytes": 58552,
+      "width": 512,
+      "height": 512,
+      "mime": "webp",
+      "ttlSeconds": 59,
+      "originalShaMatches": true
+    },
+    {
+      "at": "2026-10-31T14:33:42.068Z",
+      "name": "db_storage_quota",
+      "user": "A",
+      "files": 4,
+      "readyResults": 3,
+      "objects": 7,
+      "objectBytes": 28614785,
+      "usedBytes": "28614785",
+      "reservedBytes": "0",
+      "limitBytes": "1073741824"
+    },
+    {
+      "at": "2026-10-31T14:33:42.073Z",
+      "name": "hard_restart_recovered",
+      "attemptCount": 1,
+      "resultCount": 1
+    },
+    {
+      "at": "2026-10-31T14:33:42.087Z",
+      "name": "db_storage_quota",
+      "user": "A",
+      "files": 4,
+      "readyResults": 3,
+      "objects": 7,
+      "objectBytes": 28614785,
+      "usedBytes": "28614785",
+      "reservedBytes": "0",
+      "limitBytes": "1073741824"
+    },
+    {
+      "at": "2026-10-31T14:33:49.891Z",
+      "name": "db_storage_quota",
+      "user": "A",
+      "files": 4,
+      "readyResults": 3,
+      "objects": 7,
+      "objectBytes": 28614785,
+      "usedBytes": "28614785",
+      "reservedBytes": "0",
+      "limitBytes": "1073741824"
+    },
+    {
+      "at": "2026-10-31T14:33:49.891Z",
+      "name": "graceful_restart_completed_results_stable"
+    },
+    {
+      "at": "2026-10-31T14:37:04.731Z",
+      "name": "job_observed",
+      "label": "browser",
+      "state": "SUCCEEDED",
+      "phase": "PUBLISHED",
+      "attemptCount": 1,
+      "errorCode": null
+    },
+    {
+      "at": "2026-10-31T14:37:04.823Z",
+      "name": "ready_bytes_and_urls",
+      "label": "browser",
+      "thumbnailBytes": 486,
+      "width": 512,
+      "height": 384,
+      "mime": "webp",
+      "ttlSeconds": 59,
+      "originalShaMatches": true
+    },
+    {
+      "at": "2026-10-31T14:37:04.835Z",
+      "name": "recovery_publication_identity",
+      "attemptCount": 1,
+      "producerFence": "1",
+      "jobFence": "2",
+      "publicationFence": "2",
+      "sameCandidate": true,
+      "finalized": true,
+      "bytes": "58552"
+    },
+    {
+      "at": "2026-10-31T14:37:04.877Z",
+      "name": "ready_bytes_and_urls",
+      "label": "quota",
+      "thumbnailBytes": 486,
+      "width": 512,
+      "height": 384,
+      "mime": "webp",
+      "ttlSeconds": 59,
+      "originalShaMatches": true
+    },
+    {
+      "at": "2026-10-31T14:37:04.897Z",
+      "name": "db_storage_quota",
+      "user": "A",
+      "files": 5,
+      "readyResults": 4,
+      "objects": 9,
+      "objectBytes": 28632587,
+      "usedBytes": "28632587",
+      "reservedBytes": "0",
+      "limitBytes": "1073741824"
+    },
+    {
+      "at": "2026-10-31T14:37:04.909Z",
+      "name": "db_storage_quota",
+      "user": "B",
+      "files": 1,
+      "readyResults": 1,
+      "objects": 2,
+      "objectBytes": 17802,
+      "usedBytes": "17802",
+      "reservedBytes": "0",
+      "limitBytes": "1073741824"
+    },
+    {
+      "at": "2026-10-31T14:37:04.918Z",
+      "name": "mixed_batch_has_no_partial_data"
+    },
+    {
+      "at": "2026-10-31T14:37:04.944Z",
+      "name": "expiry_wait_started",
+      "seconds": 63
+    },
+    {
+      "at": "2026-10-31T14:38:06.845Z",
+      "name": "actual_presigned_expiry_rejected",
+      "status": 403
+    },
+    {
+      "at": "2026-10-31T14:38:06.856Z",
+      "name": "versions",
+      "postgres": "PostgreSQL 17.9 (Debian 17.9-1.pgdg12+1)",
+      "sharp": "0.35.5",
+      "vips": "8.18.7"
+    }
+  ],
+  "browser": {
+    "uploadSuccess": true,
+    "activeAndJobVerified": true,
+    "waitingVisible": true,
+    "readyLabelVisible": true,
+    "thumbnailRequests": 0,
+    "thumbnailImages": 0,
+    "afterManualRefreshThumbnailRequests": 0,
+    "originalPreview": {
+      "loaded": true,
+      "naturalWidth": 1024,
+      "naturalHeight": 768,
+      "anonymous": true,
+      "referrerPolicy": "no-referrer"
+    },
+    "galleryAcceptance": "FAIL",
+    "defects": [
+      {
+        "id": "TH-01",
+        "summary": "READY cards do not request thumbnail-url or render an img, even after manual refresh"
+      },
+      {
+        "id": "TH-02",
+        "summary": "Upload success copy incorrectly says processing is unavailable"
+      }
+    ]
+  },
+  "notExecuted": [
+    "hard stop at PREPARING/R0 or WRITE_PENDING before PUT",
+    "late old worker result publishing after new lease while both computations continue",
+    "uncertain write closure/cleanup and positive reservation release",
+    "browser image-error retry, actual hidden-page abort and pagination >20 files",
+    "OOM/cgroup enforcement experiment",
+    "external UAT"
+  ]
+}
