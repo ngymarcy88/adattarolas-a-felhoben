@@ -5,6 +5,7 @@ import type { AppConfig } from '../config/app-config';
 import type { Prisma } from '../generated/prisma/client';
 import { ApiError, type ApiErrorCode } from '../common/errors/api-error';
 import { OBJECT_STORAGE, type ObjectStorage } from '../storage/storage.interface';
+import { ProcessingStateService } from '../processing/processing-state.service';
 import { detectImageMime, IMAGE_PREFIX_BYTES } from './image-signature';
 import { UploadStateService, publicFile, type LockedUpload, type UploadFile } from './upload-state.service';
 
@@ -13,12 +14,12 @@ type Verification = { mime: string } | { error: 'FILE_TOO_LARGE' | 'UPLOAD_VALID
 @Injectable()
 export class UploadConfirmService {
   constructor(private readonly state: UploadStateService, private readonly config: ConfigService,
-    @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage) {}
+    @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage, private readonly processing: ProcessingStateService) {}
 
   private async current(tx: Prisma.TransactionClient, view: LockedUpload): Promise<Result | null> {
     const { file, now } = view; const operation = file.uploadOperation;
     if (file.status === 'ACTIVE') return { file }; // Legacy/pruned successful files need no receipt.
-    if (file.status === 'SOFT_DELETED') return { error: 'RESOURCE_STATE_CONFLICT' };
+    if (file.status !== 'PENDING_UPLOAD') return { error: 'RESOURCE_STATE_CONFLICT' };
     if (!operation || operation.state === 'FINALIZED') throw new ApiError('DATABASE_UNAVAILABLE');
     if (operation.state === 'REJECTED' || operation.state === 'EXPIRED') {
       if (!operation.terminalErrorCode) throw new ApiError('DATABASE_UNAVAILABLE');
@@ -71,6 +72,7 @@ export class UploadConfirmService {
       await tx.fileObject.update({ where: { id: file.id }, data: { status: 'ACTIVE', detectedMimeType: verification.mime } });
       await tx.uploadOperation.update({ where: { id: operation.id }, data: { state: 'FINALIZED', closedAt: now } });
       await tx.user.update({ where: { id: ownerId }, data: { reservedStorageBytes: { decrement: file.sizeBytes }, usedStorageBytes: { increment: file.sizeBytes } } });
+      await this.processing.enqueueConfirmedFile(tx, { ...file, status: 'ACTIVE', detectedMimeType: verification.mime });
       await tx.auditEvent.create({ data: { actorUserId: ownerId, action: 'UPLOAD_CONFIRMED', resourceType: 'FILE_OBJECT', resourceId: file.id,
         requestId, metadata: { sizeBytes: String(file.sizeBytes), mimeType: verification.mime } } });
       // Check again after all writes. Throw rolls back every write if commit work exhausted the deadline.

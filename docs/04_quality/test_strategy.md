@@ -242,3 +242,8 @@ Három Jest suite,107 eset:42 tényleges decoder-child/Sharp szintetikus kép,17
 A Prisma-port tranzakcióit mutexes, rollbacket modellező izolált fixture ellenőrzi; a locksorrend és DB-clock lekérdezése megfigyelhető. Konkurens claim/reserve/finalize, külön jobok közös userkvótája, azonos végrehajtás replay-je, minden véglegesítési lépés DB-hibája, commit utáni elveszett válasz, lease/source/build eltérés és retry-keretek kapnak regressziót. A publisher külön mockolt storage receipt/HEAD és DB-service határon ellenőriz commit-before-PUT-ot, inputsnapshotot, egyszeri írási jogot, storage/DB részhibát és tiltott DELETE/release-t. A published winner védett, régi bizonytalan R megmarad.
 
 Ez nem valódi PostgreSQL-lock/transaction-izoláció vagy MinIO conditional-write/recovery bizonyíték. Worker/full-read adoption/provider-closure és végpont/browser elfogadás továbbra külön kapu; a schema korábbi SQL-verifier eredménye nem bizonyítja ezt a service-szeletet.
+
+
+### Tartós confirm-hook unitok – 2026-10-31
+
+A valódi UploadConfirmService és ProcessingStateService közös mockolt Prisma transaction porton fut. Mutex + file/receipt/counter/job/audit rollback és lost-commit-response fixture ellenőrzi a közös commitot; nincs második enqueue-tranzakció. Párhuzamos/replay confirm, FAILED job, legacy ACTIVE job nélkül, kizárt állapot/MIME/storage verification, mindegyik DB-írási hiba és deadline-rollback kap ellenőrzést. A provider factory ugyanazt a build descriptort adja, process-hívás nem történik. Ezek nem valódi PostgreSQL-lock vagy processzkilövéses recovery bizonyítékok; a tényleges DB/MinIO/restart kapu külön marad.

@@ -3,6 +3,9 @@ import { PrismaService } from '../../src/prisma/prisma.service';
 import { UploadStateService, type UploadFile } from '../../src/files/upload-state.service';
 import { UploadConfirmService } from '../../src/files/upload-confirm.service';
 import { UploadCleanupService } from '../../src/files/upload-cleanup.service';
+import type { ProcessingJob } from '../../src/generated/prisma/client';
+import { ProcessingStateService } from '../../src/processing/processing-state.service';
+import { thumbnailProcessingPolicy } from '../../src/processing/thumbnail-processor';
 import type { ObjectStorage } from '../../src/storage/storage.interface';
 
 export const owner = '00000000-0000-4000-8000-000000000001';
@@ -12,24 +15,56 @@ export const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAA
 export function uploadFixture() {
   const file = { id, ownerId: owner, status: 'PENDING_UPLOAD', originalName: 'fixture.png', storageKey: `originals/${owner}/${id}`,
     mimeType: 'image/png', detectedMimeType: null, sizeBytes: BigInt(png.length), uploadUrlExpiresAt: new Date(+now + 300000), confirmBy: new Date(+now + 900000),
-    cleanupAttemptCount: 0, cleanupRetryAfter: null, cleanupLastErrorCode: null, uploadOperation: { id: '00000000-0000-4000-8000-000000000003',
+    deletedAt: null, cleanupAttemptCount: 0, cleanupRetryAfter: null, cleanupLastErrorCode: null, uploadOperation: { id: '00000000-0000-4000-8000-000000000003',
       ownerId: owner, fileObjectId: id, state: 'OPEN', terminalErrorCode: null, closedAt: null, writesClosedAt: null, reservationReleasedAt: null },
   } as unknown as UploadFile;
-  const user = { reservedStorageBytes: file.sizeBytes };
+  const user = { reservedStorageBytes: file.sizeBytes, usedStorageBytes: 0n };
+  const jobs: ProcessingJob[] = []; const audits: unknown[] = [];
+  const behavior = { loseNextCommitResponse: false };
   const tx = {
     $executeRaw: jest.fn().mockResolvedValue(0),
-    $queryRaw: jest.fn().mockImplementation(async (parts: TemplateStringsArray) => parts.join('').includes('FROM "User"') ? [user] : [{ id }]),
+    $queryRaw: jest.fn().mockImplementation(async (parts: TemplateStringsArray) => {
+      const sql = parts.join('');
+      if (sql.includes('clock_timestamp')) return [{ now: new Date() }];
+      return sql.includes('FROM "User"') ? [user] : [{ id }];
+    }),
     fileObject: { findUnique: jest.fn().mockImplementation(async () => structuredClone(file)),
       update: jest.fn().mockImplementation(async ({ data }) => { Object.assign(file, data); return structuredClone(file); }) },
     uploadOperation: { update: jest.fn().mockImplementation(async ({ data }) => { Object.assign(file.uploadOperation!, data); return structuredClone(file.uploadOperation); }) },
-    user: { update: jest.fn().mockResolvedValue({}) }, auditEvent: { create: jest.fn().mockResolvedValue({}) },
+    processingJob: {
+      findFirst: jest.fn().mockImplementation(async ({ where }) => structuredClone(jobs.find(job =>
+        Object.entries(where).every(([key, value]) => job[key as keyof ProcessingJob] === value)) ?? null)),
+      findUnique: jest.fn().mockImplementation(async ({ where }) => structuredClone(jobs.find(job => job.id === where.id) ?? null)),
+      create: jest.fn().mockImplementation(async ({ data }) => {
+        if (jobs.some(job => job.ownerId === data.ownerId && job.fileObjectId === data.fileObjectId &&
+            job.processorKey === data.processorKey && job.processorVersion === data.processorVersion)) throw new Error('synthetic unique conflict');
+        const job = { fence: 0n, cycleAttemptCount: 0, totalAttemptCount: 0, recoveryProbeCount: 0, retryRevision: 0,
+          leaseOwner: null, leaseUntil: null, nextAttemptAt: null, lastErrorCode: null, retryable: false, finishedAt: null, ...data } as ProcessingJob;
+        jobs.push(job); return structuredClone(job);
+      }),
+    },
+    user: { update: jest.fn().mockImplementation(async ({ data }) => {
+      for (const key of ['reservedStorageBytes', 'usedStorageBytes'] as const) {
+        if (data[key]?.decrement !== undefined) user[key] -= data[key].decrement;
+        if (data[key]?.increment !== undefined) user[key] += data[key].increment;
+      }
+      return structuredClone(user);
+    }) },
+    auditEvent: { create: jest.fn().mockImplementation(async ({ data }) => { audits.push(structuredClone(data)); return {}; }) },
   };
   let tail = Promise.resolve();
   const db = { $transaction: jest.fn().mockImplementation((action) => {
     const current = tail.then(async () => {
       const before = structuredClone(file); const beforeUser = structuredClone(user);
-      try { return await action(tx); }
-      catch (error) { Object.assign(file, before); Object.assign(user, beforeUser); throw error; }
+      const beforeJobs = structuredClone(jobs); const beforeAudits = structuredClone(audits);
+      let result;
+      try { result = await action(tx); }
+      catch (error) {
+        Object.assign(file, before); Object.assign(user, beforeUser);
+        jobs.splice(0, jobs.length, ...beforeJobs); audits.splice(0, audits.length, ...beforeAudits); throw error;
+      }
+      if (behavior.loseNextCommitResponse) { behavior.loseNextCommitResponse = false; throw new Error('synthetic commit response lost'); }
+      return result;
     }); tail = current.catch(() => undefined); return current;
   }), fileObject: { findMany: jest.fn().mockResolvedValue([{ id, ownerId: owner }]) } };
   const storage = { writeClosureEvidence: 'unproven', head: jest.fn().mockResolvedValue({ sizeBytes: png.length, contentType: 'text/html', etag: '"identity"' }),
@@ -37,6 +72,7 @@ export function uploadFixture() {
   const config = { getOrThrow: () => ({ maxUploadBytes: 104857600, allowedMimeTypes: ['image/png', 'image/jpeg', 'image/webp', 'image/gif'] }) } as unknown as ConfigService;
   const prisma = db as unknown as PrismaService; const adapter = storage as unknown as ObjectStorage;
   const state = new UploadStateService(prisma);
-  return { file, user, tx, db, storage, config, state,
-    confirmation: new UploadConfirmService(state, config, adapter), cleanup: new UploadCleanupService(prisma, state, adapter) };
+  const processing = new ProcessingStateService(prisma, config, thumbnailProcessingPolicy);
+  return { file, user, tx, db, storage, config, state, processing, jobs, audits, behavior,
+    confirmation: new UploadConfirmService(state, config, adapter, processing), cleanup: new UploadCleanupService(prisma, state, adapter) };
 }

@@ -6,7 +6,7 @@ Accepted – tervezési döntés; 2026-10-29.
 
 ## Implementation status
 
-**Részben implementált alap, 2026-10-29:** job/attempt/result séma, storage I/O, közös TypeScript `Processor` és explicit hívható `ThumbnailProcessor` elkészült. Root lockfile-ban pontos Sharp **0.35.5**, WSL Linux x64 runtime: libvips **8.18.7**, libwebp **1.6.0**. 2026-10-30 óta explicit tranzakciós processing-state/publication service is van, derived-könyveléssel; nincs worker, Nest-regisztráció, confirmból indítás vagy új HTTP API. A galéria továbbra is eredetit mutat. A metadata-processor későbbi szelet.
+**Részben implementált alap, 2026-10-29:** job/attempt/result séma, storage I/O, közös TypeScript `Processor` és explicit hívható `ThumbnailProcessor` elkészült. Root lockfile-ban pontos Sharp **0.35.5**, WSL Linux x64 runtime: libvips **8.18.7**, libwebp **1.6.0**. 2026-10-30 óta explicit tranzakciós processing-state/publication service is van, derived-könyveléssel; a state-service FilesModule-regisztrációja és a confirmból tartós jobbeszúrás2026-10-31 óta implementált; worker/dekóder-indítás vagy új HTTP API nincs. A galéria továbbra is eredetit mutat. A metadata-processor későbbi szelet.
 
 ## Context
 
@@ -90,3 +90,8 @@ Ellenőrizve: 2026-10-29. Az upstream képességek forrásai; a fenti limitek sa
 A feldolgozási állapot és kvóta már külön tranzakciós service-ben él; a publisher csak a foglalás első commitja után ír, az ismételt bizonytalan attempt nem kap új PUT-jogot. Result/állapot/R-átkönyvelés/audit atomikus. A DB/storage közötti hibák konzervatív tartós állapotot és foglalást hagynak, nem DELETE-alapú kompenzációt. A joblétrehozás explicit; confirm-integráció és a worker nem készült.
 
 A tervezett full-read recovery-adoption még nincs: lejárt írási candidate blokkolt, új generálás csak új kulccsal és új foglalással engedett a kereten belül. Ezzel a késői írás sem lesz elszámolatlan. A storage proof hiánya továbbra nem helyettesíthető timestamp/lease/HEAD404/DELETE200 értékkel. A biztonságos foglalásmegtartásnak tárhely-/üzemeltetési ára van; a hiteles cleanup-provider illesztése külön kapu.
+
+
+## Tartós confirm-hook – 2026-10-31
+
+Az új ACTIVE átmenet jobja az eredeti aktiválásával, receipt/accountinggal és audittal egyetlen Prisma-tranzakcióba került. Commit utáni eventre vagy Promise-ra épülő enqueue nem adna crashbiztos atomikusságot, ezért ilyen nincs. Jobmentési DB-hiba a még pending állapotot visszagörgeti; a későbbi processor hibája az ACTIVE eredetit nem érinti. Replay nem backfill, a meglévő logikai identity unique korlát megmarad. Csak a state-service kapott FilesModule factory-bekötést a közös descriptorral; nincs ProcessingWorker/publisher/processor automatikus futtatás.

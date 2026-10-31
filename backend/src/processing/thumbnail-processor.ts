@@ -22,6 +22,10 @@ const policy = Object.freeze({ ...profile, supportedMimeTypes: Object.freeze([..
 const fingerprint = createHash('sha256').update(JSON.stringify({ policy, versions, platform: process.platform, arch: process.arch })).digest('hex');
 const errors = new Set<string>(PROCESSOR_ERROR_CODES);
 
+/** Scheduling reads the same version/build identity without constructing or invoking a decoder. */
+export const thumbnailProcessingPolicy = Object.freeze({ key: policy.key, version: policy.version,
+  implementationFingerprint: fingerprint, supportedMimeTypes: policy.supportedMimeTypes });
+
 /** Explicit, stateless binary transformation. Not registered in Nest and never started by confirm. */
 export class ThumbnailProcessor implements Processor<ThumbnailResult> {
   readonly key = policy.key;

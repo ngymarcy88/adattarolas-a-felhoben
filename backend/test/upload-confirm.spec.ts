@@ -5,6 +5,12 @@ import { detectImageMime, IMAGE_PREFIX_BYTES } from '../src/files/image-signatur
 import { FileIdPipe, UploadConfirmGuard } from '../src/files/upload-confirm.guard';
 import { FilesController } from '../src/files/files.controller';
 import { UploadConfirmService } from '../src/files/upload-confirm.service';
+import type { FileObject } from '../src/generated/prisma/client';
+import { FilesModule } from '../src/files/files.module';
+import { PrismaService } from '../src/prisma/prisma.service';
+import { ConfigService } from '@nestjs/config';
+import { ProcessingStateService } from '../src/processing/processing-state.service';
+import { ThumbnailProcessor, thumbnailProcessingPolicy } from '../src/processing/thumbnail-processor';
 import { OriginGuard } from '../src/auth/origin.guard';
 import { SessionGuard } from '../src/auth/session.guard';
 import { owner, id, now, png, uploadFixture } from './helpers/upload-fixture';
@@ -160,5 +166,126 @@ describe('Confirm request boundary', () => {
     const response = { status: jest.fn(), json: jest.fn() }; response.status.mockReturnValue(response);
     await new FilesController(undefined as never, service as unknown as UploadConfirmService, undefined as never, undefined as never).confirm({ user: { id: owner }, requestId: 'request' } as never, id, response as never);
     expect(service.confirm).toHaveBeenCalledWith(owner, id, 'request'); expect(response.status).toHaveBeenCalledWith(200); expect(response.json).toHaveBeenCalledWith({ file: { id, status: 'ACTIVE' } });
+  });
+});
+
+
+describe('Atomic upload confirmation and durable thumbnail scheduling', () => {
+  it('commits ACTIVE, original accounting, one audit and one QUEUED versioned job together without a nested transaction', async () => {
+    const f = uploadFixture(); const decode = jest.spyOn(ThumbnailProcessor.prototype, 'process');
+    try {
+      const result = await f.confirmation.confirm(owner, id);
+      expect(result.file.status).toBe('ACTIVE');
+      expect(f.jobs).toHaveLength(1);
+      expect(f.jobs[0]).toMatchObject({ ownerId: owner, fileObjectId: id, processorKey: 'thumbnail', processorVersion: '1.0.0',
+        state: 'QUEUED', implementationFingerprint: thumbnailProcessingPolicy.implementationFingerprint, totalAttemptCount: 0, fence: 0n });
+      expect(f.jobs[0]!.sourceFingerprint).toMatch(/^[0-9a-f]{64}$/);
+      expect(f.user).toEqual({ reservedStorageBytes: 0n, usedStorageBytes: BigInt(png.length) });
+      expect(f.audits).toHaveLength(1); expect(f.db.$transaction).toHaveBeenCalledTimes(2); // initial view + atomic finalization
+      expect(decode).not.toHaveBeenCalled(); expect(result).not.toHaveProperty('job');
+      const order = [f.tx.fileObject.update, f.tx.user.update, f.tx.processingJob.create, f.tx.auditEvent.create].map(fn => fn.mock.invocationCallOrder[0]);
+      expect(order).toEqual([...order].sort((a, b) => a - b));
+    } finally { decode.mockRestore(); }
+  });
+  it.each(['file', 'operation', 'accounting', 'job', 'audit'] as const)('rolls back the entire confirmation on a %s persistence failure and permits healthy retry', async (step) => {
+    const f = uploadFixture();
+    const method = { file: f.tx.fileObject.update, operation: f.tx.uploadOperation.update, accounting: f.tx.user.update,
+      job: f.tx.processingJob.create, audit: f.tx.auditEvent.create }[step];
+    method.mockRejectedValueOnce(new Error('private SQL/provider details'));
+    await expect(f.confirmation.confirm(owner, id)).rejects.toMatchObject({ code: 'DATABASE_UNAVAILABLE' });
+    expect(f.file.status).toBe('PENDING_UPLOAD'); expect(f.file.detectedMimeType).toBeNull();
+    expect(f.file.uploadOperation!.state).toBe('OPEN'); expect(f.jobs).toHaveLength(0); expect(f.audits).toHaveLength(0);
+    expect(f.user).toEqual({ reservedStorageBytes: BigInt(png.length), usedStorageBytes: 0n });
+    await f.confirmation.confirm(owner, id);
+    expect(f.file.status).toBe('ACTIVE'); expect(f.jobs).toHaveLength(1); expect(f.audits).toHaveLength(1);
+    expect(f.user).toEqual({ reservedStorageBytes: 0n, usedStorageBytes: BigInt(png.length) });
+  });
+  it('deadline crossed after enqueue rolls back the job together with activation/accounting/audit', async () => {
+    const f = uploadFixture(); const write = f.tx.processingJob.create.getMockImplementation()!;
+    f.tx.processingJob.create.mockImplementationOnce(async args => { const job = await write(args); jest.setSystemTime(f.file.confirmBy); return job; });
+    await expect(f.confirmation.confirm(owner, id)).rejects.toMatchObject({ code: 'UPLOAD_EXPIRED' });
+    expect(f.file.status).toBe('PENDING_UPLOAD'); expect(f.jobs).toHaveLength(0); expect(f.audits).toHaveLength(0);
+    expect(f.user).toEqual({ reservedStorageBytes: BigInt(png.length), usedStorageBytes: 0n });
+  });
+  it('parallel and repeated confirms keep one logical job and one original charge/audit', async () => {
+    const f = uploadFixture();
+    const outcomes = await Promise.all([f.confirmation.confirm(owner, id), f.confirmation.confirm(owner, id), f.confirmation.confirm(owner, id)]);
+    await f.confirmation.confirm(owner, id);
+    expect(outcomes.every(outcome => outcome.file.status === 'ACTIVE')).toBe(true);
+    expect(f.jobs).toHaveLength(1); expect(f.tx.processingJob.create).toHaveBeenCalledTimes(1);
+    expect(f.audits).toHaveLength(1); expect(f.tx.user.update).toHaveBeenCalledTimes(1);
+  });
+  it('a committed activation with a lost response retains its job across a fresh confirm-service instance', async () => {
+    const f = uploadFixture(); const write = f.tx.auditEvent.create.getMockImplementation()!;
+    f.tx.auditEvent.create.mockImplementationOnce(async args => { const result = await write(args); f.behavior.loseNextCommitResponse = true; return result; });
+    await expect(f.confirmation.confirm(owner, id)).rejects.toMatchObject({ code: 'DATABASE_UNAVAILABLE' });
+    expect(f.file.status).toBe('ACTIVE'); expect(f.jobs).toHaveLength(1);
+    const jobId = f.jobs[0]!.id;
+    const fresh = new UploadConfirmService(f.state, f.config, f.storage as never, f.processing);
+    f.storage.head.mockClear(); await fresh.confirm(owner, id);
+    expect(f.jobs.map(job => job.id)).toEqual([jobId]); expect(f.storage.head).not.toHaveBeenCalled();
+    expect(f.tx.user.update).toHaveBeenCalledTimes(1); expect(f.audits).toHaveLength(1);
+  });
+  it('a failed processor job leaves ACTIVE original and confirm replay usable without resetting the failure', async () => {
+    const f = uploadFixture(); await f.confirmation.confirm(owner, id);
+    Object.assign(f.jobs[0]!, { state: 'FAILED', lastErrorCode: 'PROCESSOR_INPUT_INVALID', finishedAt: new Date() });
+    const decode = jest.spyOn(ThumbnailProcessor.prototype, 'process').mockRejectedValue(new Error('decoder failure'));
+    try {
+      const result = await f.confirmation.confirm(owner, id);
+      expect(result.file.status).toBe('ACTIVE'); expect(f.jobs[0]!.state).toBe('FAILED');
+      expect(f.jobs).toHaveLength(1); expect(f.user.usedStorageBytes).toBe(BigInt(png.length)); expect(decode).not.toHaveBeenCalled();
+    } finally { decode.mockRestore(); }
+  });
+  it('ACTIVE legacy replay without receipt/job does not backfill even after the old deadline', async () => {
+    const f = uploadFixture(); f.file.status = 'ACTIVE'; f.file.detectedMimeType = 'image/png'; f.file.uploadOperation = null;
+    f.user.reservedStorageBytes = 0n; f.user.usedStorageBytes = BigInt(png.length); jest.setSystemTime(+now + 86400000);
+    await f.confirmation.confirm(owner, id);
+    expect(f.jobs).toHaveLength(0); expect(f.tx.processingJob.findFirst).not.toHaveBeenCalled(); expect(f.storage.head).not.toHaveBeenCalled();
+  });
+  it.each(['SOFT_DELETED', 'EXPIRED', 'REJECTED', 'MISSING_OBJECT', 'INVALID_CONTENT'])(
+    'does not enqueue for excluded confirm outcome %s', async reason => {
+      const f = uploadFixture();
+      if (reason === 'SOFT_DELETED') f.file.status = 'SOFT_DELETED';
+      if (reason === 'EXPIRED') jest.setSystemTime(f.file.confirmBy);
+      if (reason === 'REJECTED') Object.assign(f.file.uploadOperation!, { state: 'REJECTED', terminalErrorCode: 'UPLOAD_VALIDATION_FAILED' });
+      if (reason === 'MISSING_OBJECT') f.storage.head.mockResolvedValueOnce(null as never);
+      if (reason === 'INVALID_CONTENT') f.storage.readPrefix.mockResolvedValueOnce(Buffer.alloc(16));
+      await expect(f.confirmation.confirm(owner, id)).rejects.toThrow();
+      expect(f.jobs).toHaveLength(0); expect(f.tx.processingJob.create).not.toHaveBeenCalled();
+      expect(f.user.usedStorageBytes).toBe(0n); expect(f.user.reservedStorageBytes).toBe(BigInt(png.length));
+    });
+  it.each([
+    ['image/jpeg', Buffer.from([255, 216, 255, 224])], ['image/gif', Buffer.from('GIF89a')],
+    ['image/webp', Buffer.from('RIFF\0\0\0\0WEBPVP8 ')],
+  ] as const)('queues the supported confirmed image type %s', async (mimeType, prefix) => {
+    const f = uploadFixture(); f.file.mimeType = mimeType; f.storage.readPrefix.mockResolvedValueOnce(Buffer.from(prefix));
+    await f.confirmation.confirm(owner, id);
+    expect(f.jobs).toHaveLength(1); expect(f.jobs[0]!.state).toBe('QUEUED'); expect(f.file.detectedMimeType).toBe(mimeType);
+  });
+  it('queues an upload larger than decoder input limit without rejecting its original or reserving derived bytes', async () => {
+    const f = uploadFixture(); f.file.sizeBytes = 40n * 1024n * 1024n; f.user.reservedStorageBytes = f.file.sizeBytes;
+    f.storage.head.mockResolvedValueOnce({ sizeBytes: Number(f.file.sizeBytes), contentType: 'image/png', etag: '"identity"' });
+    expect((await f.confirmation.confirm(owner, id)).file.status).toBe('ACTIVE');
+    expect(f.jobs).toHaveLength(1); expect(f.user.usedStorageBytes).toBe(f.file.sizeBytes); expect(f.user.reservedStorageBytes).toBe(0n);
+  });
+  it('enqueue helper reuses an existing logical job without resetting state or starting another transaction', async () => {
+    const f = uploadFixture(); await f.confirmation.confirm(owner, id); const jobId = f.jobs[0]!.id;
+    const result = await f.db.$transaction((tx: never) => f.processing.enqueueConfirmedFile(tx, f.file));
+    expect(result!.id).toBe(jobId); expect(f.jobs).toHaveLength(1); expect(f.tx.processingJob.create).toHaveBeenCalledTimes(1);
+  });
+  it.each([
+    { status: 'PENDING_UPLOAD' }, { status: 'SOFT_DELETED' }, { deletedAt: new Date(now) },
+    { mimeType: 'video/mp4', detectedMimeType: 'video/mp4' }, { detectedMimeType: null }, { mimeType: 'image/gif', detectedMimeType: 'image/png' },
+  ])('enqueue helper skips ineligible state/type metadata %o', async patch => {
+    const f = uploadFixture(); const active = { ...f.file, status: 'ACTIVE', detectedMimeType: 'image/png', ...patch } as FileObject;
+    expect(await f.processing.enqueueConfirmedFile(f.tx as never, active)).toBeNull(); expect(f.jobs).toHaveLength(0);
+  });
+  it('only registers a state-service factory using the same thumbnail build descriptor, with no worker provider', () => {
+    const providers = Reflect.getMetadata('providers', FilesModule) as Array<{ provide?: unknown; inject?: unknown[]; useFactory?: Function }>;
+    const factory = providers.find(provider => provider.provide === ProcessingStateService)!;
+    expect(factory.inject).toEqual([PrismaService, ConfigService]); const f = uploadFixture();
+    expect(factory.useFactory!(f.db, f.config)).toBeInstanceOf(ProcessingStateService);
+    expect(Reflect.getMetadata('design:paramtypes', UploadConfirmService)).toContain(ProcessingStateService);
+    expect(providers).not.toContain(ThumbnailProcessor);
   });
 });

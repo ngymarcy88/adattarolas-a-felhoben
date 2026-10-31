@@ -141,3 +141,6 @@ Az [ADR-016](02_architecture/adr/ADR-016-thumbnail-processing.md), [API](03_desi
 
 
 2026-10-30-i részlépés: explicit ProcessingStateService/ProcessingPublicationService kezeli a tartós jobokat, claim/fence/lease/retry állapotot, pontos derived foglalást és atomikus result/accounting/audit véglegesítést. Bizonytalan candidate megtartja a foglalását; pozitív R-re nincs proof nélküli release. Ez nem automatikus pipeline: worker/confirm-hook/API, full-read adoption és provider closure továbbra nyitott, a galéria még eredetit használ.
+
+
+2026-10-31-i részlépés: az új ACTIVE upload confirm a meglévő tranzakcióban menti az egyedi QUEUED thumbnail-jobot, így az aktiválás után nincs elveszíthető enqueue-ablak. ACTIVE replay nem backfill és nem resetel jobot. Worker/processorfuttatás/új processing API, derived recovery és provider closure változatlanul nyitott.

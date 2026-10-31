@@ -2,6 +2,30 @@
 
 
 
+
+## Confirm → tartós thumbnail-job – 2026-10-31
+
+**Verzió:** `feature/confirm-thumbnail-job`, alap `905abea` (merge-elt #37/#38/#39). **Környezet:** WSL/Linux, Node22.23.2/npm10.9.8, Jest30.5.2/Prisma7.10.1. Bemenet szintetikus1×1 PNG és JPEG/GIF/WebP signature-fixture; fake clock a korábbi2026-10-24-i upload-deadline körül, mockolt Prisma/storage portok. Nincs valódi DB/storage/worker indítás.
+
+**Egyetlen összevont ellenőrzési kör:** `npm test` **1237 PASS** =889 backend (20suite)+346 frontend (16file)+2 container helper; backend172.989s,frontend4.05s. Az upload-confirm suite28 új unitot tartalmaz; külön előzetes célzott futás nem indult. `npm run typecheck` és `npm run build` mindkét workspace-re PASS (Prisma generation, Nest/Vite build).50 helyi link, credential-/diff-ellenőrzés és a README-edit megőrzése PASS.
+
+| Lépés / bemenet | Elvárt és tényleges eredmény |
+|---|---|
+| Friss pending, támogatott kép → confirm | ACTIVE + receipt FINALIZED + reserved−B/used+B + UPLOAD_CONFIRMED audit + egy QUEUED thumbnail@1.0.0 közös commit: PASS. Csak két transaction (előolvasás és confirm), nincs nested enqueue-commit. |
+| File/receipt/counter/job/audit bármely írása hibás, majd egészséges retry | Teljes rollback: pending/open/R=B/used0/job0/audit0; retry pontosan egy job/charge/audit: PASS. |
+| Job mentése után átlépett confirmBy | Aktiválás, job és accounting együtt rollback, stabil lejárt receipt: PASS. |
+| Három párhuzamos confirm és további replay | Egy job/verzió, egy charge/audit, minden siker ACTIVE: PASS a mutexes unit double-ban. |
+| Commit utáni válasz elvész, új ConfirmService példány kér újra | ACTIVE+job tartósan a közös DB-double-ban; replay ugyanazt adja, új job/HEAD/charge nélkül: PASS. Ez nem tényleges processzkilövés. |
+| Job FAILED / dekóderhibát dobna; ACTIVE replay | Eredeti ACTIVE és számlálók megmaradnak, jobhibát nem reseteli; process-hívás nincs: PASS. |
+| Legacy ACTIVE job/receipt nélkül, régi lejárt confirmBy |200 no-op, nem backfill, nem konzultál jobtáblával/storage-dzsal: PASS. |
+| Soft-deleted/expired/rejected/missing-object/invalid-content | Nincs új job vagy used-charge; pending foglalása megmarad: PASS. |
+| JPEG/PNG/WebP/GIF és40MiB szabályos upload | QUEUED job; decoder32MiB-limit nem az eredeti confirm hibája, derived reservation még nincs: PASS. |
+| Helper nem ACTIVE/törölt/nem kép/MIME-eltérő/null detektálás mellett | Nem ütemez; azonos meglévő logikai jobnál ugyanaz az id, nincs reset/duplikáció: PASS. |
+| FilesModule state-factory és közös descriptor | Azonos processor-verzió/fingerprint; nincs automatikus decoder/processing worker provider: PASS. |
+
+**Bizonyítékhatár:** a portok/mutex/rollback/lost-ack unitok nem igazolják a PostgreSQL izolációját, storage együttműködését vagy valódi crash-restartot. A tartósságot az implementáció egyetlen DB-tranzakcióra és meglévő unique/FK korlátokra alapozza. Valódi DB/MinIO/restart és a worker indítása külön kapu; régi képek batch backfillje nem futott. Nincs új séma/migráció, dependency, endpoint, frontend vagy CI-változás. A helyi README-edit megmaradt.
+
+
 ## Explicit processing jobok és derived elszámolás – 2026-10-30
 
 **Verzió:** `feature/processing-state-service`, alap `fff8d19` (#37 tiszta processorra építve). **Környezet:** WSL Bash/Linux x64, Node22.23.2/npm10.9.8, Prisma7.10.1/Jest30.5.2; a már telepített Sharp0.35.5 kizárólag kis szintetikus WebP-fixture előállításához. A tesztportok in-memory Prisma/transaction- és storage-double-ok, valódi szerver vagy worker nélkül.
