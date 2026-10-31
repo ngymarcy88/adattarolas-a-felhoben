@@ -14,6 +14,12 @@ A unit-first fejlesztés nem a végső SZD2 elfogadási kapu. Az októberi célh
 - Playwright vagy más e2e/UI tesztek;
 - A unit CI-n túli build/typecheck quality gate és coverage enforcement.
 
+## Ellenőrzések összevonása – 2026-10-31
+
+Az [AGENTS.md](../../AGENTS.md) szerint a tesztek a részfeladat stabil implementációja után, egy összevont körben fussanak. Kész kód-PR-nél a végső unit/typecheck/build kör helyettesíti az előzetes, azonos célzott futást; korábbi részlépésnél elég az érintett suite/workspace. Konkrét hiba vizsgálatára korábbi célzott futás megengedett. Javítás után először az érintett ellenőrzést ismételjük; sikeres szélesebb kört csak új releváns változás vagy fennmaradó kockázat indokol.
+
+Csak dokumentáció módosításakor diff/link/konzisztencia-ellenőrzés kell, alkalmazásteszt/build/typecheck nem. A meglévő GitHub Actions eseményei és tesztköre változatlanok. Ez a futtatások ismétlését csökkenti; az üzleti, biztonsági és SZD2 elfogadási követelmények megmaradnak.
+
 ## Engedélyezett unit CI – 2026-10-22
 
 A szerző kifejezett kérésére a korábban későbbre tervezett CI első, szűk része most bevezetésre kerül: [GitHub Actions Tests](../../.github/workflows/tests.yml). Események: PR a mainre, push a mainre, valamint default branchre kerülés után kézi indítás. Ubuntu 24.04, `.nvmrc` szerinti Node, root lockfile és `npm ci`; utána Prisma Client generálás szintetikus URL-lel és a teljes meglévő `npm test`. Ez az aktuális root scripthez igazodik, ezért későbbi scriptváltozásnál a workflow és a dokumentáció együtt ellenőrizendő.
@@ -224,3 +230,15 @@ A cross-row jobSUCCEEDED/result, aktuális fence/state history és User-counter 
 ### Thumbnail storage I/O unitok – 2026-10-29
 
 Az új storage-transfers.spec.ts mockolt SDK mellett vizsgálja a teljes conditional32MiB-limitű readet és512KiB write-ot. Pontos/plus-one/config cap, ETag/206/ContentRange/ContentLength, short/long/nonbinary/stalled/late stream, caller abort/preabort és teljes deadline; write snapshot/ChecksumSHA256/IfNoneMatch/maxAttempts1,400/409/412/503 és hibás successmeta; canonical original/derived key és végső sortörések; külön source-allowlist/derived-WebP, SDK-close egyszeriség. A régi storage tesztek regressziós kapuk. Ez nem valódi provider-kérés vagy új integration/e2e suite, nem képdekódolás/ownership/fence/quota-teszt. A fizikai DELETE után unproven marad a closure; derived recovery full-read és providerproof későbbi külön ellenőrzés.
+
+
+### Implementált thumbnail unitok – 2026-10-29
+
+Három Jest suite,107 eset:42 tényleges decoder-child/Sharp szintetikus kép,17 kontrollált process/IPC/deadline/abort,48 független WebP-header validálás. A fixture-ek futáskor kis szintetikus inputból keletkeznek; output újra Sharp-dekódolással formátum/méret/alpha/orientáció/pixel/metadata szerint ellenőrzött. Túlméretes pixelheaderhez nincs óriási raster allokálva. GIF/WebP/APNG frame0 és külön posteres APNG elutasítása külön eset. A fake child hibái nem natív OOM/time bizonyítékok. Worker/cgroup, DB/storage orchestration/recovery, Debian runtime, browser/UAT változatlanul nyitott; nem indult új integration/e2e suite.
+
+
+### Explicit processing-state és publication unitstratégia – 2026-10-30
+
+A Prisma-port tranzakcióit mutexes, rollbacket modellező izolált fixture ellenőrzi; a locksorrend és DB-clock lekérdezése megfigyelhető. Konkurens claim/reserve/finalize, külön jobok közös userkvótája, azonos végrehajtás replay-je, minden véglegesítési lépés DB-hibája, commit utáni elveszett válasz, lease/source/build eltérés és retry-keretek kapnak regressziót. A publisher külön mockolt storage receipt/HEAD és DB-service határon ellenőriz commit-before-PUT-ot, inputsnapshotot, egyszeri írási jogot, storage/DB részhibát és tiltott DELETE/release-t. A published winner védett, régi bizonytalan R megmarad.
+
+Ez nem valódi PostgreSQL-lock/transaction-izoláció vagy MinIO conditional-write/recovery bizonyíték. Worker/full-read adoption/provider-closure és végpont/browser elfogadás továbbra külön kapu; a schema korábbi SQL-verifier eredménye nem bizonyítja ezt a service-szeletet.

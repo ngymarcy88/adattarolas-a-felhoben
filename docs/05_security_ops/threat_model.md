@@ -89,3 +89,13 @@ A lease nem S3 write-fence: külön attempt key, pontos előzetes reservation, D
 ### Implementált thumbnail-storage I/O határ – 2026-10-29
 
 A storage adapter bounded full original-read és create-only derived-write védelme már létezik: szigorú teljes-key (sortörések nélkül),32MiB/512KiB cap, ETag/size/range,10s/caller-abort, immutable snapshot/checksum és egy SDK-write-attempt. Nem dekóder/ownership/DB-fence ellenőrzés. A derived WebP olvasási MIME fix, eredeti upload-allowlist változatlan. Távoli írás abortja/time-outja nem proof; nincs automatikus delete vagy reservation release. A unitok a command/stream és safe-error határt igazolják; valódi provider/closure/recovery külön kapu.
+
+
+### Tiszta thumbnail transzformáció, 2026-10-29
+
+Implementált: 32MiB snapshot, négy bufferdecoder allowlist, pixel/dimension/channel limitek, strict warning-kezelés, metadata-stripping, bounded statikus output, safe IPC és 15s kill/close. A szülő csak verzióazonos, hash- és WebP-header/geometria-validált outputot fogad. A decoder környezete scrubbed, stderr eldobott; nincs DB/S3-kliens vagy user URL/path input. **Nem OS-sandbox**: a child örökölt OS-user jogosultságát és hálózatát ez nem korlátozza. A 128MiB V8 heap nem natív memóriakorlát; worker cgroup512MiB/CPU/pids és OOM/restart még nyitott. Nincs automatikus/untrusted HTTP bekötés, processort hívó szolgáltatás még nem készült.
+
+
+### Tartós processing service – 2026-10-30
+
+Explicit belső service (HTTP-bekötés nélkül) minden mutációnál owner/ACTIVE/source/policy/current-fence/lease ellenőrzést végez. User-first locksorrend közös a feltöltési kvótával; a candidate-írás csak commitolt pontos R után történhet, immutable attempt-kulccsal. Párhuzamos ismétlés nem új write-jog, a winner és audit egyszeri. A publisher calleradatokat await előtt másol, storage SDK-t nem használ közvetlenül. Unknown commit/PUT/HEAD kimenet nem bizonyít hiányt vagy lezárást; nem hív DELETE-t, pozitív R megmarad. A belső source/hash/claim adatot frontendtől elfogadni tilos. Worker/OS-erőforrásvédelem/provider write-closure és valódi DB/storage együttműködés ellenőrzése nyitott.
