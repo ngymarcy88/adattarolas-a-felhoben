@@ -13,7 +13,7 @@ const messages: Record<PreviewErrorCode, string> = {
 export class PreviewRequestError extends Error {
   constructor(readonly code: PreviewErrorCode, readonly retryAfterMs = 0) { super(messages[code]); this.name = 'PreviewRequestError'; }
 }
-export function createPreviewClient(baseUrl: string | undefined, frontendOrigin = () => window.location.origin) {
+export function createPreviewClient(baseUrl: string | undefined, frontendOrigin = () => window.location.origin, resource: 'preview-url' | 'thumbnail-url' = 'preview-url') {
   return {
     async get(id: string, signal: AbortSignal): Promise<PreviewAccess> {
       if (id.length !== 36 || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id)) throw new PreviewRequestError('not_found');
@@ -21,7 +21,7 @@ export function createPreviewClient(baseUrl: string | undefined, frontendOrigin 
       signal.addEventListener('abort', abort, { once: true }); if (signal.aborted) abort();
       const timer = setTimeout(abort, 10_000);
       try {
-        const response = await fetch(`${parseApiBaseUrl(baseUrl)}/files/${id}/preview-url`, { method: 'GET', credentials: 'include',
+        const response = await fetch(`${parseApiBaseUrl(baseUrl)}/files/${id}/${resource}`, { method: 'GET', credentials: 'include',
           cache: 'no-store', redirect: 'error', headers: { Accept: 'application/json' }, signal: controller.signal });
         if (response.status !== 200) {
           const code: PreviewErrorCode = response.status === 401 ? 'unauthorized' : response.status === 404 ? 'not_found'
@@ -45,3 +45,5 @@ export function createPreviewClient(baseUrl: string | undefined, frontendOrigin 
 }
 export type PreviewClient = ReturnType<typeof createPreviewClient>;
 export const previewClient = createPreviewClient(import.meta.env.VITE_API_BASE_URL);
+
+export const thumbnailClient = createPreviewClient(import.meta.env.VITE_API_BASE_URL, undefined, 'thumbnail-url');

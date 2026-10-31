@@ -15,3 +15,20 @@ export function observeVisible(element: Element, onVisible: () => void): () => v
   }, { rootMargin: '0px', threshold: 0 });
   observer.observe(element); return () => observer.disconnect();
 }
+
+
+/** Continuous visibility for processing, unlike the one-shot original-image observer. */
+export function observeVisibility(element: Element, changed: (visible: boolean) => void): () => void {
+  if (typeof IntersectionObserver === 'undefined') { changed(true); return () => changed(false); }
+  const observer = new IntersectionObserver(entries => {
+    for (const entry of entries) if (entry.target === element) changed(entry.isIntersecting);
+  }, { rootMargin: '0px', threshold: 0 });
+  observer.observe(element); return () => { observer.disconnect(); changed(false); };
+}
+
+
+export function bindPageVisibility(changed: (hidden: boolean) => void, source: Pick<Document, 'visibilityState' | 'addEventListener' | 'removeEventListener'>): () => void {
+  const update = () => changed(source.visibilityState === 'hidden');
+  source.addEventListener('visibilitychange', update); update();
+  return () => source.removeEventListener('visibilitychange', update);
+}
