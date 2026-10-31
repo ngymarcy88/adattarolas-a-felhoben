@@ -111,3 +111,10 @@ A `WRITE_CLOSURE_UNPROVEN` azt jelenti, hogy az objektum és reservation szánd�
 - **Soft delete/purge race:** parent ACTIVE-check, fence invalidálás és attempt státusz. Published resultot candidate-cleanup nem töröl; teljes purge külön idempotens lifecycle. A proofhiány miatt a nyilvántartás és foglalás nem dobható el.
 
 A valós kipróbálást verzióval/környezettel/eredménnyel később a tesztriport rögzíti. Ezeket nem jelöljük most sikeres incident-próbának.
+
+
+## Thumbnail worker – 2026-10-31
+
+A `thumbnail-worker` külön Compose-szerep. `docker compose logs --tail=100 thumbnail-worker` csak safe event/code hibákat mutat; queue/result állapot jelenleg DB-ből vizsgálható, nincs új státusz API. Graceful leállás: `docker compose stop -t 45 thumbnail-worker`; újraindítás: `docker compose up -d thumbnail-worker`. Ne törölj volume-ot vagy kézzel reservation/fence/proof mezőt.
+
+Lejárt lease előtt a másik worker vár. WRITE_PENDING/STORED candidate új fence-szel ellenőrizhető; érvényes output új PUT/charge nélkül véglegesíthető. CLEANUP_BLOCKED vagy bizonytalan hiány mellett pozitív R nem oldható fel. FAILED/BLOCKED_QUOTA/CANCELLED job nem automatikusan újrainduló queue-elem; a későbbi jogosított retry API keretes revisiont használ majd. Kimerült recovery/generation keretet operátori DB-nullázással ne kerüld meg. A tényleges restart/OOM próbák a tesztriportban nyitottak.

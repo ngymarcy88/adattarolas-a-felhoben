@@ -144,3 +144,6 @@ Az [ADR-016](02_architecture/adr/ADR-016-thumbnail-processing.md), [API](03_desi
 
 
 2026-10-31-i részlépés: az új ACTIVE upload confirm a meglévő tranzakcióban menti az egyedi QUEUED thumbnail-jobot, így az aktiválás után nincs elveszíthető enqueue-ablak. ACTIVE replay nem backfill és nem resetel jobot. Worker/processorfuttatás/új processing API, derived recovery és provider closure változatlanul nyitott.
+
+
+2026-10-31-i worker-szelet: külön, erőforrás-korlátozott thumbnail-worker a meglévő backend image-ben, PostgreSQL-claim/fence, heartbeat, bounded retry/probe és full-read restart adoption. Nincs új queue, legacy backfill vagy thumbnail UI/API. Valódi restart/cgroup/OOM és DB/storage együttműködési bizonyíték továbbra a tesztriport nyitott manuális kapuja; provider-closure és pozitív R-release sincs megoldva.

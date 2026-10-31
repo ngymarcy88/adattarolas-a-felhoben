@@ -99,3 +99,10 @@ Implementált: 32MiB snapshot, négy bufferdecoder allowlist, pixel/dimension/ch
 ### Tartós processing service – 2026-10-30
 
 Explicit belső service (HTTP-bekötés nélkül) minden mutációnál owner/ACTIVE/source/policy/current-fence/lease ellenőrzést végez. User-first locksorrend közös a feltöltési kvótával; a candidate-írás csak commitolt pontos R után történhet, immutable attempt-kulccsal. Párhuzamos ismétlés nem új write-jog, a winner és audit egyszeri. A publisher calleradatokat await előtt másol, storage SDK-t nem használ közvetlenül. Unknown commit/PUT/HEAD kimenet nem bizonyít hiányt vagy lezárást; nem hív DELETE-t, pozitív R megmarad. A belső source/hash/claim adatot frontendtől elfogadni tilos. Worker/OS-erőforrásvédelem/provider write-closure és valódi DB/storage együttműködés ellenőrzése nyitott.
+
+
+### Thumbnail-worker futási határ – 2026-10-31
+
+A frissen confirmált untrusted képeket a külön, ugyanazon backend image-es worker dekódolja; a HTTP API nem indít dekódert. USER node, Compose512MiB RAM/swap/1CPU/64pids,1slot és bounded child/input/output/attempt működés van konfigurálva. Ez nem teljes OS-/hálózati sandbox; a child környezetszűrése sem vonja vissza az OS-user fájl-/processzjogait. Tényleges cgroup/OOM próba még nyitott.
+
+A generation/recovery DB-fence a storage-írást nem állítja meg; késői PUT esetén a régi R megmarad. Full-read hash/size/type/source ellenőrzés és új publicationFence kell az adoptionhöz; blokkolt candidate nem éleszthető újra. Nincs generált closure-proof vagy pozitívR-release. A shutdown előbb abortál/drainel, majd zárja az adaptert/DB-t; log csak rögzített event/code.

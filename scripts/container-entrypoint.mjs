@@ -5,6 +5,8 @@ try {
   process.env.DATABASE_URL = containerDatabaseUrl(process.env.DATABASE_URL);
   if (process.argv[2] === 'backend') {
     await import('../backend/dist/main.js');
+  } else if (process.argv[2] === 'thumbnail-worker') {
+    await import('../backend/dist/thumbnail-worker.js');
   } else if (process.argv[2] === 'migrate') {
     const child = spawn('npm', ['run', 'db:migrate'], { stdio: 'inherit' });
     for (const signal of ['SIGTERM', 'SIGINT']) process.on(signal, () => child.kill(signal));

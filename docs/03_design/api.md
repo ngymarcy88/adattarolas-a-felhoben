@@ -698,3 +698,10 @@ A friss PENDING_UPLOAD→ACTIVE átmenetben a ProcessingStateService `enqueueCon
 Az ACTIVE replay az enqueue előtt visszatér, jobhiba vagy eltérő worker build sem módosítja a már sikeres eredeti választ. Régi ACTIVE kép job nélkül is no-op; nincs utólagos backfill. A confirm válaszmezői változatlanok; nincs benne job/key/fingerprint. A QUEUED job és az eredeti állapota commit után tartós, ezért a válasz elvesztése vagy következő processzindulás nem igényel új jobbeszúrást.
 
 A hook csak DB-szándékot ment. Nem hív processort/storage write-ot, nem foglal derived bájtot, nem vár thumbnailre és nem indít workert. Decoderhibás vagy32MiB-nál nagyobb, de uploadként szabályos eredeti ACTIVE marad; a későbbi feldolgozó külön FAILED állapota nem a confirm hibája. Új processing/status/thumbnail végpont továbbra sincs. Az atomikusság miatt a jobot tároló adatbázis elérhetetlensége a még nem aktivált pending confirmot is visszagörgeti.
+
+
+### Worker implementációs határ – 2026-10-31
+
+A confirm tartós QUEUED jobját most külön, ugyanazon backend image-ből induló ThumbnailWorker fogyasztja; a HTTP confirm továbbra sem vár dekódolásra. Nincs új státusz-/thumbnail-/retry végpont vagy API-mező, nincs automatikus legacy backfill. A háttérszerep DB-claimet/fence-et, bounded I/O-t, egy decoder-slotot és keretes restart recoveryt használ. Belső token/evidence/key nem API-input. A galéria jelenleg eredeti-preview-t használ; a thumbnail DB/storage eredményét a későbbi olvasási slice teszi elérhetővé.
+
+A readDerived adapterport teljes, feltételes WebP-olvasást ad maximum512KiB/10s korláttal és caller aborttal, exact Range/ContentLength/ETag/EOF ellenőrzéssel. Ezt csak a jogosított recovery használja; nem ad klienscapabilityt, nem ír/lazít kvótát és nem gyárt write-closure bizonyítékot.

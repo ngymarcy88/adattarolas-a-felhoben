@@ -149,6 +149,7 @@ A történeti MVP-0–MVP-7 helyett az alábbi **SZD2-0–SZD2-7** az aktuális 
 - [x] Közös processor-interfész és explicit thumbnail@1.0.0 transzformáció, build-fingerprint és szintetikus unitok. Ez csak a tiszta processor; worker, automatikus jobindítás, derived kvóta/publikálás és felületi eredmény még nyitott.
 - [x] Explicit processing-state/publication service: tartós job/claim/retry, tranzakciós derived reservation/result/accounting/audit, bizonytalan íráskor megtartott R; unit ellenőrzés. Worker/confirm-hook/full-read recovery és hiteles cleanup-release külön nyitott.
 - [x] Friss sikeres confirm tranzakciójában tartós, egyedi thumbnail-job; rollback/replay/kizárt állapot unitok, worker/backfill nélkül.
+- [x] Bounded thumbnail-worker és fenced full-read recovery implementációja, külön Compose-szerep/DB-job/probe keret; unitok. Valódi cgroup/OOM/MinIO/DB/restart és UI-eredmény elfogadása még nyitott.
 - [ ] Eredeti és derived storage konzisztens elszámolása; minimális tartós job/result és audit, titkok nélkül.
 - [ ] Bemutatható commit, valós képernyőkép, tesztriport, kipróbált lokális telepítés és aktuális dolgozatrész.
 

@@ -5,7 +5,7 @@ import type { DerivedObject, FileObject, Prisma, ProcessingAttempt, ProcessingJo
 import { PrismaService } from '../prisma/prisma.service';
 import { derivedStorageKey, originalStorageKey } from '../storage/storage-key';
 import { PROCESSING_FAILURE_CODES, ProcessingStateError, type CandidateMetadata, type Claim,
-  type ProcessingFailureCode, type ProcessingPolicy, type Reservation } from './processing-state.types';
+  type ProcessingFailureCode, type ProcessingPolicy, type ProcessingSource, type Reservation } from './processing-state.types';
 export { ProcessingStateError } from './processing-state.types';
 
 const LEASE_MS = 90_000;
@@ -117,10 +117,12 @@ export class ProcessingStateService {
     if (job.sourceFingerprint !== this.sourceFingerprint(view.file)) error('SOURCE_CHANGED');
     return job;
   }
-  private live(view: View, claim: Claim, now: Date, sourceFailure = false): { job: ProcessingJob; attempt: ProcessingAttempt; deadline: Date } {
+  private live(view: View, claim: Claim, now: Date, sourceFailure = false, allowRecovery = false): { job: ProcessingJob; attempt: ProcessingAttempt; deadline: Date } {
     const job = sourceFailure ? this.jobPolicy(view) : this.job(view);
     const attempt = view.attempts.find((entry) => entry.id === claim.attemptId);
-    if (!attempt || job.state !== 'RUNNING' || job.fence !== claim.fence || attempt.fence !== claim.fence ||
+    const recovered = attempt && allowRecovery && attempt.fence < claim.fence &&
+      !view.attempts.some(entry => entry.fence === claim.fence) && ['WRITE_PENDING', 'STORED'].includes(attempt.phase);
+    if (!attempt || job.state !== 'RUNNING' || job.fence !== claim.fence || (attempt.fence !== claim.fence && !recovered) ||
         job.leaseOwner !== claim.leaseOwner || !job.leaseUntil || job.leaseUntil.getTime() <= now.getTime()) error('PROCESSING_LEASE_LOST');
     return { job, attempt, deadline: new Date(job.leaseUntil.getTime()) };
   }
@@ -179,13 +181,16 @@ export class ProcessingStateService {
     return this.locked(ownerId, fileId, null, (tx, view) => this.ensureJob(tx, view.file));
   }
 
-  async claim(ownerId: string, fileId: string, jobId: string, leaseOwner: string): Promise<Claim | null> {
+  async claim(ownerId: string, fileId: string, jobId: string, leaseOwner: string, preferRecovery = false): Promise<Claim | null> {
     this.ids(leaseOwner);
+    if (typeof preferRecovery !== 'boolean') error('PROCESSING_INVALID_ARGUMENT');
     return this.locked(ownerId, fileId, jobId, async (tx, view) => {
       const job = this.job(view); const now = await this.now(tx);
       if (job.state === 'RUNNING' && job.leaseUntil && job.leaseUntil.getTime() > now.getTime()) return null;
       if (!['QUEUED', 'RETRY_WAIT', 'RUNNING'].includes(job.state)) return null;
       if (job.state === 'RETRY_WAIT' && job.nextAttemptAt && job.nextAttemptAt.getTime() > now.getTime()) return null;
+      // Worker fallback must not retire a candidate created/expired between its two claim transactions.
+      if (preferRecovery && view.attempts.some(entry => ['WRITE_PENDING', 'STORED'].includes(entry.phase))) return null;
       for (const attempt of view.attempts) await this.retire(tx, attempt, now);
       if (job.cycleAttemptCount >= 3 || job.totalAttemptCount >= 9) {
         await tx.processingJob.update({ where: { id: jobId }, data: { state: 'FAILED', leaseOwner: null, leaseUntil: null,
@@ -208,7 +213,7 @@ export class ProcessingStateService {
   async heartbeat(claim: Claim): Promise<void> {
     claim = this.snapshotClaim(claim);
     await this.locked(claim.ownerId, claim.fileId, claim.jobId, async (tx, view) => {
-      const now = await this.now(tx); const live = this.live(view, claim, now);
+      const now = await this.now(tx); const live = this.live(view, claim, now, false, true);
       await tx.processingJob.update({ where: { id: claim.jobId }, data: { leaseUntil: add(now, LEASE_MS), updatedAt: now } });
       await this.beforeCommit(tx, live.deadline);
     });
@@ -224,7 +229,9 @@ export class ProcessingStateService {
       if (expectedRetryRevision < job.retryRevision || job.state === 'SUCCEEDED') return job;
       if (!job.retryable || !['FAILED', 'BLOCKED_QUOTA', 'CANCELLED'].includes(job.state)) error('PROCESSING_STATE_CONFLICT');
       if (job.retryRevision >= 2 || job.totalAttemptCount >= 9) error('PROCESSING_RETRY_EXHAUSTED');
-      for (const attempt of view.attempts) await this.retire(tx, attempt, now);
+      for (const attempt of view.attempts) {
+        if (!['WRITE_PENDING', 'STORED'].includes(attempt.phase)) await this.retire(tx, attempt, now);
+      }
       return tx.processingJob.update({ where: { id: jobId }, data: { state: 'QUEUED', cycleAttemptCount: 0,
         recoveryProbeCount: 0, retryRevision: job.retryRevision + 1, fence: job.fence + 1n,
         nextAttemptAt: null, lastErrorCode: null, retryable: false, finishedAt: null, leaseOwner: null, leaseUntil: null, updatedAt: now } });
@@ -360,12 +367,30 @@ export class ProcessingStateService {
   }
 
   async finalize(claim: Claim, requestId?: string): Promise<DerivedObject> {
+    return this.finalizeChecked(claim, requestId);
+  }
+
+  /** Evidence is produced only by a full conditional source/candidate read in the worker. */
+  async finalizeRecovered(claim: Claim, evidence: CandidateMetadata): Promise<DerivedObject> {
+    return this.finalizeChecked(claim, undefined, this.candidate(evidence));
+  }
+
+  private async finalizeChecked(claim: Claim, requestId?: string, evidence?: CandidateMetadata): Promise<DerivedObject> {
     claim = this.snapshotClaim(claim);
     if (requestId !== undefined && !this.matches(/^[A-Za-z0-9_-]{1,64}$/, requestId)) error('PROCESSING_INVALID_ARGUMENT');
     return this.locked(claim.ownerId, claim.fileId, claim.jobId, async (tx, view) => {
-      if (this.job(view).state === 'SUCCEEDED') return this.winner(tx, view, claim);
-      const now = await this.now(tx); const live = this.live(view, claim, now); const attempt = live.attempt;
-      if (attempt.phase !== 'STORED' || !attempt.writeSettledAt || attempt.reservationReleasedAt || attempt.finalizedAt ||
+      if (this.job(view).state === 'SUCCEEDED') {
+        const winner = await this.winner(tx, view, claim);
+        if (evidence) this.sameCandidate(view.attempts.find(entry => entry.id === winner.attemptId)!, evidence);
+        return winner;
+      }
+      const now = await this.now(tx); const live = this.live(view, claim, now, false, Boolean(evidence)); const attempt = live.attempt;
+      if (evidence) {
+        if (attempt.fence >= claim.fence) error('PROCESSING_LEASE_LOST');
+        this.sameCandidate(attempt, evidence);
+      }
+      if ((evidence ? !['WRITE_PENDING', 'STORED'].includes(attempt.phase) : attempt.phase !== 'STORED' || !attempt.writeSettledAt) ||
+          attempt.reservationReleasedAt || attempt.finalizedAt ||
           !attempt.outputBytes || attempt.reservedBytes !== attempt.outputBytes || !attempt.sourceSha256 || !attempt.outputSha256 ||
           !attempt.width || !attempt.height || attempt.mimeType !== 'image/webp' || view.user.reservedStorageBytes < attempt.reservedBytes ||
           attempt.candidateKey !== derivedStorageKey(claim.ownerId, claim.fileId, claim.jobId, claim.attemptId)) error('PROCESSING_STATE_CONFLICT');
@@ -390,6 +415,110 @@ export class ProcessingStateService {
     });
   }
 
+  /** Selection is a bounded hint. All mutations recheck state and DB time under locks. */
+  async listReady(limit = 1): Promise<Array<{ id: string; ownerId: string; fileObjectId: string }>> {
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 10) error('PROCESSING_INVALID_ARGUMENT');
+    try {
+      return await this.prisma.$transaction(async tx => {
+        await tx.$executeRaw`SET LOCAL lock_timeout = '3s'`;
+        await tx.$executeRaw`SET LOCAL statement_timeout = '4s'`;
+        const now = await this.now(tx);
+        return await tx.processingJob.findMany({ where: {
+          processorKey: this.policy.key, processorVersion: this.policy.version, implementationFingerprint: this.policy.implementationFingerprint,
+          OR: [{ state: 'QUEUED' }, { state: 'RETRY_WAIT', nextAttemptAt: { lte: now } }, { state: 'RUNNING', leaseUntil: { lte: now } }],
+        }, select: { id: true, ownerId: true, fileObjectId: true }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], take: limit });
+      }, { isolationLevel: 'ReadCommitted', maxWait: 5000, timeout: 5000 });
+    } catch { error('PROCESSING_DATABASE_UNAVAILABLE'); }
+  }
+
+  async loadClaim(claim: Claim): Promise<ProcessingSource> {
+    claim = this.snapshotClaim(claim);
+    return this.locked(claim.ownerId, claim.fileId, claim.jobId, async (tx, view) => {
+      const now = await this.now(tx); const live = this.live(view, claim, now, false, true);
+      await this.beforeCommit(tx, live.deadline);
+      return { file: view.file, job: live.job, attempt: live.attempt };
+    });
+  }
+
+  async captureSource(claim: Claim, sha256: string, etag: string): Promise<void> {
+    claim = this.snapshotClaim(claim);
+    if (!this.matches(hash, sha256) || !this.matches(/^"[^"\x00-\x20\x7f]{1,254}"$/, etag)) error('PROCESSING_INVALID_ARGUMENT');
+    await this.locked(claim.ownerId, claim.fileId, claim.jobId, async (tx, view) => {
+      const now = await this.now(tx); const live = this.live(view, claim, now);
+      if (live.attempt.phase !== 'PREPARING') error('PROCESSING_STATE_CONFLICT');
+      if (view.attempts.some(entry => entry.sourceSha256 !== null && entry.sourceSha256 !== sha256)) error('SOURCE_CHANGED');
+      if (live.attempt.sourceETag !== null && live.attempt.sourceETag !== etag) error('SOURCE_CHANGED');
+      await tx.processingAttempt.update({ where: { id: claim.attemptId }, data: { sourceSha256: sha256, sourceETag: etag, updatedAt: now } });
+      await this.beforeCommit(tx, live.deadline);
+    });
+  }
+
+  /** A recovery fence has no new generation attempt; the producing attempt/fence stays immutable. */
+  async claimRecovery(ownerId: string, fileId: string, jobId: string, leaseOwner: string): Promise<Claim | null> {
+    this.ids(leaseOwner);
+    return this.locked(ownerId, fileId, jobId, async (tx, view) => {
+      const job = this.job(view); const now = await this.now(tx);
+      if (!['QUEUED', 'RETRY_WAIT', 'RUNNING'].includes(job.state) ||
+          job.state === 'RUNNING' && job.leaseUntil && +job.leaseUntil > +now ||
+          job.state === 'RETRY_WAIT' && job.nextAttemptAt && +job.nextAttemptAt > +now) return null;
+      const attempt = [...view.attempts].reverse().find(entry => ['WRITE_PENDING', 'STORED'].includes(entry.phase));
+      if (!attempt) return null;
+      if (job.recoveryProbeCount >= 3) {
+        await tx.processingJob.update({ where: { id: jobId }, data: { state: 'FAILED', leaseOwner: null, leaseUntil: null,
+          nextAttemptAt: null, lastErrorCode: 'PROCESSING_STORAGE_UNAVAILABLE', finishedAt: now,
+          retryable: job.retryRevision < 2 && job.totalAttemptCount < 9, updatedAt: now } });
+        return null;
+      }
+      const fence = job.fence + 1n; const deadline = add(now, LEASE_MS);
+      await tx.processingJob.update({ where: { id: jobId }, data: { state: 'RUNNING', fence, leaseOwner, leaseUntil: deadline,
+        recoveryProbeCount: job.recoveryProbeCount + 1, nextAttemptAt: null, lastErrorCode: null, finishedAt: null, retryable: false, updatedAt: now } });
+      await this.beforeCommit(tx, deadline);
+      return { ownerId, fileId, jobId, attemptId: attempt.id, leaseOwner, fence, implementationFingerprint: this.policy.implementationFingerprint };
+    });
+  }
+
+  /** Recovery transient errors retain the adoptable candidate; definitive invalid/missing candidates are retired. */
+  async failRecovery(claim: Claim, code: ProcessingFailureCode, abandon = false): Promise<void> {
+    claim = this.snapshotClaim(claim);
+    if (!(PROCESSING_FAILURE_CODES as readonly string[]).includes(code)) error('PROCESSING_INVALID_ARGUMENT');
+    await this.locked(claim.ownerId, claim.fileId, claim.jobId, async (tx, view) => {
+      const now = await this.now(tx); const live = this.live(view, claim, now,
+        code === 'SOURCE_CHANGED' || code === 'SOURCE_NOT_ACTIVE', true);
+      if (live.attempt.fence >= claim.fence) error('PROCESSING_LEASE_LOST');
+      if (code === 'SOURCE_NOT_ACTIVE' && view.file.status === 'ACTIVE' && view.file.deletedAt === null) error('PROCESSING_STATE_CONFLICT');
+      if (abandon || permanent.has(code)) await this.retire(tx, live.attempt, now);
+      const retry = !permanent.has(code) && (abandon
+        ? live.job.cycleAttemptCount < 3 && live.job.totalAttemptCount < 9 : live.job.recoveryProbeCount < 3);
+      const count = abandon ? live.job.cycleAttemptCount : live.job.recoveryProbeCount;
+      const cancelled = code === 'SOURCE_NOT_ACTIVE';
+      await tx.processingJob.update({ where: { id: claim.jobId }, data: { state: cancelled ? 'CANCELLED' : retry ? 'RETRY_WAIT' : 'FAILED',
+        fence: cancelled ? live.job.fence + 1n : live.job.fence,
+        nextAttemptAt: retry ? add(now, count <= 1 ? 5000 : 30000) : null, finishedAt: retry ? null : now,
+        leaseOwner: null, leaseUntil: null, lastErrorCode: code,
+        retryable: !retry && (cancelled || !permanent.has(code)) && live.job.retryRevision < 2 && live.job.totalAttemptCount < 9, updatedAt: now } });
+      await this.beforeCommit(tx, live.deadline);
+    });
+  }
+
+  /** Reconcile a selected job whose source became ineligible before any claim could be obtained. */
+  async reconcileSource(ownerId: string, fileId: string, jobId: string): Promise<void> {
+    await this.locked(ownerId, fileId, jobId, async (tx, view) => {
+      const job = this.jobPolicy(view);
+      if (job.state === 'SUCCEEDED' || job.state === 'FAILED' || job.state === 'CANCELLED') return;
+      let code: 'SOURCE_CHANGED' | 'SOURCE_NOT_ACTIVE';
+      try { this.job(view); return; }
+      catch (failure) {
+        if (!(failure instanceof ProcessingStateError)) throw failure;
+        code = failure.code === 'SOURCE_NOT_ACTIVE' ? 'SOURCE_NOT_ACTIVE' : 'SOURCE_CHANGED';
+      }
+      const now = await this.now(tx);
+      for (const attempt of view.attempts) await this.retire(tx, attempt, now);
+      await tx.processingJob.update({ where: { id: jobId }, data: { state: code === 'SOURCE_NOT_ACTIVE' ? 'CANCELLED' : 'FAILED',
+        fence: job.fence + 1n, leaseOwner: null, leaseUntil: null, nextAttemptAt: null, lastErrorCode: code, finishedAt: now,
+        retryable: code === 'SOURCE_NOT_ACTIVE' && job.retryRevision < 2 && job.totalAttemptCount < 9, updatedAt: now } });
+    });
+  }
+
   async blockCleanup(ownerId: string, fileId: string, jobId: string, attemptId: string): Promise<ProcessingAttempt> {
     this.ids(attemptId);
     return this.locked(ownerId, fileId, jobId, async (tx, view) => {
@@ -397,7 +526,9 @@ export class ProcessingStateService {
       if (!attempt) error('PROCESSING_NOT_FOUND');
       if (['PUBLISHED', 'RELEASED', 'CLEANUP_BLOCKED'].includes(attempt.phase)) return attempt;
       const now = await this.now(tx);
-      if (job.state === 'RUNNING' && job.fence === attempt.fence && job.leaseUntil && job.leaseUntil.getTime() > now.getTime()) {
+      if (job.state === 'RUNNING' && job.leaseUntil && job.leaseUntil.getTime() > now.getTime() &&
+          (job.fence === attempt.fence || !view.attempts.some(entry => entry.fence === job.fence) &&
+            ['WRITE_PENDING', 'STORED'].includes(attempt.phase))) {
         error('PROCESSING_STATE_CONFLICT');
       }
       return this.retire(tx, attempt, now);

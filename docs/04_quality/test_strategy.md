@@ -247,3 +247,10 @@ Ez nem valódi PostgreSQL-lock/transaction-izoláció vagy MinIO conditional-wri
 ### Tartós confirm-hook unitok – 2026-10-31
 
 A valódi UploadConfirmService és ProcessingStateService közös mockolt Prisma transaction porton fut. Mutex + file/receipt/counter/job/audit rollback és lost-commit-response fixture ellenőrzi a közös commitot; nincs második enqueue-tranzakció. Párhuzamos/replay confirm, FAILED job, legacy ACTIVE job nélkül, kizárt állapot/MIME/storage verification, mindegyik DB-írási hiba és deadline-rollback kap ellenőrzést. A provider factory ugyanazt a build descriptort adja, process-hívás nem történik. Ezek nem valódi PostgreSQL-lock vagy processzkilövéses recovery bizonyítékok; a tényleges DB/MinIO/restart kapu külön marad.
+
+
+### Worker/recovery izolált unitok – 2026-10-31
+
+A valódi worker/state/publication service-ek közös mutexes/rollbackes DB-double és storage-port mellett teszteltek, a processor maga mockolt (a meglévő külön processor-suite valódi szintetikus képeket dekódol). Promise-gate és fake timer idézi elő a fizikai slot/heartbeat/abort/drain/late-result versenyeket; a DB-clock külön vezérelt. Recovery-fence, full-read evidence, writepending/stored crashpontok, read-only probe-budget, generation-budget végén adoption, rollback/lostack, candidate-hash/header/source hiba, source delete/restore, claim-gap race és closure nélküli R-retention külön esetek. Derived adapter ugyanazon bounded full-read primitíven keresztül kap SDK/stream unitokat.
+
+Ezek nem tényleges PostgreSQL lockok, container OOM vagy processzkilövéses recovery. A tesztriport manuális listája NYITOTT mindaddig, amíg azonosított verzióval, kontrollált szintetikus inputtal, tényleges DB+object-count+kvóta ellenőrzéssel végre nem hajtják. A Compose config validálása nem indítási/erőforrás-limit bizonyíték.
