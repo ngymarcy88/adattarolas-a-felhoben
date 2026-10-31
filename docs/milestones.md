@@ -152,6 +152,7 @@ A történeti MVP-0–MVP-7 helyett az alábbi **SZD2-0–SZD2-7** az aktuális 
 - [x] Bounded thumbnail-worker és fenced full-read recovery implementációja, külön Compose-szerep/DB-job/probe keret; unitok. Valódi cgroup/OOM/MinIO/DB/restart és UI-eredmény elfogadása még nyitott.
 - [x] Saját ACTIVE képek processing status / thumbnail-url / külön retry backendje: strict batch, aktuális verzió/forrás, publikált eredmény ellenőrzése, rövid URL és bounded idempotens retry; unitok. Thumbnail UI és valódi HTTP/DB/storage elfogadás nyitott.
 - [x] Thumbnail a galériakártyán, eredeti a nagy előnézetben; külön állapot/processor-retry/image-retry, batch status/abort és közös négyes memory-only URL-sor unit/template ellenőrzéssel. Valódi böngészős/DB/MinIO elfogadás nyitott.
+- [ ] TH-01: valódi browserpróbában kész státusz mellett nem indul thumbnail-url kérés/kártyakép. Backend/kvóta/STORED restart ellenőrzött a tesztriportban, teljes galéria-elfogadás javításig nyitott; TH-02 upload-siker szöveg is elavult.
 - [ ] Eredeti és derived storage konzisztens elszámolása; minimális tartós job/result és audit, titkok nélkül.
 - [ ] Bemutatható commit, valós képernyőkép, tesztriport, kipróbált lokális telepítés és aktuális dolgozatrész.
 

@@ -153,3 +153,6 @@ Az [ADR-016](02_architecture/adr/ADR-016-thumbnail-processing.md), [API](03_desi
 
 
 2026-10-31-i galéria-szelet: kész thumbnail a kártyán, nagy előnézetben eredeti; elkülönített státusz/hiba/kézi processor-retry, összevont maximum20 ID/10s/egy in-flight polling, visibility/unmount abort, közös négyes memory-only URL-sor. Implementált unit/template szinten; valós pipeline/böngésző és restart elfogadás továbbra külön nyitott kapu.
+
+
+2026-10-31-i tényleges helyi ellenőrzés: HTTP/DB/MinIO confirm/job/thumbnail, sérült kép, két worker/confirm-replay, bounded retry, kvóta, ownership és SIGKILL utáni STORED-adoption sikeres a tesztriport konkrét eseteiben. A teljes galéria-elfogadás **FAIL (TH-01)**: kész státusz mellett nincs thumbnail URL-kérés/kártyakép; az eredeti modal működik. Javítás/reteszt szükséges, más recovery-pontok és külső UAT nyitott.

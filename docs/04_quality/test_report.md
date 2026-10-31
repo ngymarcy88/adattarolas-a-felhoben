@@ -1,6 +1,78 @@
 # Test report
 
 
+## Első thumbnail-folyamat: valódi helyi ellenőrzés – 2026-10-31
+
+**Összeredmény: NEM ELFOGADOTT.** A backend-folyamat, a tartós job, a sérült kép elkülönítése, a külön retry, a STORED restart recovery, a duplikációvédelem és a kvóta a végrehajtott esetekben sikeres. A galéria kártyáján a kész thumbnail **nem jelenik meg (TH-01)**, ezért a teljes feltöltés → galéria acceptance nem zárható le. Ez fejlesztői technikai ellenőrzés, nem külső UAT.
+
+**Tesztelt verzió:** `46eb5b0000bf86fc3d66e5064452a2159cd085d1` (`feature/gallery-thumbnails`, a #40–43 lánccal). A report későbbi dokumentációs commitja nem a tesztelt alkalmazásverzió. Helyi eltérés: korábbról megőrzött egyetlen README-sor, runtime-forrás nem módosult.
+
+**Idő/környezet:** 2026-10-31, HTTP/DB/storage próbák14:29–14:38 UTC (15:29–15:38 Budapest), ezt követően böngészős megfigyelés. WSL Bash/Linux Node22.23.2/npm10.9.8; Docker Desktop Windows CLI, Server26.1.1/Linux containers; PostgreSQL17.9, MinIO helyi image, Sharp0.35.5/libvips8.18.7. Az aktuális root Compose teljes build/indítás `up -d --build --wait` sikeres, migrációk és minio-init exit0, backend/frontend/postgres/minio healthy, worker running. Worker tényleges containerkorlát:512MiB memória/swap,1CPU,64pids; **OOM/limit-kikényszerítési kísérlet nem történt**. Backend/worker image: `sha256:e2a70f893f70ca0d07f6397b639f24544ad61d5df693f322e65ca0d7e43a020c`.
+
+A Node REPL alapú in-app/Windows UI-vezérlés sandboxCwd-hibával, a külön Playwright hiányzó Linux Chrome miatt nem indult. Végül **Windows Chrome156.0.8078.74 headless**, külön átmeneti profil és egyszeri natív CDP/PowerShell/Node parancsok szolgálták a tényleges DOM/kép/feltöltés próbát. Nem települt új integration/e2e framework vagy böngésző. A browser a külön létrehozott A tesztfiók API-loginból származó HttpOnly munkamenetével indult; regisztráció/login UI nem része ennek a próbának. A fájlválasztó és a „Feltöltés indítása” a valódi felületi upload-utat használta.
+
+**Bemenetek:** kizárólag új, szintetikus A/B fiók és képek; meglévő felhasználói adat, volume és foglalás nem lett törölve/resetelve. A/B `displayName=Thumbnail runtime A/B`, létrehozás14:29 UTC; normál keret1GiB. A fájlok SHA-256-ja, időbélyeges megfigyelések, migrációk és audit-countok a [titokmentes mérési artefaktban](../assets/evidence/thumbnail-runtime-2026-10-31.json) vannak. Cookie, jelszó, storage key és presigned URL nem került az artefaktba.
+
+| Fájl / fiók | Tényleges bemenet |
+|---|---|
+| valid.png, duplicate.png, browser.png / A; quota.png / B |1024×768 RGBA PNG, Sharp create background(40,120,210,alpha0.6), egyenként17316B. A browser.png a valódi UI-n keresztül ment fel. |
+| corrupt.png / A | A fenti PNG első41 bájtja; a magic-header felismerhető, de a kép nem dekódolható. |
+| restart.png / A |3000×3000 RGB PNG, xorshift32 seed123456789 zaj, PNG compressionLevel1;28520588B. |
+
+### Végrehajtott lépések és tényleges eredmény
+
+| Próba / lépések | Tényleges eredmény |
+|---|---|
+| **T-TH-01: tartós confirm.** Worker stop; A init → create-only MinIO PUT → confirm; azonnali DB/status olvasás; worker indítás. | **PASS backend:** ACTIVE eredeti és QUEUED job már worker nélkül megvan. Utána RUNNING/PREPARING → SUCCEEDED/PUBLISHED, egy attempt/READY eredmény. A confirm nem várta meg a processort. |
+| **T-TH-02: bájtok és read URL.** DB-result → S3 HEAD/teljes GET → SHA-256 és Sharp metadata; thumbnail-url és original-preview GET. | **PASS:** kicsi PNG-kből486B,512×384 WebP; restart képből58552B,512×512 WebP. HEAD MIME/méret, teljes tartalomhash és DB egyezett; inline read URL200, az eredeti GET SHA-256-ja egyezett a bemenettel. Kiadáskor kb.59–60s TTL;63s várás után a korábbi thumbnail URL ténylegesen403. |
+| **T-TH-03: sérült kép.**41B PNG normál init/PUT/confirm; worker és külön retry. | **PASS:** eredeti ACTIVE, job FAILED/PROCESSOR_INPUT_INVALID, retryable=false, egy RELEASED/R0 attempt, nulla derived eredmény. Kézi retry409; original-preview jogosultság továbbra200. A sérült eredeti dekódolhatóságát ez nem állítja. Másik jó kép továbbra elérhető. |
+| **T-TH-04: kvóta és külön retry.** Kizárólag az új B tesztfiók limitjét admin fixture-ként17316B-ra állítottam; quota.png feltöltés/confirm, majd új upload init. Limit vissza1GiB, két párhuzamos processing retry expectedRevision0; siker után replay1. | **PASS:** original used17316B/reserved0, thumbnail BLOCKED_QUOTA/DERIVED_QUOTA_EXCEEDED, nincs derived objektum. Új original init409. Két retry válasza202/200, mindkettő revision1; második generálási attempt után egy READY result, used17802B/reserved0, két objektum. SUCCEEDED replay200 no-op. A limitmódosítás teszt-fixture, nem megvalósított felhasználói kvóta-API. |
+| **T-TH-05: duplikált kézbesítés/konkurens workerek.** Második valódi worker `compose run -d --no-deps --name cloudvault-thumbnail-verification-second thumbnail-worker`; friss kép és négy párhuzamos confirm-replay; ismételt poll és successful retry. | **PASS:** négy200 confirm, egy logikai job, egy generálási attempt, egy result; az A used35645B/öt objektum két egymást követő inventoryban változatlan. Sikeres retry200. Második konténer stop/rm megtörtént, volume-t nem töröltem. Ez nem fizikailag minden PUT-kérés megszámlálása. |
+| **T-TH-06: valódi hard restart STORED ablakban.** Worker stop, restart.png confirm; worker start; DB-phase figyelés, SIGKILL; az új processz indulása és lease lejáratának kivárása. | **PASS a ténylegesen elkapott STORED pontra:**14:32:11.958 UTC RUNNING/STORED, egy attempt; lease14:33:41.084-ig él. Újraindítás után81s hátralévő lease-nél nincs takeover/fence-váltás.14:33:08-kor a58552B reservation még él, nincs finalization.14:33:41.795-re SUCCEEDED/PUBLISHED: továbbra egy generálási attempt és ugyanaz a candidate, producerFence1, publication/jobFence2. Egy result/charge, reserved0; nincs új candidate. |
+| **T-TH-07: graceful restart kész eredményekkel.** `compose stop -t 45 thumbnail-worker`, majd `compose up -d thumbnail-worker`; előtte/utána DB/storage inventory. | **PASS az idle/completed esetre:** A used28614785B, hét objektum változatlan. Fizikai írás közbeni graceful abort/drain nem volt megfigyelve. |
+| **T-TH-08: másik felhasználó/session.** B cookie-val A original-preview/thumbnail-url/status/retry; B kezdeti lista; B saját+idegen vegyes status batch; anonymous status. | **PASS:** négy idegen művelet404, kezdeti B lista üres, vegyes batch egészében404 részadat nélkül, anonymous status401. A sikeres status explicit11 mezős, nincs storage key. Ez nem az összes endpoint anonim/minden állapot kombinációjának runtime-tesztje. |
+| **T-TH-09: valódi browser upload/galéria.** A tesztprofil file chooser browser.png → „Feltöltés indítása”, leállított worker; automatikus listafrissítés; kártya viewportba görgetése; worker start és status. | **RÉSZBEN PASS / elfogadás FAIL:** UI1/1 sikeres és öt kártya; DB ACTIVE/job, majd kész WebP. Várakozó, majd „Kiskép elkészült” szöveg látszik. **Thumbnail URL-kérés0, kártya img0**, manuális listafrissítés után is. Ez TH-01; az elkészült thumbnail backendbeli megléte nem bizonyítja megjelenítését. |
+| **T-TH-10: nagy eredeti.** browser.png „Nagy előnézet” gomb; modal és kép teljes betöltése. | **PASS:** dialog open, eredeti kép naturalWidth1024/naturalHeight768, complete=true, crossorigin=anonymous, referrer=no-referrer; egy original-preview kérés, thumbnail-kérés továbbra0. Bezárás gomb működik. Escape/fókusz és thumbnail-image-error retry ebben a böngészős próbában nincs igazolva. |
+
+### Záró DB/storage elszámolás
+
+A DB file/result/attempt sorokat tulajdonos szerint hasonlítottam a MinIO `originals/<owner>/` és `derived/<owner>/` prefixeinek teljes listájához, valamint a tényleges HEAD/GET adatokhoz. A használt bájtok az ACTIVE eredetik + READY resultok összege, a foglalás az élő pending/attempt foglalások összege; nem csak UI-sikert ellenőriztem. Minden felsorolt objektumhoz volt elszámolt DB-azonosság. A két szintetikus fiókhoz összesen6 UPLOAD_CONFIRMED és5 PROCESSING_SUCCEEDED audit esemény tartozik.
+
+| Fiók | ACTIVE original | READY result | Storage objektum | Object bytes = DB used | DB reserved |
+|---|---:|---:|---:|---:|---:|
+| A |5|4|9|28632587|0|
+| B |1|1|2|17802|0|
+
+A szintetikus adatok bizonyítékként megmaradtak; B limitje vissza1GiB. Az alkalmazás/PostgreSQL/MinIO és az első worker futva maradt; az ideiglenes második worker eltávolítva. A külön headless böngésző bezárva; tesztprofilja és a hozzáférést tartalmazó ideiglenes fájlok eltávolítva. Nincs repository/runtime kódjavítás és nincs új integration/e2e framework; a docs-változáshoz külön unit/build ismétlés nem szükséges.
+
+### Talált hibák és nyitott kapuk
+
+- **TH-01 – blokkoló galériahiba:** kész result + látható kártya mellett0 thumbnail-url kérés és0 kártyakép, manuális refresh után is. Javítás és ugyanezen verzióazonosított browser/DB/storage próba megismétlése szükséges. A gyökérok nincs igazolva; nem szűkítettem találgatással watcher/queue hibára.
+- **TH-02 – hibás felületi szöveg:** sikeres upload után a UI még „Képfeldolgozás még nem érhető el.” üzenetet ad. A működő backenddel ellentmondásos; javításra vár.
+- [ ] PREPARING/R0, WRITE_PENDING/PUT előtti és bizonytalan írás közbeni hard-stop pontok külön elkapása; ezekre a STORED-recovery eredménye nem általánosítható.
+- [ ] Még élő régi worker késői eredménye új lease mellett; a SIGKILL-es próba nem ilyen versenyhelyzet.
+- [ ] Hiányzó/sérült derived candidate recovery, closure-proof/cleanup és pozitív R-release; a mostani adapter proofkorlátja változatlan. A normál, igazolt STORED-adoption nem cleanup-release.
+- [ ] Valódi thumbnail-image-error retry, >20 képes lapozás/polling-limit, rejtett lap/oldalelhagyás tényleges abortja, Escape/fókusz, processor-retry UI és külső UAT.
+- [ ] OOM/CPU/pids limit kikényszerítési kísérlet, orientáció/animáció és EXIF-et tartalmazó bemenet; nem részei a mostani mérésnek.
+
+### Képi bizonyíték
+
+![1. ábra – Várakozó friss feltöltés és kész eredményű másik kártya](../assets/screenshots/thumbnail-waiting-2026-10-31.png)
+
+*1. ábra: worker nélkül a browser.png „Kisképre várakozik”; a restart.png backendben kész, de a kártyaképe már itt is hiányzik.*
+
+![2. ábra – Kész státusz, hiányzó thumbnail-képek](../assets/screenshots/thumbnail-gallery-defect-2026-10-31.png)
+
+*2. ábra: mindkét látható kártyán „Kiskép elkészült”, mégsem jelenik meg kép; a network resource számláló0 thumbnail-url kérést igazolt.*
+
+![3. ábra – A teljes eredeti megnyílik a nagy előnézetben](../assets/screenshots/thumbnail-original-preview-2026-10-31.png)
+
+*3. ábra: az eredeti1024×768-as szintetikus kép valóban betöltött a modalban; ez független a hibás kártyathumbnailtől.*
+
+
+
+A következő korábbi szakaszok az akkori unit/tervezett manuális állapotot őrzik; az új runtime-eredmény csak a fenti konkrét próbákra és megszakítási pontra vonatkozik.
+
 ## Thumbnail a galériakártyán – 2026-10-31
 
 **Verzió:** `feature/gallery-thumbnails`, a `3a5a086` processing API-ra építve. **Környezet:** WSL/Linux Node22.23.2/npm10.9.8, Vitest5/Vue3.5, SSR template, fake timer/visibility adapter és mockolt fetch. Szintetikus UUID/JSON/URL; nincs valódi kép/HTTP/DB/MinIO vagy böngészős renderpróba.
