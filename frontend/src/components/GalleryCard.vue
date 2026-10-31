@@ -17,8 +17,13 @@ const statusText = computed(() => ({ NOT_SCHEDULED: 'Kiskép nincs ütemezve', Q
   RETRY_WAIT: 'Újabb feldolgozásra vár', SUCCEEDED: ready.value ? 'Kiskép elkészült' : 'A kiskép nem érhető el',
   FAILED: 'A kiskép feldolgozása sikertelen', BLOCKED_QUOTA: 'Nincs elég tárhely a kisképhez', CANCELLED: 'A kiskép feldolgozása leállt' })[job.value?.status?.state ?? 'NOT_SCHEDULED']);
 const wait = computed(() => Math.max(0, Math.ceil((Math.max(entry.value?.retryAt ?? 0, props.previews.state.retryAt) - props.now) / 1000)));
-watch(() => job.value?.status?.result?.id, () => props.previews.invalidate(props.file.id));
-watch(() => [visible.value, props.disabled, ready.value, entry.value === undefined], () => { if (visible.value && !props.disabled && ready.value) props.previews.request(props.file.id); });
+// Keep invalidation before demand in one watcher: separate watchers can delete a request
+// created earlier in the same visibility/result update batch.
+watch(() => [visible.value, props.disabled, ready.value, job.value?.status?.result?.id, entry.value === undefined] as const,
+  ([isVisible, disabled, isReady, resultId], previous) => {
+    if (resultId !== previous[3]) props.previews.invalidate(props.file.id);
+    if (isVisible && !disabled && isReady) props.previews.request(props.file.id);
+  });
 onMounted(() => { if (button.value) unobserve = observeVisibility(button.value, value => { visible.value = value; props.processing.setVisible(props.file.id, value); }); });
 onBeforeUnmount(() => unobserve?.());
 const date = (value: string) => new Intl.DateTimeFormat('hu-HU', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
