@@ -1,5 +1,26 @@
 # Test report
 
+
+## Multipart/import adatmodell – 2026-11-01
+
+**Verzió/környezet:** `feature/multipart-data-model`, alapcommit `1704e15`; új migráció `20261101000100_multipart_import_model`, SQL SHA-256 `df92353ed1312bb9060863e9750d15dee50834167ee7713c595120c8a6cb4ecf`. WSL Linux Node22.23.2/npm10.9.8, Prisma7.10.1, Docker Desktop Windows CLI, külön `postgres:17.9-bookworm` konténer (image digest `sha256:47f917f7409eacd22fc5dfb1dee634e1b55cf0c01d1a7eb701be2227a03e0641`). A Docker Server most elérhető volt; nincs app DB/storage/.env módosítás, konténeres alkalmazásindítás vagy valódi feltöltés.
+
+**Bemenet/lépések:** korábbi migrációk után szintetikus legacy userek, ACTIVE/PENDING/SOFT_DELETED fájl, nyitott receipt és nem nulla reserved, share/audit, SUCCEEDED job, attempt és READY derived eredmény. A meglévő mezők JSON-snapshotja nyolc régi táblán (az új transport default kivételével), majd valódi Prisma migrate deploy. Multipart tesztgráf külön userrel,10MiB+1B eredetivel és5MiB/5MiB/1B geometriával; minden SQL-eset és ORM-írás rollbackel. Végül friss külön adatbázis teljes deploy/diff és a régi processing SQL-fixture.
+
+| Végrehajtott ellenőrzés | Tényleges eredmény |
+|---|---|
+| Prisma schema parse/generate/format és workspace typecheck. | **PASS:** a modell valid, generált backend típusokkal a nullable határidő és új enumok kompatibilisek. A formázás csak whitespace-ot módosított. |
+| Root `npm test`, egy összevont kör. | **PASS:**1054 backend +405 frontend +2 helper = **1461**, ebből12 új legacy-isolation eset. A régi init nem ad jogot multipart/null legacy deadline esetén; confirm nem aktivál pending multipartot; cleanup nem töröl/könyvel új módot; ACTIVE confirm no-op és safe enum-mapping megmarad. |
+| Root `npm run build`. | **PASS:** backend és frontend; frontend bundle változatlan `index-4CUQyOjH.js`. Nincs új multipart service/API/UI/worker. A meglévő backend módosításai kompatibilitási őrfeltételek. |
+| `CLOUDVAULT_DOCKER_CLI=... node scripts/verify-processing-schema.mjs --multipart`: upgrade. | **PASS:** a korábbi adatok, számlálók, függő reservation és processor-eredmények változatlanok, meglévő fájlok transportja SINGLE_PUT. Régi migrációkat nem írtunk át. |
+| Multipart SQL-korlátok és triggerek. | **PASS:**60 valódi PostgreSQL-eset. Logical receipt/item/transfer/create/part duplikáció, owner/transport FK, ordinal/cap/hash/geometria/finite/lease, komplett és sealed manifest, pozitív/negatív terminális gráf, egyszeri release-marker, unproven/hiányos proof tiltása, unresolved I/O/part retention és régi kvótacheckek. A pozitív proof fixture **csak szintetikus mezőalak**, nem valódi storage-bizonyíték. |
+| Strukturális schema/migration összhang és ORM. | **PASS:** upgrade migrate diff/status üres/rendezett; valódi generált kliens import/file/operation/item/transfer/part/I/O rekordot hozott létre egy tranzakcióban, SET CONSTRAINTS ALL IMMEDIATE után rollback; eredeti snapshot változatlan. |
+| Fresh telepítés és régi processing-korlátok. | **PASS:** teljes friss migrate deploy + Prisma diff;75 meglévő processing SQL-regresszió sikeres a végleges sémán. A külön konténer a verifier végén eltávolítva. |
+
+**Diagnosztika:** a kezdeti SQL-próba provider uploadId regexében a PostgreSQL a2048-as ismétlési kvantort elutasította (2201B). Javítás: ASCII `+` és külön1..2048 hosszkorlát; nem lazy regexfeltételre építünk. Célzott, eldobható DB-s SQL-diagnosztika után a végső teljes upgrade/fresh/ORM kör is sikeres. A rootból config nélkül indított első migrate-diff nem adott SQL-t; a sikeres generálás/összehasonlítás a backend Prisma-config cwd-jében történt. Nincs ismételt teljes unitkör. A diff/history ellenőrzés és95 helyi hivatkozás/cél ellenőrzése sikeres; a README egy korábbi thumbnail-anchorát az aktuális API-fejezetre javítottam.
+
+**NYITOTT:** tranzakciós multipart üzleti service és tényleges User-counter/audit/job együttcommitolás; storage ListParts/Complete/Abort és pozitív write-closure bizonyíték; provider create-only/size kapuk; Uppy control-plane illesztés; valódi fájl-, browser- és restartpróba, kis képek intra-file resume-ja és10/50 képes mérés. A séma nem mozgat számlálót automatikusan, és nem adhat provider-prooft. Ezekre ez a próba nem PASS.
+
 ## Multipart PoC – 2026-11-01
 
 **Scope/verzió:** elkülönített `tools/multipart-poc/`, alkalmazás-alapcommit `0f9de9add46e148e5ebd06da997c90ad104c7d0a`; a futtatott PoC-fájlok és root lockfile SHA-256 az [evidence JSON-ban](../assets/evidence/multipart-poc-2026-11-01.json). Az éles feltöltőút változatlan. Döntés: [ADR-017](../02_architecture/adr/ADR-017-direct-multipart-poc.md).

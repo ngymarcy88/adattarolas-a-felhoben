@@ -9,6 +9,11 @@ export function publicFile(file: UploadFile) {
   return { id: file.id, status: file.status, originalName: file.originalName, mimeType: file.mimeType,
     detectedMimeType: file.detectedMimeType, sizeBytes: Number(file.sizeBytes), confirmBy: file.confirmBy.toISOString() };
 }
+// New multipart terminal codes must never enter the legacy single-PUT error path.
+export function legacyUploadTerminalError(code: string | null) {
+  if (code === 'FILE_TOO_LARGE' || code === 'UPLOAD_VALIDATION_FAILED' || code === 'UPLOAD_EXPIRED') return code;
+  throw new ApiError('DATABASE_UNAVAILABLE');
+}
 @Injectable()
 export class UploadStateService {
   constructor(private readonly prisma: PrismaService) {}

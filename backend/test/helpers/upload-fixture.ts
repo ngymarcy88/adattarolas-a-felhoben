@@ -13,7 +13,7 @@ export const id = '00000000-0000-4000-8000-000000000002';
 export const now = new Date('2026-10-24T13:00:00.000Z');
 export const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=', 'base64');
 export function uploadFixture() {
-  const file = { id, ownerId: owner, status: 'PENDING_UPLOAD', originalName: 'fixture.png', storageKey: `originals/${owner}/${id}`,
+  const file = { id, ownerId: owner, status: 'PENDING_UPLOAD', uploadTransport: 'SINGLE_PUT', originalName: 'fixture.png', storageKey: `originals/${owner}/${id}`,
     mimeType: 'image/png', detectedMimeType: null, sizeBytes: BigInt(png.length), uploadUrlExpiresAt: new Date(+now + 300000), confirmBy: new Date(+now + 900000),
     deletedAt: null, cleanupAttemptCount: 0, cleanupRetryAfter: null, cleanupLastErrorCode: null, uploadOperation: { id: '00000000-0000-4000-8000-000000000003',
       ownerId: owner, fileObjectId: id, state: 'OPEN', terminalErrorCode: null, closedAt: null, writesClosedAt: null, reservationReleasedAt: null },
