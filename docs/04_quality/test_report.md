@@ -1,5 +1,29 @@
 # Test report
 
+## Multipart PoC – 2026-11-01
+
+**Scope/verzió:** elkülönített `tools/multipart-poc/`, alkalmazás-alapcommit `0f9de9add46e148e5ebd06da997c90ad104c7d0a`; a futtatott PoC-fájlok és root lockfile SHA-256 az [evidence JSON-ban](../assets/evidence/multipart-poc-2026-11-01.json). Az éles feltöltőút változatlan. Döntés: [ADR-017](../02_architecture/adr/ADR-017-direct-multipart-poc.md).
+
+**Környezet:** WSL Linux Node22.23.2/npm10.9.8; Uppy core/S3 6.3.0; Vue3/Vite a meglévő root workspace-ből; Windows Headless Chrome156. A Docker Desktop indítása stale `userAnalyticsOtlpHttp.sock` hibával meghiúsult; a beépített browser runtime WSL URI-hibát adott. Ezért külön natív MinIO a Compose Dockerfile-jában rögzített `9e49d5e7a648f00e26f2246f4dc28e6b07f8c84a` forrásból, ideiglenes, checksum-ellenőrzött Go1.27.3 toolchainnel fordítva. A bináris DEVELOPMENT.GOGET verziót jelent; pontos bináris-hash az evidence-ben. Külön ideiglenes adatkönyvtár, random credential/bucket; nincs alkalmazás-DB, `.env`, auth vagy kvóta. A próba kezdete 2026-11-01 22:13:39 Europe/Budapest (21:13:39 UTC), nem a Docker-image vagy az app pipeline elfogadása.
+
+**Bemenet/lépések:** determinisztikus xorshift123456789 RGB-pixelekből Sharp PNG compressionLevel1. Részméret5,242,880B, egy aktív Uppy-fájl. Nagy képnél az első rész teljes presigned PUT, majd a második rész teljes Content-Lengthű HTTP-kérésébe1MiB prefix írás és socket destroy, kéréslezárás nélkül. Kis képnél az első rész64KiB prefixén ugyanez. Ezután valódi MinIO ListParts és HEAD: a félbemaradt rész nincs a kész részek között, végleges objektum még nincs. Új, Vue-komponensből kezelt Uppy-példány `s3Multipart` azonosságból listáz/folytat/véglegesít. A backend a complete aláírása előtt újra listázza a részeket; végül teljes GET és SHA-256 összehasonlítás.
+
+| Próba / elvárt eredmény | Tényleges eredmény |
+|---|---|
+| Kis kép,256×256,207,964B; félbemaradt egyetlen rész nincs megtartva. | **PASS a korlát igazolására:**64KiB megszakított payload után ListParts üres; Uppy GET200→PUT part1 207,964B/200→complete200. A teljes kép újraküldődött; ez nem fájlon belüli resume. |
+| Nagy kép,2200×2200,15,338,309B; kész első rész megmarad, megszakított második újraküldhető. | **PASS:** ListPartsban csak part1,5,242,880B. Uppy csak part2-t5,242,880B és part3-at4,852,549B küldte, mindkettő200; part1 PUT nincs. A megtartott part1 ETag változatlan a complete előtti listában; complete200. |
+| Végső bájtazonosság. | **PASS:** kis SHA-256 `92bbd987d81d47802ea98b476fa98c79e9911653982aa3bc9f1685691024c2a5`; nagy `f746fc9525b6b4b5def0ee1deffbbfb47bca2961bc9cabc47e28c4bab5496517`. Teljes GET-méret és hash egyezik mindkettőnél, MIME image/png. |
+| Vue/headless Uppy illeszthetőség és valódi böngészős S3/CORS. | **PASS ebben a PoC-ban:** Composition API-komponensből indított új Uppy-példány; a böngésző közvetlen MinIO ListParts/UploadPart/Complete kérései sikeresek. Az alkalmazás feltöltőpaneljét nem módosítottuk. |
+| Elkülönített erőforrások takarítása. | **PASS:** a két szintetikus session/objektum és külön bucket eltávolítva; a MinIO-folyamat leállt, ideiglenes adatkönyvtára törölve. Ez nem alkalmazásoldali quota-release proof. |
+
+**Mérési határ:** a megszakított Node HTTP `request.write` sikeres callbackjében számolt payload és a sikeres böngészős PUT Blob-méretek, nem TCP/TLS-forgalom és nem MinIO által visszaigazolt részleges bájtszám. Kis kép: összes273,500B, ebből65,536B többletpayload; folytatás207,964B. Nagy kép: összes16,386,885B, ebből1,048,576B többletpayload; folytatás10,095,429B. A kész5MiB-os rész újraküldése elmaradt. Nincs mért single-PUT baseline vagy általános gyorsulási állítás.
+
+**Diagnosztika:** a két első próba riportja a végső XHR `loadend` megfigyelése előtt ellenőrzött, így a large complete státusza null volt. A mérőoldal javítva: minden megfigyelt kérés lezárását megvárja. A végső PASS már ezen kódon futott; a korábbi mérőhiba nem termékhiba. A typecheck/build első párhuzamos futtatása közös Prisma-generálási EEXIST/ENOENT ütközést okozott; érvényes ellenőrzéshez soros ismétlés szükséges.
+
+**Végső ellenőrzés:** a Prisma-generálást tartalmazó typecheck, majd build külön, sorban **PASS**. Az első `npm test` helper2/frontend405 esete PASS, backendje a generálási ütközés miatt12 suite-ban elbukott; a stabil generálás utáni `npm run test --workspace backend`24 suite/1042 eset **PASS**. Összesen1449 meglévő teszt sikeres, nincs új unit/e2e framework. A PoC saját valós ellenőrzése külön futott, nem unitként számoltuk. PoC modulok `node --check`,44 helyi dokumentumlink, `git diff --check`, evidence-forrás/lock SHA és hozzáférési adatok hiányának ellenőrzése PASS. Az alkalmazás frontend bundle-je változatlan `index-4CUQyOjH.js`. A PoC5180/19000 portja a végén zárt; a külön tesztböngészőprofilok eltávolítva.
+
+**NYITOTT:** Uppy által indított kérés közbeni pause/network fault, tényleges lapfrissítés és helyifájl-újraválasztás, MinIO/backend restart, termék-auth/ownership/kvóta/expiry/cleanup, kis képek fájlon belüli resume-ja,10/50 képes összehasonlítás. Az új kliens state-hidratálása nem tartós import. Ezeket nem jelöljük PASS-nak; a teljes resumable SZD2-követelmény nincs lezárva.
+
 
 ## TH-01/TH-02 javítás és helyi reteszt – 2026-10-31
 

@@ -55,7 +55,7 @@ A backend proxy nem automatikus CORS-fallback. A lokális MinIO CORS beállítá
 
 ## Első képfeltöltési szerződés pontosítása – 2026-10-20
 
-A kanonikus request/response és hibaút az [API Upload részében](../../03_design/api.md#upload--első-képfeltöltési-szelet-tervezett) található. Az init kötelező ownerhez kötött `Idempotency-Key` alapján egyetlen fájlt/foglalást hoz létre; a normalizált payload és a határidők replaykor változatlanok. A tartós nyilvántartás konkrét adatmodellje külön következő feladat.
+A kanonikus request/response és hibaút az [API Upload részében](../../03_design/api.md#upload--első-képfeltöltési-szelet) található. Az init kötelező ownerhez kötött `Idempotency-Key` alapján egyetlen fájlt/foglalást hoz létre; a normalizált payload és a határidők replaykor változatlanok. A tartós nyilvántartás konkrét adatmodellje külön következő feladat.
 
 A szokásos presigned PUT többször használható és felülírhatja a már ellenőrzött objektumot; a korábbi egyszerű HEAD→ACTIVE leírás ezt önmagában nem zárja ki. Az API elvárt create-only iránya az aláírt `If-None-Match: *`, de a tényleges MinIO/S3 kompatibilitás, megkerülhetetlenség, méretkikényszerítés és a HEAD/range objektumazonosság még implementáció előtti bizonyítási kapu. Belső storage URL nem helyettesíthet böngészőből elérhető, helyesen aláírt publikus URL-t; CORS szükséges.
 
@@ -72,3 +72,7 @@ A DeleteObject csak fizikai művelet. Az adapter `writeClosureEvidence = 'unprov
 Provider-próba: `npm run storage:verify`, [eredmények és korlátok](../../04_quality/test_report.md). Elsődleges háttér: [AWS conditional writes](https://docs.aws.amazon.com/AmazonS3/latest/userguide/conditional-writes.html), [presigned URL érvényesség](https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-presigned-url.html), [HEAD hiba-szemantika](https://docs.aws.amazon.com/AmazonS3/latest/API/API_HeadObject.html). Más S3 providerre a kompatibilitást külön ellenőrizni kell.
 
 Az init→PUT→confirm backend-adatút implementált; sikeres confirm nem követel cleanup-quiescence-t, mert az aktív objektumot nem törli, és a régi create-only PUT nem írhatja felül. A quiescence külön törlési/release kapu, jelenleg nincs igazolva. A worker ezért csak a lejárati és retry-kezelést teljesíti ténylegesen; writesClosedAt nélkül nincs delete vagy reservation-release.
+
+## Multipart target clarification – 2026-11-01
+
+Az [ADR-017](ADR-017-direct-multipart-poc.md) PoC-ja után a [multipart API](../../03_design/api.md#multipart-képimport--tervezett-szerződés-2026-11-01) a cél: a böngésző közvetlenül csak UploadPart műveletet kap, pontos szerveroldali geometria és rövid grant mellett. A Create/List/Complete/Abort üzleti jogosultságát és storage-hívásait a backend végzi, complete előtt saját tartós manifesttel, confirmkor teljesfájl-hash és tényleges signature ellenőrzéssel. Az Uppy6 PoC közvetlen complete-ja ehhez nem kész termékadapter; illesztési kapuja nyitott. A fenti single-PUT leírás a működő legacy út marad; ugyanazon kísérlet nem válthat transportot. Cleanupnál változatlanul pozitív íráslezárási bizonyíték szükséges, az abort válasza nem kvótafelszabadítás.

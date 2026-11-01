@@ -75,7 +75,7 @@ A filter 400/401/403/404/405/409/413/415/429/503 HTTP-státuszhoz rendre `INVALI
 | 422 | `UPLOAD_VALIDATION_FAILED` | `HEAD` méreteltérés, MIME/magic mismatch, unknown/hiányos signature; nem teljes képsértetlenségi vizsgálat |
 | 503 | `UPLOAD_VERIFICATION_UNAVAILABLE` | `HEAD` vagy bounded range-read átmeneti storage-hibája; confirm retry lehetséges |
 
-Az első képszelet MIME-jai: `image/jpeg`, `image/png`, `image/webp`, `image/gif`, a konfigurációval tovább szűkíthetően. A tágabb tervezett Core MIME-lista videót is tartalmaz (`video/mp4`, `video/webm`), de ezek nem az első képfeltöltési szelet részei. A pontos init/confirm, TTL, idempotencia és retry szerződés az [API Upload szakaszában](api.md#upload--első-képfeltöltési-szelet-tervezett) szerepel.
+Az első képszelet MIME-jai: `image/jpeg`, `image/png`, `image/webp`, `image/gif`, a konfigurációval tovább szűkíthetően. A tágabb tervezett Core MIME-lista videót is tartalmaz (`video/mp4`, `video/webm`), de ezek nem az első képfeltöltési szelet részei. A pontos init/confirm, TTL, idempotencia és retry szerződés az [API Upload szakaszában](api.md#upload--első-képfeltöltési-szelet) szerepel.
 
 Az `ACTIVE` fájl ismételt confirmja nem hiba: `200 OK`, ugyanaz a reprezentáció és nulla új számlálómódosítás. A cleanupnak ki kell zárnia a confirm-aktiválást és a későbbi PUT-befejezésből történő objektum-újrakeletkezést; URL-lejárat vagy pillanatnyi 404 önmagában nem bizonyíték. Invalid/abandoned cleanup storage-hibája belső retry-állapot; nem szabad azt állítani a kliensnek, hogy reservation már felszabadult.
 
@@ -252,3 +252,29 @@ A `ProcessorError` nem HTTP-exception és nem indít retry-t: `PROCESSOR_INPUT_U
 A `ProcessingStateError` safe belső kódot ad (`PROCESSING_INVALID_ARGUMENT`, `PROCESSING_NOT_FOUND`, `SOURCE_NOT_ACTIVE`, `SOURCE_CHANGED`, `PROCESSING_POLICY_MISMATCH`, `PROCESSING_LEASE_LOST`, `PROCESSING_STATE_CONFLICT`, `PROCESSING_RETRY_EXHAUSTED`, `PROCESSING_DATABASE_UNAVAILABLE`), egységes message-gel, raw Prisma/stack/provideradat nélkül. Nincs új HTTP mapping. Kvótahiány tartós BLOCKED_QUOTA, automatikus retry nélkül; ismeretlen/policy-input hiba nem örökíthet tetszőleges error-stringet jobba. Transient hiba keretes5s/30s retryt kap, input/source hiba terminális.
 
 A `ProcessingPublicationError` storage-részhibát `PROCESSING_STORAGE_UNAVAILABLE`, caller abortot `PROCESSOR_ABORTED` kóddal jelez. Receipt/HEAD eltérés sem jogosít törlésre vagy kvótafelszabadításra. MarkStored/finalize DB-hibája külön marad a storage-failure ágtól: a commit lehet sikeres elveszett válasz mellett, ezért nincs vak fail/DELETE/PUT-kompenzáció. Sikertelen hibaállapot-mentés esetén is megmarad az előző tartós reservation. Cleanup proofhiány esetén CLEANUP_BLOCKED, nem implicit óra-alapú release.
+
+## Multipart – tervezett hibák, 2026-11-01
+
+Nincs új implementált hibakód ebben a dokumentációs feladatban. A [multipart API](api.md#multipart-képimport--tervezett-szerződés-2026-11-01) a HTTP- és replay-szabályok kanonikus forrása; közös `{error:{code,message,details:{},requestId}}` wrapper, nyers XML/SDK-hiba/URL/owneradat nélkül. Endpoint/ownership ellenőrzése megelőzi a storage-ot és az állapot részleteit. Például idegen lejárt transfer is404, nem410.
+
+| HTTP / publikus kód | Jelentés és kliensreakció |
+|---|---|
+|400 VALIDATION_ERROR / INVALID_FILE_NAME | Hibás UUID/cursor/limit/body, extra mező, hash-alak vagy részszám. Javítás szükséges; hibás részszám nem kap signot. |
+|401 AUTH_REQUIRED | Új kérések megállnak; normál login, majd ugyanazon saját import/transfer visszakeresése az eredeti határidőig. |
+|403 ORIGIN_NOT_ALLOWED | Hiányzó/eltérő Origin a mutáción; nincs storage fallback. |
+|404 IMPORT_NOT_FOUND / TRANSFER_NOT_FOUND / FILE_NOT_FOUND | Endpoint erőforrása hiányzó vagy nem saját, azonos hibával. Nincs részadat vagy létezési részlet. |
+|409 IDEMPOTENCY_CONFLICT | Megőrzött init-kulcs vagy clientFileId más normalizált tartalommal; eredeti input vagy tudatos új fájlkísérlet. |
+|409 QUOTA_EXCEEDED / IMPORT_FILE_LIMIT / ACTIVE_IMPORT_LIMIT | Új init/import nem fogadható el; nincs új file-reservation. A korábban commitolt, bizonytalan kimenetelű initet előbb ugyanazon kulccsal tisztázni kell. |
+|409 PART_ALREADY_UPLOADED | Új rész-PUT helyett friss státusz és a kész rész megtartása. |
+|409 TRANSFER_SOURCE_MISMATCH | Újraválasztott helyi fájl mérete/hash-e eltér; a meglévő sessiont nem írjuk felül. |
+|409 TRANSFER_STATE_CONFLICT / RESOURCE_STATE_CONFLICT | Az adott mutáció már nem engedett; ACTIVE cancel, törölt fájl confirm vagy nem OPEN resume. Állapotolvasás szükséges, nem új automatikus init. |
+|409 UPLOAD_PARTS_INCOMPLETE / UPLOAD_NOT_READY | Még hiányzó részek vagy nincs STORED eredeti; nem sikeres complete/confirm. Friss részlista és csak a hiányzók pótlása, ha OPEN. |
+|409 TRANSFER_PARTS_INVALID | Nem engedett vagy méretben hibás storage-részkészlet; őrzött hibás lezárás, nem tetszőleges részhalmaz complete-ja. |
+|410 UPLOAD_EXPIRED / UPLOAD_CANCELLED | Terminálisan lezárt pending művelethez nincs új sign/folytatás/aktiválás; a foglalás ettől még HELD lehet. GET és cleanup/cancel replay továbbra adhat200/202 állapotot. |
+|413 FILE_TOO_LARGE /415 UNSUPPORTED_MEDIA_TYPE | Deklarált limit/típus nem támogatott. Nincs vak retry. |
+|422 UPLOAD_VALIDATION_FAILED | Összeállt objektum méret-, tényleges MIME-, hash- vagy azonossági hibája; nincs ACTIVE/used-növelés, reservation a bizonyított cleanupig megmarad. |
+|429 RATE_LIMITED | Közös Retry-After szerinti várakozás; ugyanaz az import/transfer/idempotenciakulcs. |
+|503 STORAGE_UNAVAILABLE / UPLOAD_VERIFICATION_UNAVAILABLE / DATABASE_UNAVAILABLE | Átmeneti infrastruktúrahiba, safe request ID. Döntetlen korábbi mutáció után státusz/replay, nem új fájl/foglalás. Friss ListParts nélkül nincs frissnek állított progress. |
+|500 INTERNAL_ERROR | Generikus hiba; előbb a korábbi művelet eredményét kell visszakeresni. |
+
+A202 nem hiba és nem végső siker: ismert folyamatban levő vagy bizonytalan storage-complete, confirm vagy cleanup200 helyetti függő állapota, `Retry-After:2` és safe transfer DTO. GET200 CREATE_UNKNOWN/COMPLETE_UNKNOWN/CLEANUP_BLOCKED szintén nem bizonyít átviteli vagy takarítási sikert. Abort204/NoSuchUpload nem alkalmazásoldali release. A complete HTTP200-ba ágyazott storage-hibáját az adapter értelmezi; providerazonosítót nem másol a hibába.
