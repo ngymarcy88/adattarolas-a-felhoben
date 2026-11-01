@@ -288,14 +288,14 @@ ALTER TABLE "UploadOperation" ADD CONSTRAINT "UploadOperation_release_check" CHE
 
 ALTER TABLE "ImportSession" ADD CONSTRAINT "ImportSession_identity_check" CHECK ((
     "idempotencyKey"::text ~ '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
-    AND "requestFingerprint" ~ '^v1:[0-9a-f]{64}$' 
+    AND "requestFingerprint" ~ '^v1:[0-9a-f]{64}$'
 ) IS TRUE);
 
 ALTER TABLE "ImportSession" ADD CONSTRAINT "ImportSession_limits_check" CHECK ((
     "fileLimit" BETWEEN 1 AND 50 AND "acceptedFileCount" BETWEEN 0 AND "fileLimit"
     AND "nextOrdinal" = "acceptedFileCount" + 1
     AND "expiresAt" > "createdAt" AND "expiresAt" <= "createdAt" + interval '24 hours'
-    AND "replayUntil" >= "expiresAt" + interval '24 hours' 
+    AND "replayUntil" >= "expiresAt" + interval '24 hours'
 ) IS TRUE);
 
 ALTER TABLE "ImportSession" ADD CONSTRAINT "ImportSession_finite_times_check" CHECK ((
@@ -315,7 +315,7 @@ ALTER TABLE "MultipartTransfer" ADD CONSTRAINT "MultipartTransfer_geometry_check
     "uploadTransport" = 'MULTIPART' AND "sizeBytes" BETWEEN 1 AND 104857600
     AND "partSizeBytes" BETWEEN 5242880 AND 16777216 AND "partSizeBytes" % 1048576 = 0
     AND "partCount" = ("sizeBytes" + "partSizeBytes" - 1) / "partSizeBytes"
-    AND "contentSha256" ~ '^[0-9a-f]{64}$' 
+    AND "contentSha256" ~ '^[0-9a-f]{64}$'
 ) IS TRUE);
 
 ALTER TABLE "MultipartTransfer" ADD CONSTRAINT "MultipartTransfer_identity_check" CHECK ((
