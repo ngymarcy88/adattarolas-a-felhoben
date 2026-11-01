@@ -50,3 +50,13 @@ Measurement counts application payload bytes handed to the interrupted HTTP requ
 - [S3 multipart part size limits](https://docs.aws.amazon.com/AmazonS3/latest/userguide/qfacts.html)
 - [S3 multipart lifecycle](https://docs.aws.amazon.com/AmazonS3/latest/userguide/mpuoverview.html)
 - [Incomplete upload storage and abort](https://docs.aws.amazon.com/AmazonS3/latest/userguide/abort-mpu.html)
+
+## Product contract clarification – 2026-11-01 (documentation only)
+
+The planned [multipart API](../../03_design/api.md#multipart-képimport--tervezett-szerződés-2026-11-01) and [durable model](../../03_design/data_model.md#multipart-import-és-transfer--tervezett-2026-11-01) now define owner-bound import/file/transfer identity, one reservation, fixed session expiry, part-only browser grants and backend-controlled completion/confirmation. Defaults:5MiB immutable parts,120s part grants,24h import lifetime,50 accepted files/import, two active files with one sequential part each. These are target configuration, not installed runtime settings or acceptance of the small-image resume gap.
+
+**Material PoC limitation:** Uppy6.3.0 exposes `signRequest` and its S3 uploader performs direct ListParts/Complete. The PoC demonstrated that path; it did not demonstrate a supported adapter to the new cookie-auth JSON control plane with backend-owned manifest/complete. Before frontend integration, prove a supported public library extension or revisit the client choice through ADR/PoC. Do not assume old Uppy5 callbacks exist in6.3.0, fork private uploader internals, weaken backend checks, introduce an S3-emulation protocol, change authentication or install an alternative implicitly. No browser Create/List/Complete/Abort presigned rights are authorized by the product contract.
+
+Create-only CompleteMultipartUpload support, exact size enforcement and attempt-specific write-closure evidence require real provider verification. AWS documents that a complete response can carry an error inside HTTP200, and abort can race in-flight parts; SDK response parsing and conservative recovery are required. Unknown outcomes retain reservation. References: [complete semantics](https://docs.aws.amazon.com/AmazonS3/latest/API/API_CompleteMultipartUpload.html), [abort semantics](https://docs.aws.amazon.com/AmazonS3/latest/API/API_AbortMultipartUpload.html).
+
+Production single-PUT remains unchanged; transport cannot switch within a file attempt. This documentation is not an implementation or cutover approval.
