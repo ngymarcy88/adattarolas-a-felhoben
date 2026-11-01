@@ -159,3 +159,5 @@ Az [ADR-016](02_architecture/adr/ADR-016-thumbnail-processing.md), [API](03_desi
 
 
 2026-10-31-i javítás/reteszt: TH-01 két watcher közti invalidálási verseny reprodukálva és javítva; új UI-feltöltésből kész thumbnail a kártyán, eredeti a modalban, Escape/fókusz és A/B elkülönítés ténylegesen ellenőrizve. TH-02 szöveg javítva. A korábbi FAIL történeti evidence marad; teljes SZD2/recovery/UAT továbbra a nyitott kapuk szerint.
+
+2026-11-01: elkülönített közvetlen MinIO multipart PoC, Uppy core/S3 6.3.0,5MiB-os részek (ADR-017). Valódi HTTP-megszakítás után új böngészős Uppy-példány megtartotta a nagy kép kész első részét, csak a hiányzókat küldte; a teljes GET/hash egyezett. Kis kép teljesen újraküldődött. A termék single-PUT útja változatlan; tartós import/auth/quota/cleanup integráció, Uppy-native fault/page refresh/restart és kis képek fájlon belüli folytatása nyitott. Ez a teljes resumable elfogadást nem zárja le.
