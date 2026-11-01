@@ -188,7 +188,7 @@ A signed URL csak memóriában él, nem kerül naplóba vagy tartós tárolóba;
 
 ## Első thumbnail-processor – explicit belső transzformáció
 
-A 2026-10-29-i [ADR-016](docs/02_architecture/adr/ADR-016-thumbnail-processing.md) Sharpot választ: eredeti JPEG/PNG/WebP/GIF-ből statikus, aránytartó maximum512×512 WebP, felnagyítás és bemeneti metadata nélkül. Az animációból csak az első frame készül el; nagy előnézet továbbra is eredeti. A [tervezett API](docs/03_design/api.md#első-thumbnail-processor-api--tervezett-2026-10-29) és [adatmodell](docs/03_design/data_model.md#első-thumbnail-processor--tervezett-szerződés-2026-10-29) tartós verziózott jobot, bounded worker/retry/recoveryt és derived kvótát ír le. Sharp 0.35.5 és az explicit hívható közös Processor/ThumbnailProcessor implementált. Bounded bináris inputból maximum512×512,512KiB WebP-t és hash/geometria/build metaadatot ad; nincs DB/storage-hozzáférése. A confirm már tartós jobot ment; a külön thumbnail-worker az alábbi Compose-szerepben fut. Új thumbnail/status HTTP-végpont nincs. A külön posteres APNG v1-ben nem támogatott, a default-frame-zero változat igen. A processor-adatmodell külön migrációja már elkészült. A metadata-processor későbbi szelet, az ambiguous-write cleanup proofja továbbra is külön kapu. A jelenlegi galéria eredeti képeket használ.
+A 2026-10-29-i [ADR-016](docs/02_architecture/adr/ADR-016-thumbnail-processing.md) Sharpot választ: eredeti JPEG/PNG/WebP/GIF-ből statikus, aránytartó maximum512×512 WebP, felnagyítás és bemeneti metadata nélkül. Az animációból csak az első frame készül el; nagy előnézet továbbra is eredeti. A [tervezett API](docs/03_design/api.md#első-thumbnail-processor-api--implementált-2026-10-31) és [adatmodell](docs/03_design/data_model.md#első-thumbnail-processor--tervezett-szerződés-2026-10-29) tartós verziózott jobot, bounded worker/retry/recoveryt és derived kvótát ír le. Sharp 0.35.5 és az explicit hívható közös Processor/ThumbnailProcessor implementált. Bounded bináris inputból maximum512×512,512KiB WebP-t és hash/geometria/build metaadatot ad; nincs DB/storage-hozzáférése. A confirm már tartós jobot ment; a külön thumbnail-worker az alábbi Compose-szerepben fut. Új thumbnail/status HTTP-végpont nincs. A külön posteres APNG v1-ben nem támogatott, a default-frame-zero változat igen. A processor-adatmodell külön migrációja már elkészült. A metadata-processor későbbi szelet, az ambiguous-write cleanup proofja továbbra is külön kapu. A jelenlegi galéria eredeti képeket használ.
 
 ### Processor-adatmodell – implementált alap, 2026-10-29
 
@@ -221,3 +221,39 @@ A worker először a lejárt candidate helyreállítását próbálja: teljes bo
 A megerősített képekhez tartósan ütemezett thumbnail keletkezhet; régi job nélküli képek backfillje nincs. A galériakártya kész thumbnailt mutat, a nagy előnézet eredetit. Várakozó/futó/hibás állapot, külön kézi processor-retry és kép-retry, összevont20 ID/10s státuszlekérdezés és közös négyes memory-only URL-sor implementált; rejtett lap/oldalelhagyás megszakítja a státuszlekérést. Proof nélküli cleanup továbbra nem töröl és nem szabadít pozitív foglalást. A valódi restart ellenőrzőlistája a [tesztriportban](docs/04_quality/test_report.md) nyitott; a unitok nem helyettesítik ezt. A worker csak rögzített safe event/code üzenetet naplóz, kulcsot, képet vagy nyers hibát nem.
 
 A thumbnail URL alapérvényessége `THUMBNAIL_PREVIEW_TTL_SECONDS=60` (30..300s), ténylegesen legfeljebb a közös presigned TTL. A három jogosított processing API szerződése az [API-dokumentációban](docs/03_design/api.md#első-thumbnail-processor-api--implementált-2026-10-31) található.
+
+## Elkülönített multipart PoC (opt-in)
+
+Ez külön Vue/Uppy mérőoldal és saját ideiglenes MinIO-példány, nem az alkalmazás feltöltőútja. Döntés és korlátok: [ADR-017](docs/02_architecture/adr/ADR-017-direct-multipart-poc.md); tényleges eredmények: [tesztriport](docs/04_quality/test_report.md#multipart-poc--2026-11-01). Nem olvas `.env`-et, nem kapcsolódik az alkalmazás adatbázisához vagy bucketjéhez. Root `npm ci` után a PoC dev-függőségei is rendelkezésre állnak; nincs külön lockfile vagy workspace-install.
+
+Szükséges egy WSL-en futtatható MinIO-bináris. A futtatott próba a `infra/minio/Dockerfile` rögzített forráscommitját használta. Elkülönített forrásbuild, megfelelő Go toolchainnel (a forrás go.mod-ja legalább Go1.24-et/toolchain1.24.8-at kér; ez kizárólag a PoC natív buildjének előfeltétele):
+
+```bash
+# Üres, erre a célra választott ideiglenes könyvtárban, nem a projektben:
+git init /tmp/cloudvault-minio-poc-src
+git -C /tmp/cloudvault-minio-poc-src remote add origin https://github.com/minio/minio.git
+git -C /tmp/cloudvault-minio-poc-src fetch --depth=1 origin 9e49d5e7a648f00e26f2246f4dc28e6b07f8c84a
+git -C /tmp/cloudvault-minio-poc-src checkout --detach FETCH_HEAD
+(cd /tmp/cloudvault-minio-poc-src && go build -trimpath -o /tmp/cloudvault-minio-poc .)
+
+# Ismét a projekt gyökeréből:
+npm run poc:multipart -- --minio-binary=/tmp/cloudvault-minio-poc --report=/tmp/cloudvault-multipart-result.json
+```
+
+A READY üzenet után nyisd meg a `http://127.0.0.1:5180/?auto=1` címet. Az 5180/19000/19001 port legyen szabad. A két szintetikus képet a program készíti el; ne adj meg saját fájlt vagy valódi credentialt. Előbb tényleges Node HTTP-részfeltöltést szakít meg, majd a Vue-oldal új Uppy-példánya standard S3 ListParts alapján folytatja. Az eredmény tartalmazza a PUT-részszámokat, payload-bájtszámokat és teljesfájl-hasheket, hozzáférési URL-ek nélkül. Sikeres végén automatikus takarítás/leállás; Ctrl+C vagy 10 perc timeout FAIL eredménnyel zár. Hiba esetén a riportot és az elkülönített adatkönyvtárat vizsgáld; a kísérlet nem bizonyít alkalmazáskvóta-felszabadítást. A futás nem része az `npm test`/CI-nak.
+
+## Multipart adatmodell ellenőrzése (opt-in)
+
+A multipart/import Prisma-séma és migráció elkészült; a működő upload továbbra single-PUT. Service/API/UI integráció nincs. A [modell](docs/03_design/data_model.md#multipart-séma-és-migráció--implementált-2026-11-01) tartós import-, transfer-, rész-/manifest- és I/O-azonosságot ír le. A régi cleanup a multipart sorokat kihagyja; ez nem új multipart-cleanup implementáció.
+
+A meglévő sémapróba `--multipart` módban külön, automatikusan eltávolított PostgreSQL17.9 konténert használ; nem az alkalmazás adatbázisát. A Docker Server legyen elérhető, és a `postgres:17.9-bookworm` image legyen helyben (ha hiányzik: `docker pull postgres:17.9-bookworm`). Rootból, aktuális generált/built backenddel:
+
+```bash
+npm run db:generate
+npm run build --workspace backend
+node scripts/verify-processing-schema.mjs --multipart
+# WSL-integráció hiányában csak az utolsó parancs alternatívája:
+CLOUDVAULT_DOCKER_CLI='/mnt/c/Program Files/Docker/Docker/resources/bin/docker.exe' node scripts/verify-processing-schema.mjs --multipart
+```
+
+Upgrade/fresh-schema és SQL/ORM ellenőrzés, nem alkalmazás-e2e, tényleges multipart feltöltés vagy provider closure-proof. A `--multipart` nélküli mód a processing-fixture-t ellenőrzi a legfrissebb sémával; a verifier támogatott legfrissebb migrációja szándékosan explicit.
