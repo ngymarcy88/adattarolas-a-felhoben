@@ -1,5 +1,14 @@
 # Test report
 
+## Multipart frontend API-előkészítés – 2026-11-02
+
+**Verzió/környezet:** `feature/multipart-upload-panel`, alap5ea4a7c; WSL Linux Node22.23.2/npm10.9.8, meglévő Vitest5/Vue. **A panel integrációja még nincs kész**, az ADR-017 Uppy6 public-adapter kapuja miatt szükséges kliensverzió-döntés függőben. A működő single-PUT panel változatlan; nincs dependency install vagy backend-változás.
+
+**Végrehajtva – PASS:** `npm run test --workspace frontend -- tests/multipart-api.spec.ts`:28 célzott eset, szintetikus import/transfer/part és mock fetch. Strict publikus DTO, belső mezők kizárása, resource-ID/méret/geometria/cursor, stable init key, session-cookie/JSON hívások, bodyless confirm,202/ACTIVE különbség, biztonságos rövid URL és safe hiba/Retry-After, késői abort. `npm run typecheck --workspace frontend`: PASS. Ez önálló kliensréteg-unit, nem panel-/könyvtár-/HTTP-/MinIO-próba.
+
+**NYITOTT:** a kiválasztott kliens public callback-illesztése és engedélyezett verziója; library resume/regresszió, progress/concurrency/pause/reselection/ACTIVE-only completion és template tesztek, teljes záró unit/typecheck/build kör és valós böngészős/storage ellenőrzés. Nem történt alkalmazásindítás, új framework vagy fizikai feltöltési próba.
+
+
 ## Multipart backend service és HTTP API – 2026-11-02
 
 **Verzió/környezet:** `feature/multipart-service`, alapcommit `07c71ed` (a végső verzió a PR commitja); WSL Linux Node22.23.2/npm10.9.8, meglévő Jest/Vitest/Prisma7.10.1, Docker Desktop Server26.1.1 és eldobható PostgreSQL17.9. Nincs új dependency, séma/migráció vagy frontend. A korábbi alkalmazás-DB/bucket és volume-ok változatlanok; nincs új cleanup worker.

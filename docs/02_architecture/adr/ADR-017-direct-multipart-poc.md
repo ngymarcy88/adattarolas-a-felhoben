@@ -65,3 +65,14 @@ Production single-PUT remains unchanged; transport cannot switch within a file a
 ### Backend implementation snapshot (2026-11-02)
 
 The owner-bound import/transfer service and HTTP control plane are implemented with the documented configuration, durable create/complete intents, fenced request-driven recovery, full streaming hash/signature verification and atomic activation/accounting/job creation. The adapter now includes bounded exact-key session discovery and complete-object verification. No frontend cutover or automatic multipart cleanup is included; unknown outcomes keep reservations. The public Uppy6 adapter/control-plane fit and real provider size/create-only/CORS/late-write verification remain open. The PoC and small-image intra-file resume limitations above remain unchanged; unit and disposable-DB service checks do not close those gates.
+
+
+### Frontend integration gate – proposed, awaiting approval (2026-11-02)
+
+Inspection of the installed6.3.0 declarations/implementation and the official [migration guide](https://uppy.io/docs/guides/migration-guides/) confirms that create/list/sign/complete/abort callbacks were removed. The plugin directly performs S3 control requests; signing cannot adapt it to the existing authenticated JSON API without changing the contract or emulating S3. Neither workaround is accepted.
+
+Concrete proposal: pin `@uppy/core@5.2.0` and `@uppy/aws-s3@5.1.0` in the frontend workspace only; keep root6.3.0 and the PoC unchanged, with the single root lockfile. Read-only inspection of the5.1.0 package declarations confirms public createMultipartUpload/listParts/signPart/completeMultipartUpload/abortMultipartUpload/uploadPartBytes/getChunkSize/limit/retryDelays hooks. No package was installed or version changed. Approval was requested because the clarification above explicitly prohibits an implicit downgrade.
+
+The planned adapter maps opaque application transfer identity to the library's in-memory handle, never exposes the storage key/provider uploadId, and ignores any client complete manifest: the backend remains authoritative. Public listParts entries can omit ETag for already completed parts (its type is optional); retained parts must be verified in a focused library-level resume test before cutover. Complete and ACTIVE confirm remain separate; UI success and gallery refresh follow only ACTIVE. Two globally active files with sequential parts, no automatic retries/re-init, explicit pause distinct from terminal cancel, and fresh backend resume/hash verification on re-selection are required. This is a reviewable proposal, not an accepted dependency change or working panel.
+
+Independent preparation: `frontend/src/api/multipart.ts` provides validated session-auth JSON calls and safe pending/ACTIVE distinction. It is not wired to the panel; the working single-PUT path remains unchanged while the client decision is pending.
