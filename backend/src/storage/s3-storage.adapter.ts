@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { Readable } from 'node:stream';
-import { AbortMultipartUploadCommand, CompleteMultipartUploadCommand, CreateMultipartUploadCommand, ListPartsCommand,
+import { AbortMultipartUploadCommand, CompleteMultipartUploadCommand, CreateMultipartUploadCommand, ListPartsCommand, ListMultipartUploadsCommand,
   UploadPartCommand, DeleteObjectCommand, GetObjectCommand, HeadBucketCommand, HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import type { AppConfig } from '../config/app-config';
@@ -134,10 +134,10 @@ export class S3StorageAdapter implements ObjectStorage {
 
   /** Deadline includes send and stream consumption, even for a non-cooperative transport. */
   private async boundedOperation<T>(callerSignal: AbortSignal | undefined,
-    run: (signal: AbortSignal, assertLive: () => void) => Promise<T>): Promise<T> {
+    run: (signal: AbortSignal, assertLive: () => void) => Promise<T>, timeoutMs = OPERATION_TIMEOUT_MS): Promise<T> {
     if (callerSignal?.aborted) throw new StorageError('UNAVAILABLE');
     const controller = new AbortController();
-    const deadline = performance.now() + OPERATION_TIMEOUT_MS;
+    const deadline = performance.now() + timeoutMs;
     const abort = () => controller.abort();
     const assertLive = () => {
       if (controller.signal.aborted || callerSignal?.aborted || performance.now() >= deadline) {
@@ -148,7 +148,7 @@ export class S3StorageAdapter implements ObjectStorage {
     const cancelled = new Promise<never>((_, reject) => { rejectAbort = reject; });
     controller.signal.addEventListener('abort', () => rejectAbort(new StorageError('UNAVAILABLE')), { once: true });
     callerSignal?.addEventListener('abort', abort, { once: true });
-    const timer = setTimeout(abort, OPERATION_TIMEOUT_MS);
+    const timer = setTimeout(abort, timeoutMs);
     try {
       // Start synchronously so the caller cannot mutate inputs before they are snapshotted.
       // Wrap the initial deadline check too: a long scheduler/GC pause must not leave
@@ -245,6 +245,78 @@ export class S3StorageAdapter implements ObjectStorage {
         !Number.isSafeInteger(partSizeBytes) || partSizeBytes < MIN_MULTIPART_PART_BYTES || partSizeBytes > MAX_MULTIPART_PART_BYTES ||
         partSizeBytes % (1024 * 1024) !== 0) throw new StorageError('INVALID_ARGUMENT');
     return { key, sizeBytes, partSizeBytes, partCount: Math.ceil(sizeBytes / partSizeBytes) };
+  }
+
+  async findMultipartUploads(key: string, signal?: AbortSignal): Promise<string[]> {
+    assertOriginalKey(key);
+    try {
+      return await this.boundedOperation(signal, async (abortSignal, assertLive) => {
+        const ids = new Set<string>(); const seen = new Set<string>(); let keyMarker: string | undefined; let uploadMarker: string | undefined;
+        for (let i = 0; i < 10; i++) {
+          const result = await this.client.send(new ListMultipartUploadsCommand({ Bucket: this.config.storage.bucket,
+            Prefix: key, MaxUploads: 100, KeyMarker: keyMarker, UploadIdMarker: uploadMarker }), { abortSignal });
+          assertLive();
+          if (result.$metadata?.httpStatusCode !== 200 || result.Bucket !== this.config.storage.bucket ||
+              typeof result.IsTruncated !== 'boolean' || (result.Uploads !== undefined && (!Array.isArray(result.Uploads) || result.Uploads.length > 100))) throw new StorageError('INVALID_RESPONSE');
+          for (const upload of result.Uploads ?? []) {
+            if (typeof upload.Key !== 'string' || upload.Key.length > 1024 || !upload.Key.startsWith(key) || !this.validUploadId(upload.UploadId)) throw new StorageError('INVALID_RESPONSE');
+            if (upload.Key === key) {
+              if (ids.has(upload.UploadId) || ids.size >= 100) throw new StorageError('INVALID_RESPONSE');
+              ids.add(upload.UploadId);
+            }
+          }
+          if (!result.IsTruncated) return [...ids];
+          const next = JSON.stringify([result.NextKeyMarker, result.NextUploadIdMarker]);
+          if (!result.Uploads?.length || typeof result.NextKeyMarker !== 'string' || !result.NextKeyMarker.startsWith(key) ||
+              !this.validUploadId(result.NextUploadIdMarker) || seen.has(next)) throw new StorageError('INVALID_RESPONSE');
+          seen.add(next); keyMarker = result.NextKeyMarker; uploadMarker = result.NextUploadIdMarker;
+        }
+        throw new StorageError('INVALID_RESPONSE');
+      });
+    } catch (error) { throw mapMultipartError(error); }
+  }
+
+  async verifyMultipartObject(input: Parameters<MultipartStorage['verifyMultipartObject']>[0]) {
+    const session = this.multipartGeometry(input); const transferId = input.transferId; const expectedEtag = input.etag;
+    if (typeof transferId !== 'string' || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.exec(transferId)?.[0] !== transferId ||
+        (expectedEtag !== undefined && !this.validEtag(expectedEtag))) throw new StorageError('INVALID_ARGUMENT');
+    try {
+      return await this.boundedOperation(input.signal, async (abortSignal, assertLive) => {
+        let body: Readable | undefined; const abortBody = () => body?.destroy();
+        abortSignal.addEventListener('abort', abortBody, { once: true });
+        try {
+          let head;
+          try { head = await this.client.send(new HeadObjectCommand({ Bucket: this.config.storage.bucket, Key: session.key }), { abortSignal }); }
+          catch (error) {
+            if (mapStorageError(error).code !== 'NOT_FOUND') throw error;
+            await this.client.send(new HeadBucketCommand({ Bucket: this.config.storage.bucket }), { abortSignal });
+            assertLive(); throw new StorageError('NOT_FOUND');
+          }
+          assertLive();
+          if (head.$metadata?.httpStatusCode !== 200 || !this.validEtag(head.ETag)) throw new StorageError('INVALID_RESPONSE');
+          if (head.Metadata?.['cloudvault-transfer-id'] !== transferId || head.Metadata?.['cloudvault-size-bytes'] !== String(session.sizeBytes) ||
+              head.Metadata?.['cloudvault-part-size-bytes'] !== String(session.partSizeBytes) || (expectedEtag !== undefined && expectedEtag !== head.ETag)) throw new StorageError('OBJECT_CHANGED');
+          if (head.ContentLength !== session.sizeBytes) throw new StorageError('CONTENT_MISMATCH');
+          const result = await this.client.send(new GetObjectCommand({ Bucket: this.config.storage.bucket, Key: session.key,
+            IfMatch: head.ETag, ...(head.VersionId === undefined ? {} : { VersionId: head.VersionId }) }), { abortSignal });
+          if (result.Body instanceof Readable) body = result.Body;
+          if (abortSignal.aborted) body?.destroy();
+          assertLive();
+          if (!body || result.$metadata?.httpStatusCode !== 200 || result.ContentLength !== session.sizeBytes || result.ETag !== head.ETag ||
+              (head.VersionId !== undefined && result.VersionId !== head.VersionId)) throw new StorageError('INVALID_RESPONSE');
+          const hash = createHash('sha256'); const prefix = Buffer.alloc(16); let size = 0;
+          for await (const chunk of body) {
+            assertLive();
+            if (!(chunk instanceof Uint8Array) || chunk.byteLength > session.sizeBytes - size) throw new StorageError('INVALID_RESPONSE');
+            if (size < 16) prefix.set(chunk.subarray(0, 16 - size), size);
+            hash.update(chunk); size += chunk.byteLength;
+          }
+          assertLive();
+          if (size !== session.sizeBytes) throw new StorageError('INVALID_RESPONSE');
+          return { etag: head.ETag, sha256: hash.digest('hex'), prefix: prefix.subarray(0, Math.min(size, 16)) };
+        } finally { abortSignal.removeEventListener('abort', abortBody); body?.destroy(); }
+      }, 60_000);
+    } catch (error) { throw mapStorageError(error); }
   }
 
   private validUploadId(value: unknown): value is string {

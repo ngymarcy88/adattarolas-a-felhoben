@@ -10,7 +10,8 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const backend = resolve(root, 'backend');
 const docker = process.env.CLOUDVAULT_DOCKER_CLI || 'docker';
 const name = `cloudvault-schema-check-${randomUUID()}`;
-const multipart = process.argv.includes('--multipart');
+const serviceCheck = process.argv.includes('--multipart-service');
+const multipart = serviceCheck || process.argv.includes('--multipart');
 const migration = '20261101000100_multipart_import_model';
 const directory = resolve(backend, 'prisma/migrations');
 const migrations = readdirSync(directory).filter(value => /^\d/.test(value)).sort();
@@ -122,6 +123,11 @@ try {
     const legacyCases = sql(historical[1], 'fresh').match(/SCHEMA_ASSERTIONS_PASS=(\d+)/)?.[1];
     if (Number(legacyCases) !== (historical[1].match(/SELECT pg_temp\.expect_sql/g) || []).length) throw new Error('Processing SQL regression failed.');
     console.log(`PASS ${legacyCases} existing processing-model SQL regression cases on the final schema.`);
+    if (serviceCheck) {
+      const { verifyMultipartService } = await import('./verify-multipart-service.mjs');
+      const serviceUrl = new URL(url); serviceUrl.pathname = '/fresh';
+      await verifyMultipartService(root, serviceUrl.toString());
+    }
   }
 } finally {
   if (started) dockerRun('stop', name); // --rm also removes this container's anonymous data volume.

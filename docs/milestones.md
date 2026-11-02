@@ -256,3 +256,6 @@ Later marad az automatizált végleges purge/reconciliation, nagyvideós multipa
 - Nincs valódi secret vagy szükségtelen PII/token/presigned URL/fájltartalom a repóban és logokban.
 - A dolgozat, használati/telepítési leírás és AI-napló az adott készültséghez igazodik; nem állít jövőbeli képességet megvalósultnak.
 - Review és a projekt branch/commit szabályai teljesülnek; a teljes SZD2 csak a minőségi, UAT- és átadási kapukkal együtt zárható le.
+
+
+2026-11-02 backend multipart-szelet: tartós import/transfer service és vékony HTTP API, request-driven create/complete/confirm recovery, egyszeri init-reservation és atomikus ACTIVE/counters/audit/thumbnail-job implementált. A storage-port exact-key discoveryvel és streamelt teljes hash-verifikációval bővült. Nincs frontend-cutover vagy automatikus multipart-cleanup; HELD+CLEANUP_BLOCKED marad proof nélkül. A november6-i teljes UI-resume/kétprocessor/restart kapu ettől még nyitott. Valós provider/CORS/create-only/size és Uppy control-plane integráció, kisfájlos intra-file resume, metadata-processor és mérések továbbra hátravannak. A futtatott ellenőrzések és bizonyítási határok a tesztriportban.

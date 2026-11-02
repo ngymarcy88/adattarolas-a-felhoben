@@ -98,7 +98,14 @@ export function validateEnvironment(env: Record<string, unknown>): AppConfig {
     maxUploadBytes: integer('MAX_UPLOAD_BYTES', 104857600, 1, 104857600),
     presignedUrlTtlSeconds: integer('PRESIGNED_URL_TTL_SECONDS', 300, 1, 300),
     thumbnailPreviewTtlSeconds: integer('THUMBNAIL_PREVIEW_TTL_SECONDS', 60, 30, 300),
+    multipart: {
+      partSizeBytes: integer('MULTIPART_PART_SIZE_BYTES', 5242880, 5242880, 16777216),
+      urlTtlSeconds: integer('MULTIPART_URL_TTL_SECONDS', 120, 30, 300),
+      sessionTtlSeconds: integer('MULTIPART_SESSION_TTL_SECONDS', 86400, 3600, 86400),
+      maxFiles: integer('MULTIPART_MAX_FILES_PER_IMPORT', 50, 1, 50),
+    },
   };
+  if (config.multipart.partSizeBytes % 1048576 !== 0) invalid.add('MULTIPART_PART_SIZE_BYTES');
   if (invalid.size) {
     throw new Error(`Invalid configuration variables: ${[...invalid].sort().join(', ')}`);
   }

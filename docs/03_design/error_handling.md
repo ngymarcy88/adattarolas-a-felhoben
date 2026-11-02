@@ -255,7 +255,7 @@ A `ProcessingPublicationError` storage-részhibát `PROCESSING_STORAGE_UNAVAILAB
 
 ## Multipart – tervezett hibák, 2026-11-01
 
-Nincs új implementált hibakód ebben a dokumentációs feladatban. A [multipart API](api.md#multipart-képimport--tervezett-szerződés-2026-11-01) a HTTP- és replay-szabályok kanonikus forrása; közös `{error:{code,message,details:{},requestId}}` wrapper, nyers XML/SDK-hiba/URL/owneradat nélkül. Endpoint/ownership ellenőrzése megelőzi a storage-ot és az állapot részleteit. Például idegen lejárt transfer is404, nem410.
+2026-11-02: a táblázat multipart publikus kódjai és a backend mapping implementáltak. A [multipart API](api.md#multipart-képimport--tervezett-szerződés-2026-11-01) a HTTP- és replay-szabályok kanonikus forrása; közös `{error:{code,message,details:{},requestId}}` wrapper, nyers XML/SDK-hiba/URL/owneradat nélkül. Endpoint/ownership ellenőrzése megelőzi a storage-ot és az állapot részleteit. Például idegen lejárt transfer is404, nem410.
 
 | HTTP / publikus kód | Jelentés és kliensreakció |
 |---|---|
@@ -281,6 +281,9 @@ A202 nem hiba és nem végső siker: ismert folyamatban levő vagy bizonytalan s
 
 ### Multipart adapter belső hibák – implementált, 2026-11-02
 
-Új belső storage-kódok: `UPLOAD_NOT_FOUND` kizárólag név+404 szerinti NoSuchUploadra; `PARTS_INVALID` a hibás storage-geometriára vagy400-as InvalidPart/InvalidPartOrder/EntityTooSmall faultokra. Bucket-404 és általános404 nem lesz upload-/objektumhiány. Complete412 `OBJECT_EXISTS`,409 `WRITE_CONFLICT`; egyik sem indít új feltöltést vagy overwrite-fallbacket. Hibás SDK-válasz `INVALID_RESPONSE`, más provider-/hálózati hiba `UNAVAILABLE`. Ezek nem új publikus API-kódok: az üzleti mapping a későbbi service feladata.
+Új belső storage-kódok: `UPLOAD_NOT_FOUND` kizárólag név+404 szerinti NoSuchUploadra; `PARTS_INVALID` a hibás storage-geometriára vagy400-as InvalidPart/InvalidPartOrder/EntityTooSmall faultokra. Bucket-404 és általános404 nem lesz upload-/objektumhiány. Complete412 `OBJECT_EXISTS`,409 `WRITE_CONFLICT`; egyik sem indít új feltöltést vagy overwrite-fallbacket. Hibás SDK-válasz `INVALID_RESPONSE`, más provider-/hálózati hiba `UNAVAILABLE`. Ezek nem új publikus API-kódok: az üzleti mapping a MultipartService feladata.
 
 A `MultipartMutationError` a safe StorageError kód mellé csak `outcome:'not-started'|'unknown'` értéket tesz. Érvénytelen inputnál storage I/O nélkül `INVALID_ARGUMENT`; abort/timeout dispatch előtt `not-started`, dispatch után akkor is `unknown`, ha az SDK később sikert jelez vagy NoSuchUpload/412 választ adott. Nincs nyers providerüzenet vagy provider-stack/cause, key, uploadId vagy URL az error payloadban. Az abort ACK és az upload-not-found külön-külön nem írnak closure/release bizonyítékot. A teljesfájl-hash és a commit/recovery állapotot az adapter nem találja ki.
+
+
+A recovery adapter `CONTENT_MISMATCH` hibája igazolt méreteltérésnél422 és őrzött REJECTED; nem igazolt objektumazonosság/read/timeout503, foglalás marad. Hibás ListParts-geometria409 TRANSFER_PARTS_INVALID; hiányzó teljes részek409 UPLOAD_PARTS_INCOMPLETE és OPEN. Unknown complete202; DB-commit-response elvesztése503 is lehet, ezért azonos kulcs/fileId/transfer replay kötelező. A hibák nem tartalmaznak belső állapotot, provider üzenetet vagy hozzáférési URL-t.

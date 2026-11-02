@@ -1,4 +1,4 @@
-export type StorageErrorCode = 'INVALID_ARGUMENT' | 'NOT_FOUND' | 'OBJECT_CHANGED' | 'INVALID_RESPONSE' | 'UNAVAILABLE' | 'OBJECT_EXISTS' | 'WRITE_CONFLICT' | 'UPLOAD_NOT_FOUND' | 'PARTS_INVALID';
+export type StorageErrorCode = 'INVALID_ARGUMENT' | 'NOT_FOUND' | 'OBJECT_CHANGED' | 'INVALID_RESPONSE' | 'UNAVAILABLE' | 'OBJECT_EXISTS' | 'WRITE_CONFLICT' | 'UPLOAD_NOT_FOUND' | 'PARTS_INVALID' | 'CONTENT_MISMATCH';
 
 export class StorageError extends Error {
   constructor(readonly code: StorageErrorCode) {
