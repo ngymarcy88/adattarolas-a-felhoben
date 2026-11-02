@@ -11,7 +11,24 @@ export interface DerivedWriteReceipt {
   etag: string;
   sha256: string;
 }
-export interface ObjectStorage {
+/** Server-owned identity/geometry; not a DTO or an authorization decision. */
+export interface MultipartSession { key: string; uploadId: string; sizeBytes: number; partSizeBytes: number }
+/** Only complete storage-observed parts; ETag is opaque, never a full-file checksum. */
+export interface MultipartPartReceipt { partNumber: number; sizeBytes: number; etag: string }
+export interface MultipartStorage {
+  /** Non-idempotent provider create: caller must persist intent before calling; no hidden retry. */
+  initiateMultipart(input: { key: string; mimeType: string; sizeBytes: number; partSizeBytes: number;
+    transferId: string; signal?: AbortSignal }): Promise<{ uploadId: string }>;
+  createMultipartPartAccess(input: MultipartSession & { partNumber: number; expiresAt: Date; signal?: AbortSignal }):
+    Promise<{ method: 'PUT'; url: string; partNumber: number; sizeBytes: number; expiresAt: Date; headers: Record<string, string> }>;
+  listMultipartParts(input: MultipartSession & { signal?: AbortSignal }): Promise<MultipartPartReceipt[]>;
+  /** Frozen complete manifest, create-only. Success does not validate the complete object's content. */
+  completeMultipart(input: MultipartSession & { parts: readonly MultipartPartReceipt[]; signal?: AbortSignal }):
+    Promise<{ etag: string; versionId?: string }>;
+  /** ACK (or NoSuchUpload) is not write closure, object/part absence or quota release. */
+  abortMultipart(input: { key: string; uploadId: string; signal?: AbortSignal }): Promise<{ writeClosureEvidence: 'unproven' }>;
+}
+export interface ObjectStorage extends MultipartStorage {
   createUploadAccess(input: { key: string; mimeType: string; sizeBytes: number; expiresAt: Date }): Promise<UploadAccess>;
   head(key: string): Promise<ObjectHead | null>;
   /** Complete conditional image input, bounded by both configured and processor limits. */

@@ -278,3 +278,9 @@ Nincs új implementált hibakód ebben a dokumentációs feladatban. A [multipar
 |500 INTERNAL_ERROR | Generikus hiba; előbb a korábbi művelet eredményét kell visszakeresni. |
 
 A202 nem hiba és nem végső siker: ismert folyamatban levő vagy bizonytalan storage-complete, confirm vagy cleanup200 helyetti függő állapota, `Retry-After:2` és safe transfer DTO. GET200 CREATE_UNKNOWN/COMPLETE_UNKNOWN/CLEANUP_BLOCKED szintén nem bizonyít átviteli vagy takarítási sikert. Abort204/NoSuchUpload nem alkalmazásoldali release. A complete HTTP200-ba ágyazott storage-hibáját az adapter értelmezi; providerazonosítót nem másol a hibába.
+
+### Multipart adapter belső hibák – implementált, 2026-11-02
+
+Új belső storage-kódok: `UPLOAD_NOT_FOUND` kizárólag név+404 szerinti NoSuchUploadra; `PARTS_INVALID` a hibás storage-geometriára vagy400-as InvalidPart/InvalidPartOrder/EntityTooSmall faultokra. Bucket-404 és általános404 nem lesz upload-/objektumhiány. Complete412 `OBJECT_EXISTS`,409 `WRITE_CONFLICT`; egyik sem indít új feltöltést vagy overwrite-fallbacket. Hibás SDK-válasz `INVALID_RESPONSE`, más provider-/hálózati hiba `UNAVAILABLE`. Ezek nem új publikus API-kódok: az üzleti mapping a későbbi service feladata.
+
+A `MultipartMutationError` a safe StorageError kód mellé csak `outcome:'not-started'|'unknown'` értéket tesz. Érvénytelen inputnál storage I/O nélkül `INVALID_ARGUMENT`; abort/timeout dispatch előtt `not-started`, dispatch után akkor is `unknown`, ha az SDK később sikert jelez vagy NoSuchUpload/412 választ adott. Nincs nyers providerüzenet vagy provider-stack/cause, key, uploadId vagy URL az error payloadban. Az abort ACK és az upload-not-found külön-külön nem írnak closure/release bizonyítékot. A teljesfájl-hash és a commit/recovery állapotot az adapter nem találja ki.
