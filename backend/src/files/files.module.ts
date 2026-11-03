@@ -1,3 +1,4 @@
+import { UppyController, UppySameOriginGuard } from '../multipart/uppy.controller';
 import { MultipartController, MultipartGuard } from '../multipart/multipart.controller';
 import { MultipartService } from '../multipart/multipart.service';
 import { MultipartImportsService } from '../multipart/multipart-imports.service';
@@ -28,6 +29,6 @@ import { FileListGuard } from './file-list.guard';
 import { FilePreviewService } from './file-preview.service';
 import { FilePreviewGuard } from './file-preview.guard';
 
-@Module({ imports: [AuthModule, PrismaModule, StorageModule, ProcessingModule], controllers: [FilesController, ProcessingController, MultipartController],
-  providers: [MultipartService, MultipartImportsService, MultipartStore, MultipartLimits, MultipartFilePipe, MultipartGuard, ProcessingApiService, ProcessingStatusPipe, ProcessingRetryPipe, ProcessingStatusGuard, ProcessingRetryGuard, ThumbnailUrlGuard, FilePreviewService, FilePreviewGuard, FileListService, FileListQueryPipe, FileListGuard, UploadStateService, UploadConfirmService, FileIdPipe, UploadConfirmGuard, UploadCleanupService, UploadCleanupWorker, UploadInitService, UploadInitValidationPipe, UploadInitGuard] })
+@Module({ imports: [AuthModule, PrismaModule, StorageModule, ProcessingModule], controllers: [UppyController, FilesController, ProcessingController, MultipartController],
+  providers: [UppySameOriginGuard, MultipartService, MultipartImportsService, MultipartStore, MultipartLimits, MultipartFilePipe, MultipartGuard, ProcessingApiService, ProcessingStatusPipe, ProcessingRetryPipe, ProcessingStatusGuard, ProcessingRetryGuard, ThumbnailUrlGuard, FilePreviewService, FilePreviewGuard, FileListService, FileListQueryPipe, FileListGuard, UploadStateService, UploadConfirmService, FileIdPipe, UploadConfirmGuard, UploadCleanupService, UploadCleanupWorker, UploadInitService, UploadInitValidationPipe, UploadInitGuard] })
 export class FilesModule {}

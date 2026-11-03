@@ -11,6 +11,8 @@
     "preview": "vite preview --host 127.0.0.1 --port 5173 --strictPort"
   },
   "dependencies": {
+    "@uppy/aws-s3": "6.3.0",
+    "@uppy/core": "6.3.0",
     "vue": "3.5.44",
     "vue-router": "4.6.4"
   },

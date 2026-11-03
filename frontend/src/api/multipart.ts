@@ -58,7 +58,7 @@ export function createMultipartClient(baseUrl: string | undefined) {
   async function request(path: string, signal: AbortSignal, body?: unknown, key?: string, empty = false) {
     const controller = new AbortController(); const abort = () => controller.abort();
     signal.addEventListener('abort',abort,{once:true}); if (signal.aborted) abort();
-    const timer = setTimeout(abort, empty ? 70000 : 15000);
+    const timer = setTimeout(abort, empty || path.startsWith('transfers/') ? 70000 : 15000);
     try {
       const r = await fetch(`${parseApiBaseUrl(baseUrl)}/${path}`, { method: body === undefined && !empty ? 'GET' : 'POST', credentials:'include',cache:'no-store',redirect:'error',signal:controller.signal,
         headers:{Accept:'application/json',...(body === undefined ? {} : {'Content-Type':'application/json'}),...(key ? {'Idempotency-Key':pathId(key)} : {})},...(body === undefined ? {} : {body:JSON.stringify(body)}) });

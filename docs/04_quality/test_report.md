@@ -1,5 +1,33 @@
 # Test report
 
+## Uppy6 Companion-illesztés és folytatható panel – 2026-11-03
+
+**Verzió/környezet:** `feature/multipart-upload-panel`, alapcommit `0ac5ece`, véglegesített állapot a PR headben; WSL Linux Node22.23.2/npm10.9.8, pinned Uppy core/aws-s36.3.0, meglévő Jest/Vitest/Vue. A felhasználó elvetette az Uppy5-öt és kifejezetten engedélyezte a szerverillesztés áttervezését. ADR-018, meglévő Nest Companion-kompatibilis JSON route-ok és Vite/nginx same-origin `/api` proxy. Nincs új Companion szolgáltatás, privát library-patch, séma/migráció, e2e keret vagy automatikus cleanup; az alkalmazás DB/bucket nem módosult ebben az ellenőrzésben.
+
+**Bemenet/lépések:** szintetikus16B PNG-fejléc és SHA-256, UUID/import/transfer fixture-k; a tényleges telepített Uppy6 public exportjai. A Companion fetch/MinIO XHR szimulált; nagy fájl5MiB+17B, friss részlistában megtartott5MiB első rész és opaque ETag; kis fájl11B. Külön szüneteltetett XHR-port és tiltott localStorage/IndexedDB hozzáférés. Vue SSR template-próbák. A state-fixture kontrollált async hash/driver/API válaszokkal vizsgálja a versenyeket, nem valós hálózati megszakítással.
+
+| Ellenőrzés / elvárás | Tényleges eredmény |
+|---|---|
+| Actual Uppy6 a kész részt nem küldi újra; kis fájlt is multipartként kezel. | **PASS unit:** retained első5MiB mellett csak part2,17B PUT, teljes méretű progress és backend Companion complete; a11B fájl egyetlen part1. Eredeti SDK/provider key/credential nincs a kliensnek átadva. A storage nem valódi MinIO és a végső storage-hash itt nem lett mérve. |
+| Pause/dispose nem terminális cancel, nincs tartós böngészőtárolás. | **PASS unit:** actual library XHR-port abortálva; nincs complete, a DELETE csak detach. Pre-abort előtt nincs kérelem; tiltó localStorage/IndexedDB proxy mellett a könyvtár sikere és pause működik. Unit nem socket-szintű fault/restart bizonyíték. |
+| Backend auth/ownership/CSRF és friss részlista/manifest. | **PASS:**17 bridge Jest-eset. Session+same-origin fetch metadata, POST/DELETE Origin, body/query/virtual key guard; idegen user nem kap part-grant/list/complete/detach hozzáférést. Kliens által hamisított ETaget a véglegesítés eldobja, friss service ListParts/manifest dönt. Complete még pending eredeti, nincs ACTIVE/charge/job. |
+| Grant/cancel/accounting határ. | **PASS unit:** same-origin PUT URL nem adható a cookie nélküli librarynek; csak külön storage-origin. Detach204 után OPEN és reservation változatlan, provider-abort nincs. A külön explicit cancel a meglévő service-en marad; annak korábbi accounting/invariant suite-jai is PASS. |
+| Globális worker/ACTIVE notification/resume. | **PASS:**21 state eset. Maximum két művelet, cancel sem lépi túl; egyszeri wave-notification csak ACTIVE confirmból, részleges siker és pending202 külön kezelve. Stable init replay, backend import/item-pagináció, hiányzó File nem küld PUT-ot; méret/hash/MIME ellenőrzött reselect/resume. Kész fájl/részlista/STORED helyi bytes nélkül ellenőrizhető/finalizálható, kész import-sor nem indít új uploadot.401 stop,429 közös cooldown és kézi restart; disposal utáni késői hash nem indít initet. |
+| Template/accessibility/safe rendering. | **PASS:**6 Vue template eset. Natív picker/reselector, progress/labels, loading/error/import retry, külön pause és terminális cancel, függő confirm vs ACTIVE, login/recovery és escape-elt fájlnév/notice. Nem valós DOM/billentyűzet/UAT próba. |
+| Záró ellenőrzési kör és célzott javítások. | **PASS összesítve1712 egyedi unit/helper:**1251 backend,458 frontend,3 helper. Első teljes kör:1248 backend+3 helper PASS, frontend a hibás `loadEnv` import miatt nem indult. Javítás (`loadEnv` a Vite-ból): teljes frontend457 PASS. Szigorított body/URL/cancel/persistence esetek után csak érintett bridge17 és state/library25 eset újra PASS. A korábban sikeres széles suite-okat nem ismételtük. |
+| Type/build/config. | **PASS:** root workspace typecheck és root build; utóbbi frontend vue-tsc-t is futtat.167 frontend modul, `index-D-yrxBM1.js` bundle. Compose quiet config és diff/link ellenőrzés külön rögzítve. A dependency-verziók nem változtak, a frontend ugyanazt a6.3.0-t használja runtime függőségként; root PoC változatlan. |
+
+**Nyitott kézi ellenőrzések – egyik sem PASS ebben a feladatban:**
+
+- Compose és host-dev Vite: canonical frontend URL-ről regisztráció/login után Companion kérések cookie+Sec-Fetch-Site: same-origin, GET sign és POST complete; kereszt-origin kérés elutasítása.
+- Valódi MinIO CORS és ETag-exposure; több részes saját kép megszakítása, kész részek/head/hash/újraküldött payload egyeztetése, pause és terminális cancel külön.
+- Oldalfrissítés/új login/folytatás, megfelelő és téves fájl újbóli kiválasztása; kész kép kihagyása, részleges siker és ACTIVE-only galériafrissítés.
+- Backend/MinIO restart, elveszett complete/confirm-válasz, DB used/reserved/job és storage objektumok egyezése; két fiók elkülönítése.
+- Rate-limit/cooldown és lejárat tényleges böngészőben. A complete/confirm közös20/perc kerete miatt egy nagyobb köteg kézi folytatást igényelhet; a korlát nem változott.
+
+Az5MiB alatti kép egyetlen része továbbra teljes újraküldés, bizonytalan ACK-ra a library bounded I/O retryja küldhet újra egy részt. Ez nem minden fault mellett nulla duplikált payload és nem teljes kisfájlos intra-file resume. Pozitív cleanup/closure, összehasonlító mérés és külső UAT változatlanul nyitott.
+
+
 ## Multipart frontend API-előkészítés – 2026-11-02
 
 **Verzió/környezet:** `feature/multipart-upload-panel`, alap5ea4a7c; WSL Linux Node22.23.2/npm10.9.8, meglévő Vitest5/Vue. **A panel integrációja még nincs kész**, az ADR-017 Uppy6 public-adapter kapuja miatt szükséges kliensverzió-döntés függőben. A működő single-PUT panel változatlan; nincs dependency install vagy backend-változás.

@@ -12,6 +12,15 @@ export interface UploadReceipt { file: UploadedFile; upload: UploadAccess | null
 export interface UploadMetadata { originalName: string; mimeType: string; sizeBytes: number }
 
 const messages: Record<string, string> = {
+  TRANSFER_SOURCE_MISMATCH: 'A kiválasztott fájl tartalma eltér az eredetitől. Válaszd ki a megfelelő fájlt.',
+  TRANSFER_STATE_CONFLICT: 'A feltöltés állapota megváltozott. Ellenőrizd újra ugyanazt a feltöltést.',
+  UPLOAD_PARTS_INCOMPLETE: 'Még hiányoznak fájlrészek. Folytasd ugyanazt a feltöltést.',
+  UPLOAD_CANCELLED: 'Ez a feltöltés véglegesen le lett zárva.',
+  TRANSFER_PARTS_INVALID: 'A tárolt fájlrészek nem fogadhatók el.',
+  IMPORT_FILE_LIMIT: 'Ez az import elérte a fájlkorlátot. Indíts új importot.',
+  ACTIVE_IMPORT_LIMIT: 'Túl sok nyitott import van. Válassz egy korábbi importot.',
+  IMPORT_NOT_FOUND: 'Az import ebben a fiókban nem érhető el.',
+  TRANSFER_NOT_FOUND: 'A feltöltés ebben a fiókban nem érhető el.',
   AUTH_REQUIRED: 'A munkamenet lejárt. Jelentkezz be újra.',
   ORIGIN_NOT_ALLOWED: 'A feltöltés ezen a címen nem engedélyezett. Ellenőrizd az alkalmazás beállításait.',
   INVALID_FILE_NAME: 'A fájlnév nem használható. Válassz másik fájlt vagy nevezd át.',
