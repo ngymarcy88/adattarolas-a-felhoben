@@ -713,7 +713,7 @@ A kártya csak SUCCEEDED + result esetén kér thumbnail-url-t; az eredeti previ
 
 ## Multipart képimport – tervezett szerződés, 2026-11-01
 
-**Státusz: dokumentált cél, nincs termékimplementáció.** A [PoC/ADR-017](../02_architecture/adr/ADR-017-direct-multipart-poc.md) kész részek megtartását igazolta, nem teljes importot. Ez a szakasz a multipart célállapot kanonikus API-ja; az első single-PUT szakaszt nem írja visszamenőleg át. A [tartós modell](data_model.md#multipart-import-és-transfer--tervezett-2026-11-01) és [hibák](error_handling.md#multipart--tervezett-hibák-2026-11-01) együtt értelmezendők. Minden út `/api/v1` alatti.
+**Státusz: az adatmodell/migráció implementált, az itt leírt multipart service/API/UI továbbra dokumentált cél.** A [PoC/ADR-017](../02_architecture/adr/ADR-017-direct-multipart-poc.md) kész részek megtartását igazolta, nem teljes importot. Ez a szakasz a multipart célállapot kanonikus API-ja; az első single-PUT szakaszt nem írja visszamenőleg át. A [tartós modell](data_model.md#multipart-import-és-transfer--tervezett-2026-11-01) és [hibák](error_handling.md#multipart--tervezett-hibák-2026-11-01) együtt értelmezendők. Minden út `/api/v1` alatti.
 
 ### Biztonsági és konfigurációs alapok
 

@@ -6,7 +6,7 @@ Accepted for the isolated PoC, 2026-11-01. Uppy S3 is the selected candidate for
 
 ## Implementation status
 
-`tools/multipart-poc/` contains a real MinIO + browser experiment. The application's existing single-PUT init/confirm, Prisma schema, storage adapter, worker and UI are unchanged. Uppy is pinned in root devDependencies, using the existing single lockfile. The experiment is opt-in, outside application builds and CI; it uses an isolated native MinIO process with random credentials, temporary data and its own bucket. It does not read `.env` or the app DB.
+`tools/multipart-poc/` contains a real MinIO + browser experiment. The PoC itself left the application's single-PUT init/confirm, Prisma schema, storage adapter, worker and UI unchanged. The subsequent persistence-only slice implements the import/multipart Prisma schema and additive migration, with legacy transport/type guards; multipart orchestration, API and UI remain unimplemented. Uppy is pinned in root devDependencies, using the existing single lockfile. The experiment is opt-in, outside application builds and CI; it uses an isolated native MinIO process with random credentials, temporary data and its own bucket. It does not read `.env` or the app DB.
 
 ## Context
 

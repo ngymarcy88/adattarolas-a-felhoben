@@ -188,7 +188,7 @@ A signed URL csak memóriában él, nem kerül naplóba vagy tartós tárolóba;
 
 ## Első thumbnail-processor – explicit belső transzformáció
 
-A 2026-10-29-i [ADR-016](docs/02_architecture/adr/ADR-016-thumbnail-processing.md) Sharpot választ: eredeti JPEG/PNG/WebP/GIF-ből statikus, aránytartó maximum512×512 WebP, felnagyítás és bemeneti metadata nélkül. Az animációból csak az első frame készül el; nagy előnézet továbbra is eredeti. A [tervezett API](docs/03_design/api.md#első-thumbnail-processor-api--tervezett-2026-10-29) és [adatmodell](docs/03_design/data_model.md#első-thumbnail-processor--tervezett-szerződés-2026-10-29) tartós verziózott jobot, bounded worker/retry/recoveryt és derived kvótát ír le. Sharp 0.35.5 és az explicit hívható közös Processor/ThumbnailProcessor implementált. Bounded bináris inputból maximum512×512,512KiB WebP-t és hash/geometria/build metaadatot ad; nincs DB/storage-hozzáférése. A confirm már tartós jobot ment; a külön thumbnail-worker az alábbi Compose-szerepben fut. Új thumbnail/status HTTP-végpont nincs. A külön posteres APNG v1-ben nem támogatott, a default-frame-zero változat igen. A processor-adatmodell külön migrációja már elkészült. A metadata-processor későbbi szelet, az ambiguous-write cleanup proofja továbbra is külön kapu. A jelenlegi galéria eredeti képeket használ.
+A 2026-10-29-i [ADR-016](docs/02_architecture/adr/ADR-016-thumbnail-processing.md) Sharpot választ: eredeti JPEG/PNG/WebP/GIF-ből statikus, aránytartó maximum512×512 WebP, felnagyítás és bemeneti metadata nélkül. Az animációból csak az első frame készül el; nagy előnézet továbbra is eredeti. A [tervezett API](docs/03_design/api.md#első-thumbnail-processor-api--implementált-2026-10-31) és [adatmodell](docs/03_design/data_model.md#első-thumbnail-processor--tervezett-szerződés-2026-10-29) tartós verziózott jobot, bounded worker/retry/recoveryt és derived kvótát ír le. Sharp 0.35.5 és az explicit hívható közös Processor/ThumbnailProcessor implementált. Bounded bináris inputból maximum512×512,512KiB WebP-t és hash/geometria/build metaadatot ad; nincs DB/storage-hozzáférése. A confirm már tartós jobot ment; a külön thumbnail-worker az alábbi Compose-szerepben fut. Új thumbnail/status HTTP-végpont nincs. A külön posteres APNG v1-ben nem támogatott, a default-frame-zero változat igen. A processor-adatmodell külön migrációja már elkészült. A metadata-processor későbbi szelet, az ambiguous-write cleanup proofja továbbra is külön kapu. A jelenlegi galéria eredeti képeket használ.
 
 ### Processor-adatmodell – implementált alap, 2026-10-29
 
@@ -241,3 +241,19 @@ npm run poc:multipart -- --minio-binary=/tmp/cloudvault-minio-poc --report=/tmp/
 ```
 
 A READY üzenet után nyisd meg a `http://127.0.0.1:5180/?auto=1` címet. Az 5180/19000/19001 port legyen szabad. A két szintetikus képet a program készíti el; ne adj meg saját fájlt vagy valódi credentialt. Előbb tényleges Node HTTP-részfeltöltést szakít meg, majd a Vue-oldal új Uppy-példánya standard S3 ListParts alapján folytatja. Az eredmény tartalmazza a PUT-részszámokat, payload-bájtszámokat és teljesfájl-hasheket, hozzáférési URL-ek nélkül. Sikeres végén automatikus takarítás/leállás; Ctrl+C vagy 10 perc timeout FAIL eredménnyel zár. Hiba esetén a riportot és az elkülönített adatkönyvtárat vizsgáld; a kísérlet nem bizonyít alkalmazáskvóta-felszabadítást. A futás nem része az `npm test`/CI-nak.
+
+## Multipart adatmodell ellenőrzése (opt-in)
+
+A multipart/import Prisma-séma és migráció elkészült; a működő upload továbbra single-PUT. Service/API/UI integráció nincs. A [modell](docs/03_design/data_model.md#multipart-séma-és-migráció--implementált-2026-11-01) tartós import-, transfer-, rész-/manifest- és I/O-azonosságot ír le. A régi cleanup a multipart sorokat kihagyja; ez nem új multipart-cleanup implementáció.
+
+A meglévő sémapróba `--multipart` módban külön, automatikusan eltávolított PostgreSQL17.9 konténert használ; nem az alkalmazás adatbázisát. A Docker Server legyen elérhető, és a `postgres:17.9-bookworm` image legyen helyben (ha hiányzik: `docker pull postgres:17.9-bookworm`). Rootból, aktuális generált/built backenddel:
+
+```bash
+npm run db:generate
+npm run build --workspace backend
+node scripts/verify-processing-schema.mjs --multipart
+# WSL-integráció hiányában csak az utolsó parancs alternatívája:
+CLOUDVAULT_DOCKER_CLI='/mnt/c/Program Files/Docker/Docker/resources/bin/docker.exe' node scripts/verify-processing-schema.mjs --multipart
+```
+
+Upgrade/fresh-schema és SQL/ORM ellenőrzés, nem alkalmazás-e2e, tényleges multipart feltöltés vagy provider closure-proof. A `--multipart` nélküli mód a processing-fixture-t ellenőrzi a legfrissebb sémával; a verifier támogatott legfrissebb migrációja szándékosan explicit.

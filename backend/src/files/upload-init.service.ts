@@ -7,6 +7,7 @@ import type { FileObject } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { OBJECT_STORAGE, type ObjectStorage, type UploadAccess } from '../storage/storage.interface';
 import { originalStorageKey } from '../storage/storage-key';
+import { legacyUploadTerminalError } from './upload-state.service';
 import type { UploadInitDto } from './upload-init.dto';
 
 type Prepared = { fileId: string; access: UploadAccess };
@@ -21,7 +22,8 @@ export class UploadInitService {
   constructor(private readonly prisma: PrismaService, private readonly config: ConfigService,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage) {}
 
-  private async sign(file: { id: string; storageKey: string; mimeType: string; sizeBytes: bigint; uploadUrlExpiresAt: Date }): Promise<Prepared> {
+  private async sign(file: { id: string; storageKey: string; mimeType: string; sizeBytes: bigint; uploadUrlExpiresAt: Date | null }): Promise<Prepared> {
+    if (!file.uploadUrlExpiresAt) throw new ApiError('RESOURCE_STATE_CONFLICT');
     try {
       return { fileId: file.id, access: await this.storage.createUploadAccess({ key: file.storageKey, mimeType: file.mimeType,
         sizeBytes: Number(file.sizeBytes), expiresAt: file.uploadUrlExpiresAt }) };
@@ -42,6 +44,7 @@ export class UploadInitService {
         prepared = await this.sign({ id, storageKey: candidate.key, mimeType: input.mimeType, sizeBytes: BigInt(input.sizeBytes),
           uploadUrlExpiresAt: new Date(+t0 + this.config.getOrThrow<AppConfig>('app').presignedUrlTtlSeconds * 1000) });
       } else if (prior.requestFingerprint === fingerprint && prior.state === 'OPEN' && prior.fileObject.status === 'PENDING_UPLOAD' &&
+          prior.fileObject.uploadTransport === 'SINGLE_PUT' && prior.fileObject.uploadUrlExpiresAt &&
           Date.now() < +prior.fileObject.confirmBy && Date.now() < +prior.fileObject.uploadUrlExpiresAt) {
         try { prepared = await this.sign(prior.fileObject); } catch { replaySigningFailed = true; }
       }
@@ -81,12 +84,13 @@ export class UploadInitService {
         if (!prior) throw new ApiError('DATABASE_UNAVAILABLE');
         if (prior.requestFingerprint !== fingerprint) return { created: false, error: 'IDEMPOTENCY_CONFLICT' };
         const file = prior.fileObject;
+        if (file.uploadTransport !== 'SINGLE_PUT' || !file.uploadUrlExpiresAt) return { created: false, error: 'RESOURCE_STATE_CONFLICT' };
         if (file.status === 'SOFT_DELETED') return { created: false, error: 'RESOURCE_STATE_CONFLICT' };
         if (file.status === 'ACTIVE' && prior.state === 'FINALIZED') return { created: false, file };
         if (file.status !== 'PENDING_UPLOAD' || prior.state === 'FINALIZED') throw new ApiError('DATABASE_UNAVAILABLE');
         if (prior.state === 'REJECTED' || prior.state === 'EXPIRED') {
           if (!prior.terminalErrorCode) throw new ApiError('DATABASE_UNAVAILABLE');
-          return { created: false, error: prior.terminalErrorCode };
+          return { created: false, error: legacyUploadTerminalError(prior.terminalErrorCode) };
         }
         const now = new Date();
         if (+now >= +file.confirmBy) {

@@ -10,11 +10,12 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const backend = resolve(root, 'backend');
 const docker = process.env.CLOUDVAULT_DOCKER_CLI || 'docker';
 const name = `cloudvault-schema-check-${randomUUID()}`;
-const migration = '20261029000100_processing_model';
+const multipart = process.argv.includes('--multipart');
+const migration = '20261101000100_multipart_import_model';
 const directory = resolve(backend, 'prisma/migrations');
 const migrations = readdirSync(directory).filter(value => /^\d/.test(value)).sort();
 if (migrations.at(-1) !== migration) throw new Error('Update this verifier before testing later migrations.');
-const fixture = readFileSync(resolve(backend, 'prisma/verification/processing-model.sql'), 'utf8');
+const fixture = readFileSync(resolve(backend, `prisma/verification/${multipart ? 'multipart-model' : 'processing-model'}.sql`), 'utf8');
 const parts = fixture.split('-- @after-migration');
 if (parts.length !== 2) throw new Error('Missing fixture boundary.');
 function run(binary, args, options = {}) {
@@ -33,8 +34,8 @@ function prisma(args, database = 'postgres') {
   });
 }
 function legacySnapshot() {
-  return ['User', 'FileObject', 'UploadOperation', 'ShareLink', 'AuditEvent'].map(table =>
-    sql(`SELECT md5(COALESCE(jsonb_agg(to_jsonb(t) ORDER BY id)::text, '[]')) FROM "${table}" t;`)).join(':');
+  return ['User', 'FileObject', 'UploadOperation', 'ShareLink', 'AuditEvent', 'ProcessingJob', 'ProcessingAttempt', 'DerivedObject'].map(table =>
+    sql(`SELECT md5(COALESCE(jsonb_agg(to_jsonb(t) - 'uploadTransport' ORDER BY id)::text, '[]')) FROM "${table}" t;`)).join(':');
 }
 let started = false;
 try {
@@ -58,10 +59,11 @@ try {
   }
   sql(parts[0]);
   const before = legacySnapshot();
-  console.log('Applying the additive processing migration through Prisma migrate deploy.');
+  console.log('Applying the additive multipart migration through Prisma migrate deploy.');
   prisma(['migrate', 'deploy']);
   if (legacySnapshot() !== before) throw new Error('Legacy data or quota counters changed during migration.');
   console.log('PASS upgrade migration: legacy rows, pending reservation and counters unchanged.');
+  if (sql(`SELECT count(*) FROM "FileObject" WHERE "uploadTransport" <> 'SINGLE_PUT';`) !== '0') throw new Error('Legacy transport default changed.');
   const output = sql(parts[1]);
   const actual = Number(output.match(/SCHEMA_ASSERTIONS_PASS=(\d+)/)?.[1]);
   const expected = (parts[1].match(/SELECT pg_temp\.expect_sql/g) || []).length;
@@ -87,17 +89,40 @@ try {
       const id = randomUUID();
       const attempt = await tx.processingAttempt.create({ data: { id, jobId: job.id, ownerId, fileObjectId, fence: 1n, ordinal: 1,
         candidateKey: `derived/${ownerId}/${fileObjectId}/${job.id}/${id}.webp` } });
+      if (multipart) {
+        const now = new Date(); const expiresAt = new Date(+now + 3600000); const replayUntil = new Date(+expiresAt + 86400000);
+        const imported = await tx.importSession.create({ data: { ownerId, idempotencyKey: randomUUID(), requestFingerprint: 'v1:'+'c'.repeat(64),
+          expiresAt, replayUntil, acceptedFileCount: 1, nextOrdinal: 2 } });
+        const file = await tx.fileObject.create({ data: { ownerId, originalName: 'schema.png', storageKey: `synthetic/${randomUUID()}`,
+          mimeType: 'image/png', sizeBytes: 2n, uploadTransport: 'MULTIPART', uploadUrlExpiresAt: null, confirmBy: expiresAt } });
+        const operation = await tx.uploadOperation.create({ data: { ownerId, fileObjectId: file.id, uploadTransport: 'MULTIPART',
+          idempotencyKey: randomUUID(), requestFingerprint: 'v2:'+'c'.repeat(64), replayUntil } });
+        const item = await tx.importFile.create({ data: { importId: imported.id, ownerId, fileObjectId: file.id, clientFileId: randomUUID(), ordinal: 1 } });
+        const transfer = await tx.multipartTransfer.create({ data: { importFileId: item.id, uploadOperationId: operation.id, fileObjectId: file.id,
+          ownerId, sizeBytes: 2n, partCount: 1, contentSha256: 'c'.repeat(64), providerNamespace: 'synthetic-client', expiresAt } });
+        await tx.multipartPart.create({ data: { transferId: transfer.id, partNumber: 1, expectedSizeBytes: 2 } });
+        await tx.multipartIoOperation.create({ data: { transferId: transfer.id, kind: 'CREATE', attemptNo: 1, fence: 0n } });
+        await tx.user.update({ where: { id: ownerId }, data: { reservedStorageBytes: { increment: 2n } } });
+        await tx.$executeRawUnsafe('SET CONSTRAINTS ALL IMMEDIATE');
+      }
       if (job.updatedAt < job.createdAt || attempt.updatedAt < attempt.createdAt) throw new Error('Prisma default timestamp order mismatch.');
       throw rollback;
     });
   } catch (error) { if (error !== rollback) throw error; }
   finally { await client.$disconnect(); }
-  if (sql('SELECT count(*) FROM "ProcessingJob";') !== '0') throw new Error('Client verification writes did not roll back.');
+  if (legacySnapshot() !== before) throw new Error('Client verification writes did not roll back.');
   console.log('PASS real Prisma Client creates/default timestamps and rollback.');
   dockerRun('exec', name, 'createdb', '-U', 'postgres', 'fresh');
   prisma(['migrate', 'deploy'], 'fresh');
   prisma(['migrate', 'diff', '--from-config-datasource', '--to-schema', 'prisma/schema.prisma', '--exit-code'], 'fresh');
   console.log('PASS fresh full migration chain and Prisma schema parity.');
+  if (multipart) {
+    const historical = readFileSync(resolve(backend, 'prisma/verification/processing-model.sql'), 'utf8').split('-- @after-migration');
+    sql(historical[0], 'fresh');
+    const legacyCases = sql(historical[1], 'fresh').match(/SCHEMA_ASSERTIONS_PASS=(\d+)/)?.[1];
+    if (Number(legacyCases) !== (historical[1].match(/SELECT pg_temp\.expect_sql/g) || []).length) throw new Error('Processing SQL regression failed.');
+    console.log(`PASS ${legacyCases} existing processing-model SQL regression cases on the final schema.`);
+  }
 } finally {
   if (started) dockerRun('stop', name); // --rm also removes this container's anonymous data volume.
 }

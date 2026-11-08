@@ -18,6 +18,7 @@ export class UploadCleanupService {
   }
   async clean(ownerId: string, fileId: string): Promise<'skip' | 'blocked' | 'released' | 'retry'> {
     const plan = await this.state.locked(ownerId, fileId, async (tx, { file, now }): Promise<CleanupPlan> => {
+      if (file.uploadTransport !== 'SINGLE_PUT') return { kind: 'skip' };
       let operation = file.uploadOperation;
       if (file.status !== 'PENDING_UPLOAD' || !operation || operation.state === 'FINALIZED' || operation.reservationReleasedAt) return { kind: 'skip' };
       if (file.cleanupRetryAfter && +now < +file.cleanupRetryAfter) return { kind: 'skip' };
@@ -39,7 +40,7 @@ export class UploadCleanupService {
     } catch {
       await this.state.locked(ownerId, fileId, async (tx, { file, now }) => {
         const operation = file.uploadOperation;
-        if (file.status === 'PENDING_UPLOAD' && operation && ['REJECTED', 'EXPIRED'].includes(operation.state) && !operation.reservationReleasedAt) {
+        if (file.uploadTransport === 'SINGLE_PUT' && file.status === 'PENDING_UPLOAD' && operation && ['REJECTED', 'EXPIRED'].includes(operation.state) && !operation.reservationReleasedAt) {
           await tx.fileObject.update({ where: { id: file.id }, data: this.retry(file, now, 'STORAGE_UNAVAILABLE') });
         }
       });
@@ -47,7 +48,7 @@ export class UploadCleanupService {
     }
     return this.state.locked(ownerId, fileId, async (tx, { file, user, now }) => {
       const operation = file.uploadOperation;
-      if (file.status !== 'PENDING_UPLOAD' || !operation || !['REJECTED', 'EXPIRED'].includes(operation.state) || operation.reservationReleasedAt) return 'skip';
+      if (file.uploadTransport !== 'SINGLE_PUT' || file.status !== 'PENDING_UPLOAD' || !operation || !['REJECTED', 'EXPIRED'].includes(operation.state) || operation.reservationReleasedAt) return 'skip';
       if (!operation.writesClosedAt || operation.id !== original.uploadOperation!.id || file.storageKey !== original.storageKey ||
           file.sizeBytes !== original.sizeBytes || +operation.writesClosedAt !== +original.uploadOperation!.writesClosedAt!) return 'blocked';
       if (user.reservedStorageBytes < file.sizeBytes) throw new Error('Inconsistent reservation');
@@ -64,7 +65,7 @@ export class UploadCleanupService {
     this.running = true;
     try {
       const now = new Date();
-      const candidates = await this.prisma.fileObject.findMany({ where: { status: 'PENDING_UPLOAD', AND: [
+      const candidates = await this.prisma.fileObject.findMany({ where: { uploadTransport: 'SINGLE_PUT', status: 'PENDING_UPLOAD', AND: [
         { OR: [{ confirmBy: { lte: now }, uploadOperation: { is: { state: 'OPEN' } } },
           { uploadOperation: { is: { state: { in: ['REJECTED', 'EXPIRED'] }, reservationReleasedAt: null } } }] },
         { OR: [{ cleanupRetryAfter: null }, { cleanupRetryAfter: { lte: now } }] },

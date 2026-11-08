@@ -19,7 +19,7 @@ const now = new Date('2026-10-24T12:00:00.000Z');
 const input = new UploadInitDto('photo.png', 'image/png', 100);
 const appConfig = { allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'], maxUploadBytes: 104857600, presignedUrlTtlSeconds: 300 };
 const config = { getOrThrow: () => appConfig } as unknown as ConfigService;
-const file = () => ({ id: fileId, ownerId: owner, status: 'PENDING_UPLOAD', originalName: input.originalName, mimeType: input.mimeType,
+const file = () => ({ id: fileId, ownerId: owner, status: 'PENDING_UPLOAD', uploadTransport: 'SINGLE_PUT', originalName: input.originalName, mimeType: input.mimeType,
   detectedMimeType: null, sizeBytes: 100n, storageKey: `originals/${owner}/${fileId}`, uploadUrlExpiresAt: new Date(+now + 300_000),
   confirmBy: new Date(+now + 900_000), createdAt: now });
 const receipt = () => ({ id: '00000000-0000-4000-8000-000000000004', ownerId: owner, fileObjectId: fileId, state: 'OPEN',
@@ -228,4 +228,13 @@ describe('Upload init guard and controller', () => {
     await new FilesController(service as unknown as UploadInitService, undefined as never, undefined as never, undefined as never).initiate(request as never, key, input, response as never);
     expect(service.initiate).toHaveBeenCalledWith(owner, key, input); expect(response.status).toHaveBeenCalledWith(created ? 201 : 200); expect(response.json).toHaveBeenCalledWith(result.body);
   });
+});
+
+it.each(['multipart', 'missing legacy deadline'])('does not issue legacy rights for %s', async (reason) => {
+  const prior = receipt();
+  Object.assign(prior.fileObject, reason === 'multipart' ? { uploadTransport: 'MULTIPART' } : { uploadUrlExpiresAt: null });
+  const { service, storage, tx } = fixture(prior);
+  await expect(service.initiate(owner, key, input)).rejects.toMatchObject({ code: 'RESOURCE_STATE_CONFLICT' });
+  expect(storage.createUploadAccess).not.toHaveBeenCalled();
+  expect(tx.user.update).not.toHaveBeenCalled();
 });

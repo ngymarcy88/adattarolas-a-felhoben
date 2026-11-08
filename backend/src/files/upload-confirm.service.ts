@@ -7,7 +7,7 @@ import { ApiError, type ApiErrorCode } from '../common/errors/api-error';
 import { OBJECT_STORAGE, type ObjectStorage } from '../storage/storage.interface';
 import { ProcessingStateService } from '../processing/processing-state.service';
 import { detectImageMime, IMAGE_PREFIX_BYTES } from './image-signature';
-import { UploadStateService, publicFile, type LockedUpload, type UploadFile } from './upload-state.service';
+import { UploadStateService, publicFile, legacyUploadTerminalError, type LockedUpload, type UploadFile } from './upload-state.service';
 
 type Result = { file?: UploadFile; error?: ApiErrorCode; verify?: UploadFile };
 type Verification = { mime: string } | { error: 'FILE_TOO_LARGE' | 'UPLOAD_VALIDATION_FAILED' | 'UPLOAD_NOT_READY' | 'UPLOAD_VERIFICATION_UNAVAILABLE' };
@@ -19,11 +19,12 @@ export class UploadConfirmService {
   private async current(tx: Prisma.TransactionClient, view: LockedUpload): Promise<Result | null> {
     const { file, now } = view; const operation = file.uploadOperation;
     if (file.status === 'ACTIVE') return { file }; // Legacy/pruned successful files need no receipt.
+    if (file.uploadTransport !== 'SINGLE_PUT') return { error: 'RESOURCE_STATE_CONFLICT' };
     if (file.status !== 'PENDING_UPLOAD') return { error: 'RESOURCE_STATE_CONFLICT' };
     if (!operation || operation.state === 'FINALIZED') throw new ApiError('DATABASE_UNAVAILABLE');
     if (operation.state === 'REJECTED' || operation.state === 'EXPIRED') {
       if (!operation.terminalErrorCode) throw new ApiError('DATABASE_UNAVAILABLE');
-      return { error: operation.terminalErrorCode };
+      return { error: legacyUploadTerminalError(operation.terminalErrorCode) };
     }
     if (+now >= +file.confirmBy) {
       await tx.uploadOperation.update({ where: { id: operation.id }, data: { state: 'EXPIRED', terminalErrorCode: 'UPLOAD_EXPIRED', closedAt: now } });

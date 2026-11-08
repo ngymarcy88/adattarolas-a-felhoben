@@ -23,12 +23,15 @@ enum UploadOperationState {
   FINALIZED
   REJECTED
   EXPIRED
+  CANCELLED
 }
 
 enum UploadTerminalErrorCode {
   FILE_TOO_LARGE
   UPLOAD_VALIDATION_FAILED
   UPLOAD_EXPIRED
+  UPLOAD_CANCELLED
+  TRANSFER_PARTS_INVALID
 }
 
 model User {
@@ -46,6 +49,7 @@ model User {
   shareLinks           ShareLink[]
   auditEvents          AuditEvent[]
   processingJobs       ProcessingJob[]
+  imports              ImportSession[]
 }
 
 model FileObject {
@@ -56,9 +60,10 @@ model FileObject {
   mimeType             String           @db.VarChar(100)
   detectedMimeType     String?          @db.VarChar(100)
   sizeBytes            BigInt
+  uploadTransport      UploadTransport  @default(SINGLE_PUT)
   visibility           FileVisibility   @default(PRIVATE)
   status               FileStatus       @default(PENDING_UPLOAD)
-  uploadUrlExpiresAt   DateTime         @db.Timestamptz(3)
+  uploadUrlExpiresAt   DateTime?        @db.Timestamptz(3)
   confirmBy            DateTime         @db.Timestamptz(3)
   cleanupRetryAfter    DateTime?        @db.Timestamptz(3)
   cleanupAttemptCount  Int              @default(0)
@@ -72,8 +77,10 @@ model FileObject {
   uploadOperation      UploadOperation?
   processingJobs       ProcessingJob[]
   derivedObjects       DerivedObject[]
+  importFile           ImportFile?
 
   @@unique([id, ownerId])
+  @@unique([id, ownerId, uploadTransport], map: "FileObject_transport_identity_key")
   @@index([ownerId, status, createdAt(sort: Desc), id(sort: Desc)])
   @@index([status, confirmBy])
   @@index([status, cleanupRetryAfter])
@@ -86,6 +93,7 @@ model UploadOperation {
   ownerId               String                   @db.Uuid
   fileObjectId          String                   @unique @db.Uuid
   idempotencyKey        String                   @db.Uuid
+  uploadTransport       UploadTransport          @default(SINGLE_PUT)
   requestFingerprint    String                   @db.VarChar(67)
   state                 UploadOperationState     @default(OPEN)
   terminalErrorCode     UploadTerminalErrorCode?
@@ -96,10 +104,13 @@ model UploadOperation {
   createdAt             DateTime                 @default(now()) @db.Timestamptz(3)
   updatedAt             DateTime                 @updatedAt @db.Timestamptz(3)
   owner                 User                     @relation(fields: [ownerId], references: [id], onDelete: Restrict)
-  fileObject            FileObject               @relation(fields: [fileObjectId, ownerId], references: [id, ownerId], onDelete: Restrict)
+  fileObject            FileObject               @relation(fields: [fileObjectId, ownerId, uploadTransport], references: [id, ownerId, uploadTransport], onDelete: Restrict, map: "UploadOperation_file_transport_fkey")
+  multipartTransfer     MultipartTransfer?
 
   // Prisma requires the full defining key unique for this compound one-to-one relation.
   @@unique([fileObjectId, ownerId])
+  @@unique([fileObjectId, ownerId, uploadTransport], map: "UploadOperation_file_transport_key")
+  @@unique([id, fileObjectId, ownerId, uploadTransport], map: "UploadOperation_transfer_identity_key")
   @@unique([ownerId, idempotencyKey])
   @@index([state, replayUntil])
   @@index([state, reservationReleasedAt])
@@ -266,4 +277,187 @@ model DerivedObject {
   @@unique([attemptId, jobId, ownerId, fileObjectId, storageKey], map: "DerivedObject_attempt_identity_key")
   @@unique([jobId, kind])
   @@index([ownerId, fileObjectId])
+}
+
+// Multipart persistence only. Storage ListParts remains authoritative; these snapshots are not receipts of partial bytes.
+enum UploadTransport {
+  SINGLE_PUT
+  MULTIPART
+}
+
+enum ImportSessionState {
+  OPEN
+  EXPIRED
+}
+
+enum MultipartTransferState {
+  CREATING
+  CREATE_UNKNOWN
+  OPEN
+  SEALING
+  COMPLETING
+  COMPLETE_UNKNOWN
+  STORED
+  CONFIRMING
+  SUCCEEDED
+  REJECTED
+  CANCELLED
+  EXPIRED
+}
+
+enum MultipartCleanupState {
+  NOT_REQUIRED
+  PENDING
+  CLEANUP_BLOCKED
+  VERIFIED
+}
+
+enum MultipartIoKind {
+  CREATE
+  COMPLETE
+  ABORT
+}
+
+enum MultipartIoState {
+  INTENT
+  DISPATCHED
+  UNKNOWN
+  SUCCEEDED
+  FAILED
+}
+
+model ImportSession {
+  id                 String             @id @default(uuid()) @db.Uuid
+  ownerId            String             @db.Uuid
+  idempotencyKey     String             @db.Uuid
+  requestFingerprint String             @db.VarChar(67)
+  state              ImportSessionState @default(OPEN)
+  expiresAt          DateTime           @db.Timestamptz(3)
+  replayUntil        DateTime           @db.Timestamptz(3)
+  fileLimit          Int                @default(50)
+  acceptedFileCount  Int                @default(0)
+  nextOrdinal        Int                @default(1)
+  createdAt          DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime           @updatedAt @db.Timestamptz(3)
+  owner              User               @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  files              ImportFile[]
+
+  @@unique([ownerId, idempotencyKey])
+  @@unique([id, ownerId])
+  @@index([ownerId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([state, expiresAt])
+}
+
+model ImportFile {
+  id              String             @id @default(uuid()) @db.Uuid
+  importId        String             @db.Uuid
+  ownerId         String             @db.Uuid
+  clientFileId    String             @db.Uuid
+  ordinal         Int
+  fileObjectId    String             @unique @db.Uuid
+  uploadTransport UploadTransport    @default(MULTIPART)
+  createdAt       DateTime           @default(now()) @db.Timestamptz(3)
+  importSession   ImportSession      @relation(fields: [importId, ownerId], references: [id, ownerId], onDelete: Restrict)
+  fileObject      FileObject         @relation(fields: [fileObjectId, ownerId, uploadTransport], references: [id, ownerId, uploadTransport], onDelete: Restrict, map: "ImportFile_file_transport_fkey")
+  transfer        MultipartTransfer?
+
+  @@unique([importId, clientFileId])
+  @@unique([importId, ordinal])
+  @@unique([fileObjectId, ownerId, uploadTransport], map: "ImportFile_file_transport_key")
+  @@unique([id, fileObjectId, ownerId, uploadTransport], map: "ImportFile_transfer_identity_key")
+  @@index([importId, ordinal, id])
+}
+
+model MultipartTransfer {
+  id                    String                  @id @default(uuid()) @db.Uuid
+  importFileId          String                  @unique @db.Uuid
+  uploadOperationId     String                  @unique @db.Uuid
+  fileObjectId          String                  @unique @db.Uuid
+  ownerId               String                  @db.Uuid
+  uploadTransport       UploadTransport         @default(MULTIPART)
+  state                 MultipartTransferState  @default(CREATING)
+  revision              Int                     @default(0)
+  sizeBytes             BigInt
+  partSizeBytes         Int                     @default(5242880)
+  partCount             Int
+  contentSha256         String                  @db.Char(64)
+  providerNamespace     String                  @db.VarChar(255)
+  providerUploadId      String?                 @db.VarChar(2048)
+  expiresAt             DateTime                @db.Timestamptz(3)
+  leaseOwner            String?                 @db.Uuid
+  leaseUntil            DateTime?               @db.Timestamptz(3)
+  fence                 BigInt                  @default(0)
+  recoveryAfter         DateTime?               @db.Timestamptz(3)
+  recoveryAttemptCount  Int                     @default(0)
+  lastErrorCode         String?                 @db.VarChar(100)
+  manifestHash          String?                 @db.Char(64)
+  manifestSealedAt      DateTime?               @db.Timestamptz(3)
+  storedETag            String?                 @db.VarChar(256)
+  storedVersionId       String?                 @db.VarChar(1024)
+  storedAt              DateTime?               @db.Timestamptz(3)
+  verifiedSha256        String?                 @db.Char(64)
+  verifiedAt            DateTime?               @db.Timestamptz(3)
+  cleanupState          MultipartCleanupState   @default(NOT_REQUIRED)
+  publicationExcludedAt DateTime?               @db.Timestamptz(3)
+  writesClosedAt        DateTime?               @db.Timestamptz(3)
+  closureEvidenceType   String?                 @db.VarChar(64)
+  closureEvidenceRef    String?                 @db.VarChar(255)
+  objectAbsentAt        DateTime?               @db.Timestamptz(3)
+  partsAbsentAt         DateTime?               @db.Timestamptz(3)
+  cleanupRetryAfter     DateTime?               @db.Timestamptz(3)
+  cleanupAttemptCount   Int                     @default(0)
+  createdAt             DateTime                @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime                @updatedAt @db.Timestamptz(3)
+  importFile            ImportFile              @relation(fields: [importFileId, fileObjectId, ownerId, uploadTransport], references: [id, fileObjectId, ownerId, uploadTransport], onDelete: Restrict, map: "MultipartTransfer_import_identity_fkey")
+  uploadOperation       UploadOperation         @relation(fields: [uploadOperationId, fileObjectId, ownerId, uploadTransport], references: [id, fileObjectId, ownerId, uploadTransport], onDelete: Restrict, map: "MultipartTransfer_upload_identity_fkey")
+  parts                 MultipartPart[]
+  manifestParts         MultipartManifestPart[]
+  ioOperations          MultipartIoOperation[]
+
+  @@unique([importFileId, fileObjectId, ownerId, uploadTransport], map: "MultipartTransfer_import_identity_key")
+  @@unique([uploadOperationId, fileObjectId, ownerId, uploadTransport], map: "MultipartTransfer_upload_identity_key")
+  @@unique([providerNamespace, providerUploadId], map: "MultipartTransfer_provider_identity_key")
+  @@index([state, recoveryAfter, leaseUntil])
+  @@index([cleanupState, cleanupRetryAfter])
+}
+
+model MultipartPart {
+  transferId         String            @db.Uuid
+  partNumber         Int
+  expectedSizeBytes  Int
+  observedSizeBytes  Int?
+  observedETag       String?           @db.VarChar(256)
+  observedAt         DateTime?         @db.Timestamptz(3)
+  maxIssuedExpiresAt DateTime?         @db.Timestamptz(3)
+  lastIssuedRevision Int?
+  transfer           MultipartTransfer @relation(fields: [transferId], references: [id], onDelete: Restrict)
+
+  @@id([transferId, partNumber])
+}
+
+model MultipartManifestPart {
+  transferId String            @db.Uuid
+  partNumber Int
+  sizeBytes  Int
+  etag       String            @db.VarChar(256)
+  transfer   MultipartTransfer @relation(fields: [transferId], references: [id], onDelete: Restrict)
+
+  @@id([transferId, partNumber])
+}
+
+model MultipartIoOperation {
+  id            String            @id @default(uuid()) @db.Uuid
+  transferId    String            @db.Uuid
+  kind          MultipartIoKind
+  attemptNo     Int
+  fence         BigInt
+  state         MultipartIoState  @default(INTENT)
+  startedAt     DateTime?         @db.Timestamptz(3)
+  settledAt     DateTime?         @db.Timestamptz(3)
+  lastErrorCode String?           @db.VarChar(100)
+  createdAt     DateTime          @default(now()) @db.Timestamptz(3)
+  transfer      MultipartTransfer @relation(fields: [transferId], references: [id], onDelete: Restrict)
+
+  @@unique([transferId, kind, attemptNo])
+  @@index([state, createdAt])
 }
