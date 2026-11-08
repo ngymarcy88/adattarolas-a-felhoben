@@ -1,6 +1,24 @@
 # Test report
 
 
+## Multipart storage adapter – 2026-11-02
+
+**Verzió/környezet:** `feature/multipart-storage-adapter`, alapcommit `64e728a`, WSL Linux Node22.23.2/npm10.9.8, meglévő AWS SDK3.1156.0/Jest. Csak adapter/port/hibák és unit/docs változás; nincs új függőség, Prisma-/DB-, kvóta-, HTTP-, service- vagy frontend-integráció. A frontend bundle változatlan `index-4CUQyOjH.js`.
+
+**Bemenet/módszer:** kizárólag szintetikus unit-konfiguráció, canonical owner/file kulcs, opaque uploadId és ETag.10MiB+1B mintageometria5MiB/5MiB/1B;1B és100MiB határok. Külön mock read/write client és signer, deferred promise/fake timer/AbortController; a tényleges SDK-presigner egyetlen lokális aláíráspróbában, hálózat nélkül futott. A mocked SDK-t nem tekintjük valódi MinIO-nak.
+
+| Végrehajtott ellenőrzés | Tényleges eredmény |
+|---|---|
+| Unit – create/geometria/jogkiadás. | **PASS:** canonical key/transferId, kép-allowlist, méret/részméret/TTL/részszám/uploadId korlátok, pontos utolsó1B rész, Content-Length aláírás. A valós lokális signer URL-jének SignedHeaders tartalmazza a content-length-et, helyes uploadId/partNumber mellett. Explicit új create nem hamis idempotens replay; a hívó durable intentje továbbra szükséges. |
+| Unit – paged ListParts. | **PASS:** több oldal/string marker, teljes snapshot és engedett rések; üres lista, hibás/nem előrehaladó marker, duplicate/out-of-order rész, rossz identity/méret/ETag és404 mapping. Hibás második oldalból sem jön részleges siker; a közös10s deadline nem indul újra oldalonként. |
+| Unit – complete/abort/hibák. | **PASS:** rendezett másolt teljes manifest, create-only IfNoneMatch, opaque ETag/version válasz, hibás SDK-success és200-headerhez tartozó SDK-fault;412/409/400/404/403 safe mapping. Nincs replacement create, hidden mutation retry, abort/delete fallback vagy kiszivárgó provider-message/cause. Abort ACK/NoSuchUpload mellett is unproven marad a closure. |
+| Unit – abort/timeout/late result. | **PASS:** pre-abort nem dispatch-el; mindhárom mutáció dispatch utáni abortja/10s timeoutja unknown. Nem kooperatív signer/read/write is határidőn belül hibát ad; a késői mutációs siker nem változtatja vissza a hívó korábbi unknown eredményét. A transport abort signalja megszakított. |
+| Egy összevont root unitkör. | **PASS:**1150 backend +405 frontend +2 helper = **1557**;96 új storage-multipart eset. |
+| Typecheck és root build. | **PASS:** az első typecheck két Jest each-array fixture-alak hibáját találta, objektumba csomagolva javítva; csak a backend typecheck ismétlődött. A végső egyetlen teljes unitkör és root build sikeres, meglévő frontend típusellenőrzéssel. |
+
+**NYITOTT:** valódi MinIO feltételes Complete/size/CORS/permission és embedded-error integráció; provider write-closure; CREATE_UNKNOWN session-discovery és100MiB streaming confirm hash; tartós import-service, quota/fence/recovery és Uppy backend-control-plane. Nincs valós szolgáltatásindítás vagy új provider-próba ebben a feladatban. Sem az SDK ACK, sem a mock, sem a signature nem teljesfájl-hash, kvótafelszabadítás vagy SZD2-resume elfogadási bizonyíték.
+
+
 ## Multipart/import adatmodell – 2026-11-01
 
 **Verzió/környezet:** `feature/multipart-data-model`, alapcommit `1704e15`; új migráció `20261101000100_multipart_import_model`, végleges SQL SHA-256 `b41e520388ab6f7fa48fb1859820142f66fbfcaae902042149be9084102e775f`. WSL Linux Node22.23.2/npm10.9.8, Prisma7.10.1, Docker Desktop Windows CLI, külön `postgres:17.9-bookworm` konténer (image digest `sha256:47f917f7409eacd22fc5dfb1dee634e1b55cf0c01d1a7eb701be2227a03e0641`). A Docker Server most elérhető volt; nincs app DB/storage/.env módosítás, konténeres alkalmazásindítás vagy valódi feltöltés.

@@ -257,3 +257,7 @@ CLOUDVAULT_DOCKER_CLI='/mnt/c/Program Files/Docker/Docker/resources/bin/docker.e
 ```
 
 Upgrade/fresh-schema és SQL/ORM ellenőrzés, nem alkalmazás-e2e, tényleges multipart feltöltés vagy provider closure-proof. A `--multipart` nélküli mód a processing-fixture-t ellenőrzi a legfrissebb sémával; a verifier támogatott legfrissebb migrációja szándékosan explicit.
+
+## Multipart storage adapter (belső port)
+
+A storage adapter öt multipart művelete implementált: indítás, pontos méretű rövid rész-URL, teljes lapozott részlista, create-only véglegesítés és abort. A jelenlegi alkalmazás még nem hívja ezeket: nincs új HTTP-végpont vagy kvóta-/import-service. A [belső szerződés](docs/03_design/api.md#implementált-belső-multipart-storage-port--2026-11-02) és a [hibák](docs/03_design/error_handling.md#multipart-adapter-belső-hibák--implementált-2026-11-02) külön rögzítik a nem-idempotens create-ot és a bizonytalan kimenetelt. Az ETag nem teljesfájl-hash; abort/NoSuchUpload nem kvótafelszabadítás. A `storage:verify` régi single-PUT próbája ezeket még nem fedi; a multipart unitok nem MinIO-integrációs bizonyítékok.
