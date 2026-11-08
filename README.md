@@ -244,7 +244,7 @@ A READY üzenet után nyisd meg a `http://127.0.0.1:5180/?auto=1` címet. Az 518
 
 ## Multipart adatmodell ellenőrzése (opt-in)
 
-A multipart/import Prisma-séma és migráció elkészült; a működő upload továbbra single-PUT. Service/API/UI integráció nincs. A [modell](docs/03_design/data_model.md#multipart-séma-és-migráció--implementált-2026-11-01) tartós import-, transfer-, rész-/manifest- és I/O-azonosságot ír le. A régi cleanup a multipart sorokat kihagyja; ez nem új multipart-cleanup implementáció.
+A multipart/import Prisma-séma és migráció elkészült; a működő upload továbbra single-PUT. A backend service/API már implementált, frontend-integráció még nincs. A [modell](docs/03_design/data_model.md#multipart-séma-és-migráció--implementált-2026-11-01) tartós import-, transfer-, rész-/manifest- és I/O-azonosságot ír le. A régi cleanup a multipart sorokat kihagyja; ez nem új multipart-cleanup implementáció.
 
 A meglévő sémapróba `--multipart` módban külön, automatikusan eltávolított PostgreSQL17.9 konténert használ; nem az alkalmazás adatbázisát. A Docker Server legyen elérhető, és a `postgres:17.9-bookworm` image legyen helyben (ha hiányzik: `docker pull postgres:17.9-bookworm`). Rootból, aktuális generált/built backenddel:
 
@@ -260,4 +260,17 @@ Upgrade/fresh-schema és SQL/ORM ellenőrzés, nem alkalmazás-e2e, tényleges m
 
 ## Multipart storage adapter (belső port)
 
-A storage adapter öt multipart művelete implementált: indítás, pontos méretű rövid rész-URL, teljes lapozott részlista, create-only véglegesítés és abort. A jelenlegi alkalmazás még nem hívja ezeket: nincs új HTTP-végpont vagy kvóta-/import-service. A [belső szerződés](docs/03_design/api.md#implementált-belső-multipart-storage-port--2026-11-02) és a [hibák](docs/03_design/error_handling.md#multipart-adapter-belső-hibák--implementált-2026-11-02) külön rögzítik a nem-idempotens create-ot és a bizonytalan kimenetelt. Az ETag nem teljesfájl-hash; abort/NoSuchUpload nem kvótafelszabadítás. A `storage:verify` régi single-PUT próbája ezeket még nem fedi; a multipart unitok nem MinIO-integrációs bizonyítékok.
+A storage adapter öt multipart művelete implementált: indítás, pontos méretű rövid rész-URL, teljes lapozott részlista, create-only véglegesítés és abort. Az új multipart import/transfer HTTP-végpontok a MultipartService-en keresztül hívják ezeket; a meglévő böngészős feltöltő még single-PUT. A [belső szerződés](docs/03_design/api.md#implementált-belső-multipart-storage-port--2026-11-02) és a [hibák](docs/03_design/error_handling.md#multipart-adapter-belső-hibák--implementált-2026-11-02) külön rögzítik a nem-idempotens create-ot és a bizonytalan kimenetelt. Az ETag nem teljesfájl-hash; abort/NoSuchUpload nem kvótafelszabadítás. A `storage:verify` régi single-PUT próbája ezeket még nem fedi; a multipart unitok nem MinIO-integrációs bizonyítékok.
+
+
+## Multipart backend API (2026-11-02)
+
+A [multipart szerződés](docs/03_design/api.md#multipart-service-végrehajtási-határ--implementált-2026-11-02) import/transfer végpontjai implementáltak, cookie/session és mutációknál Origin ellenőrzéssel. A frontend még nem használja őket; nincs automatikus multipart-cleanup vagy kvótafelszabadítás. A recovery kérésvezérelt. Beállítások a `.env.example` négy `MULTIPART_*` változójában; minden új import a létrehozáskor rögzített határidővel dolgozik. Az alkalmazás MinIO policyja bucket szintű multipart discoveryt és csak originals prefixre part-list/abort jogot kap; a módosított init alkalmazásához a következő Compose build/start során a minio-initet is újra kell futtatni, volume-törlés nélkül.
+
+Opt-in DB-komponenspróba, már buildelt backenddel és elérhető Docker Serverrel:
+
+```bash
+node scripts/verify-processing-schema.mjs --multipart-service
+```
+
+Ugyanaz a külön PostgreSQL17.9 konténeres upgrade/fresh/schema ellenőrző, majd valódi service/Prisma/job/accounting próba szintetikus storage-porttal; az alkalmazás DB-jét és bucketjét nem használja. Windows Docker fallbackhez a fent dokumentált `CLOUDVAULT_DOCKER_CLI` használható. Nem valós multipart feltöltés vagy restart-elfogadás.

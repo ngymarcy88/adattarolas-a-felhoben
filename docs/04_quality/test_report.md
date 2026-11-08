@@ -1,5 +1,25 @@
 # Test report
 
+## Multipart backend service és HTTP API – 2026-11-02
+
+**Verzió/környezet:** `feature/multipart-service`, alapcommit `07c71ed` (a végső verzió a PR commitja); WSL Linux Node22.23.2/npm10.9.8, meglévő Jest/Vitest/Prisma7.10.1, Docker Desktop Server26.1.1 és eldobható PostgreSQL17.9. Nincs új dependency, séma/migráció vagy frontend. A korábbi alkalmazás-DB/bucket és volume-ok változatlanok; nincs új cleanup worker.
+
+**Bemenet és lépések:** szintetikus PNG/hash, saját és idegen UUID-k, kontrollált kvótahatárok,5MiB-os geometria. Unitokban deferred SDK-válaszok, fake clock/abort, soros lock+rollback modell és új service-példányok szimulálják a versenyt/újraindulást. Adapteroldalon mockolt SDK-válasz és tényleges Node stream/SHA-256. A HTTP-próbák controller/pipe/guard-decorator unitok; nem socketes alkalmazáspróbák.
+
+| Végrehajtott ellenőrzés / elvárt eredmény | Tényleges eredmény |
+|---|---|
+| Init/replay/ownership/kvóta: egy logikai fájl és foglalás; idegen művelet404, nincs provider I/O. | **PASS unit:** owner+kulcs/clientFileId dedupe, eltérő payload409, cap/kvótahatár, párhuzamos init és elveszett commit-response; a gráf bármely írási részhibája együtt rollbackel. Status/sign/resume/complete/cancel/confirm és import olvasás/init ownership ellenőrzött. |
+| Grant/complete/recovery: csak hiányzó pontos részek, manifest a backendtől, nincs replacement create. | **PASS unit:** tartós grantkiadás az URL előtt; cancel alatti késői URL eldobva; hiányos részlista OPEN409, hibás geometria őrzött REJECTED. Parallel complete egyszer; lost-response/full-hash adoption, régi fence eldobása, ugyanazon manifest legfeljebb3 tartós complete-kísérlete. Unknown create-nál csak egyértelmű exact-key discovery, nulla találat továbbra HELD. |
+| Confirm: ACTIVE/counters/audit/job együtt, egyszer; sérült tartalom ne aktiválódjon. | **PASS unit:** párhuzamos confirm202/200 és egyszeri eredmény; job/audit/counter részhibák rollbackje, lost commit-response ACTIVE no-op, receipt nélküli ACTIVE replay. Hash/signature-hiba422; cancel és hash/utolsó DB-írás közbeni lejárat mellett nincs aktiválás vagy release. |
+| Thin HTTP/validáció/config/adapter: safe DTO, pontos input és bounded I/O. | **PASS unit:** Session/Origin guard-sorrend, explicit HTTP-kódok/Retry-After, JSON/strict mezők/UUID/hash/cursor/part-path és konfigurációhatárok; safe projekció. Discovery lapozás/identity, feltételes verzióhoz kötött teljes stream hash/prefix, méret/short-body/timeout/abort. |
+| Összevont unitfuttatás, majd csak hibás/érintett suite ismétlések. | **PASS összesítve:1642 egyedi eset** (1234 backend,405 frontend,3 helper), ebből84 új backend és1 új MinIO-policy helper. Az első teljes kör fixture-hibái (BigInt inkrementálás, kötelező SDK-metadata) és egy dupla metadata-property TS-hiba javítva;79 új eset célzottan PASS, majd a szigorított part-path/ownership változás után72 érintett eset ismét PASS. A korábban sikeres régi suite-okat nem futtattuk újra. |
+| Típus/build/config. | **PASS:** workspace typecheck és root build, a későbbi backend változások után backend typecheck/build; `test:container`3/3, `sh -n`, script syntax és `docker compose config --quiet`. A Compose konfigurációellenőrzés nem runtime- vagy IAM-proof. |
+
+**DB-komponenspróba:** a meglévő `scripts/verify-processing-schema.mjs --multipart-service` kizárólag saját, automatikusan eltávolított konténert hoz létre. Upgrade/fresh migráció és sémaegyezés,60 multipart+75 korábbi processing SQL-eset, valódi generált ORM-defaultok/rollback; ezt követi az aktuális buildelt MultipartService és valódi ProcessingStateService futtatása szintetikus storage-porttal. Első futásban a DB/séma részek PASS, a service-probe előtti konfigurációvalidáció elutasította a trust DB jelszó nélküli URL-jét. Javítás: csak a config szintetikus URL-je kap jelszóalakot, az eldobható client kapcsolata változatlan. **Végső futás PASS:** upgrade/fresh/parity és60+75 SQL-eset; tényleges PostgreSQL-en párhuzamos init/complete/confirm egyetlen original/job/audit/counter átvezetést eredményezett. Replay nem növelte újra a usedot; cancel ismétlése egy aborttal és HELD reservationnel zárult; elveszett complete-válasz után új service-példány STORED-be adoptált, az eredeti I/O UNKNOWN/settledAt=null maradt. Idegen owner404 és storage-olvasás nélküli elutasítás. Ez valós DB + szintetikus storage komponenspróba, nem e2e. A pg-driver nem végzetes deprecation warningot adott párhuzamos query használatára; a próbák ettől sikeresek, pg9-kompatibilitás nincs igazolva. A külön konténert a verifier eltávolította.
+
+**NYITOTT:** valós MinIO alkalmazásszerepkör/conditional-complete/Content-Length/CORS/late-write, tényleges HTTP/cookie/login-megújítás, böngészős Uppy-illesztés és megszakított nagy fájl folytatása; tényleges processz-/MinIO restart és DB/storage-egyeztetés. A unitban új service-példány nem valódi processzrestart. Pozitív closure/cleanup/release, kis képek intra-file resume-ja,10/50 képes mérések és külső UAT szintén nyitottak. Nincs frontend vagy automatikus multipart-cleanup ebben a szeletben.
+
+
 
 ## Multipart storage adapter – 2026-11-02
 

@@ -16,6 +16,11 @@ export interface MultipartSession { key: string; uploadId: string; sizeBytes: nu
 /** Only complete storage-observed parts; ETag is opaque, never a full-file checksum. */
 export interface MultipartPartReceipt { partNumber: number; sizeBytes: number; etag: string }
 export interface MultipartStorage {
+  /** Bounded exact-key discovery only; never retry non-idempotent create to discover its outcome. */
+  findMultipartUploads(key: string, signal?: AbortSignal): Promise<string[]>;
+  /** Full bounded conditional read; metadata binds the server-owned transfer, prefix is untrusted image input. */
+  verifyMultipartObject(input: { key: string; transferId: string; sizeBytes: number; partSizeBytes: number;
+    etag?: string; signal?: AbortSignal }): Promise<{ etag: string; sha256: string; prefix: Uint8Array }>;
   /** Non-idempotent provider create: caller must persist intent before calling; no hidden retry. */
   initiateMultipart(input: { key: string; mimeType: string; sizeBytes: number; partSizeBytes: number;
     transferId: string; signal?: AbortSignal }): Promise<{ uploadId: string }>;

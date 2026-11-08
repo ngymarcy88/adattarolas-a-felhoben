@@ -60,3 +60,8 @@ The planned [multipart API](../../03_design/api.md#multipart-képimport--terveze
 Create-only CompleteMultipartUpload support, exact size enforcement and attempt-specific write-closure evidence require real provider verification. AWS documents that a complete response can carry an error inside HTTP200, and abort can race in-flight parts; SDK response parsing and conservative recovery are required. Unknown outcomes retain reservation. References: [complete semantics](https://docs.aws.amazon.com/AmazonS3/latest/API/API_CompleteMultipartUpload.html), [abort semantics](https://docs.aws.amazon.com/AmazonS3/latest/API/API_AbortMultipartUpload.html).
 
 Production single-PUT remains unchanged; transport cannot switch within a file attempt. This documentation is not an implementation or cutover approval.
+
+
+### Backend implementation snapshot (2026-11-02)
+
+The owner-bound import/transfer service and HTTP control plane are implemented with the documented configuration, durable create/complete intents, fenced request-driven recovery, full streaming hash/signature verification and atomic activation/accounting/job creation. The adapter now includes bounded exact-key session discovery and complete-object verification. No frontend cutover or automatic multipart cleanup is included; unknown outcomes keep reservations. The public Uppy6 adapter/control-plane fit and real provider size/create-only/CORS/late-write verification remain open. The PoC and small-image intra-file resume limitations above remain unchanged; unit and disposable-DB service checks do not close those gates.

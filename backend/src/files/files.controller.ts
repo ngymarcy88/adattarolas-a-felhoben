@@ -1,3 +1,5 @@
+import { MultipartService } from '../multipart/multipart.service';
+import { ApiError } from '../common/errors/api-error';
 import { UploadConfirmService } from './upload-confirm.service';
 import { FileIdPipe, UploadConfirmGuard } from './upload-confirm.guard';
 import { Body, Param, Controller, Get, Query, Header, Headers, Post, Res, Req, UseGuards } from '@nestjs/common';
@@ -16,7 +18,7 @@ import { FilePreviewGuard } from './file-preview.guard';
 @Controller('files')
 export class FilesController {
   constructor(private readonly uploads: UploadInitService, private readonly confirmation: UploadConfirmService,
-    private readonly listing: FileListService, private readonly preview: FilePreviewService) {}
+    private readonly listing: FileListService, private readonly preview: FilePreviewService, private readonly multipart?: MultipartService) {}
   @Get(':fileId/preview-url')
   @Header('Cache-Control', 'no-store')
   @UseGuards(SessionGuard, FilePreviewGuard)
@@ -33,7 +35,13 @@ export class FilesController {
   @Header('Cache-Control', 'no-store')
   @UseGuards(OriginGuard, SessionGuard, UploadConfirmGuard)
   async confirm(@Req() request: AuthenticatedRequest & { requestId?: string }, @Param('fileId', FileIdPipe) id: string, @Res() response: Response) {
-    response.status(200).json(await this.confirmation.confirm(request.user.id, id, request.requestId));
+    if (this.multipart) {
+      try {
+        const handled = await this.multipart.confirmFile(request.user.id, id, request.requestId);
+        if (handled) { if (handled.status === 202) response.setHeader('Retry-After', '2'); return response.status(handled.status).json(handled.body); }
+      } catch (error) { if (error instanceof ApiError && error.code === 'RATE_LIMITED') response.setHeader('Retry-After', '60'); throw error; }
+    }
+    return response.status(200).json(await this.confirmation.confirm(request.user.id, id, request.requestId));
   }
 
   @Post('uploads/init')

@@ -28,4 +28,5 @@ export interface AppConfig {
   maxUploadBytes: number;
   presignedUrlTtlSeconds: number;
   thumbnailPreviewTtlSeconds: number;
+  multipart: { partSizeBytes: number; urlTtlSeconds: number; sessionTtlSeconds: number; maxFiles: number };
 }

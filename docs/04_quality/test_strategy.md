@@ -290,3 +290,10 @@ Az új/érintett Jest-esetek a legacy init/confirm/cleanup multipartot kizáró 
 ### Multipart storage adapter unitok – 2026-11-02
 
 A `storage-multipart.spec.ts` a meglévő Jest eszközzel vizsgálja az öt belső műveletet: key/UUID/uploadId, képtípus és méret/geometria; pontos Content-Length, rövid/lejárt URL és a valódi lokális SDK-presigner aláírt headerei; teljes/hiányos/rendezett/duplikált/paginált részlista, hibás marker és identity, közös deadline. Complete-nál teljes másolt manifest és create-only feltétel, nem hashként kezelt ETag, SDK200-body-fault és rossz válasz, ismételt complete/abort és nem-idempotens explicit create. Pre-abort, dispatch utáni abort, nem kooperatív transport timeout és késői siker eldobása; nincs hidden mutation retry vagy pozitív write-closure. A mock és a lokális signature nem valódi MinIO/DB/browser/CORS bizonyíték; külön provider-ellenőrzés marad szükséges.
+
+
+### Multipart service és HTTP unitok – 2026-11-02
+
+A meglévő Jest keretben három suite vizsgálja az init/clientFileId dedupét, ownershipöt minden műveletnél, cap/kvótát, tranzakciós részhibákat, elveszett commit-választ, lease/fence versenyeket, grantkiadási sorrendet, backend manifest/complete-ot, bounded retry/recoveryt, teljes hash/signature validálást és egyszeri job/accountingot. A service-fixture soros lockkal/rollbackkel modellezi a tranzakciót, nem SQL-proof. A HTTP tesztek guard/decorator/controller/pipe unitok, nem socketes Nest-próbák. Az adapter-tesztek mockolt SDK-n vizsgálják a discovery paginationt és feltételes stream méret/hash/timeout határait.
+
+A meglévő eldobható sémaellenőrző `--multipart-service` kapcsolója külön tényleges PostgreSQL-en a buildelt service-eket és valódi ProcessingStateService-t is meghívja szintetikus storage-porttal. Ezzel külön ellenőrizhető a Prisma/SQL graph/manifest trigger-együttműködés, a párhuzamos init/complete/confirm, egyetlen counters/audit/job, a cancel HELD és az unknown complete új service-példány általi adoptálása. Sem ez, sem az új unitok nem jelentik a tényleges MinIO/HTTP/böngésző/restart/cleanup/UAT kapu lezárását.

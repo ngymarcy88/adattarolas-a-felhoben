@@ -1,6 +1,16 @@
 import { HttpException } from '@nestjs/common';
 
 const apiErrors = {
+  IMPORT_NOT_FOUND: { status: 404, message: 'Az import nem található.' },
+  TRANSFER_NOT_FOUND: { status: 404, message: 'A feltöltési művelet nem található.' },
+  IMPORT_FILE_LIMIT: { status: 409, message: 'Az import elérte a fájlkorlátot.' },
+  ACTIVE_IMPORT_LIMIT: { status: 409, message: 'Túl sok nyitott import van.' },
+  PART_ALREADY_UPLOADED: { status: 409, message: 'Ez a rész már megérkezett.' },
+  TRANSFER_SOURCE_MISMATCH: { status: 409, message: 'A kiválasztott fájl eltér az eredetitől.' },
+  TRANSFER_STATE_CONFLICT: { status: 409, message: 'A feltöltés ebben az állapotban nem folytatható.' },
+  UPLOAD_PARTS_INCOMPLETE: { status: 409, message: 'Még nem érkezett meg minden fájlrész.' },
+  TRANSFER_PARTS_INVALID: { status: 409, message: 'A feltöltött részek mérete vagy azonossága hibás.' },
+  UPLOAD_CANCELLED: { status: 410, message: 'A feltöltési műveletet megszakították.' },
   PROCESSING_UNAVAILABLE: { status: 503, message: 'A képfeldolgozás átmenetileg nem érhető el.' },
   THUMBNAIL_NOT_READY: { status: 409, message: 'A kiskép még nem érhető el.' },
   PROCESSING_RETRY_NOT_ALLOWED: { status: 409, message: 'A feldolgozás ebben az állapotban nem próbálható újra.' },
