@@ -221,3 +221,23 @@ A worker először a lejárt candidate helyreállítását próbálja: teljes bo
 A megerősített képekhez tartósan ütemezett thumbnail keletkezhet; régi job nélküli képek backfillje nincs. A galériakártya kész thumbnailt mutat, a nagy előnézet eredetit. Várakozó/futó/hibás állapot, külön kézi processor-retry és kép-retry, összevont20 ID/10s státuszlekérdezés és közös négyes memory-only URL-sor implementált; rejtett lap/oldalelhagyás megszakítja a státuszlekérést. Proof nélküli cleanup továbbra nem töröl és nem szabadít pozitív foglalást. A valódi restart ellenőrzőlistája a [tesztriportban](docs/04_quality/test_report.md) nyitott; a unitok nem helyettesítik ezt. A worker csak rögzített safe event/code üzenetet naplóz, kulcsot, képet vagy nyers hibát nem.
 
 A thumbnail URL alapérvényessége `THUMBNAIL_PREVIEW_TTL_SECONDS=60` (30..300s), ténylegesen legfeljebb a közös presigned TTL. A három jogosított processing API szerződése az [API-dokumentációban](docs/03_design/api.md#első-thumbnail-processor-api--implementált-2026-10-31) található.
+
+## Elkülönített multipart PoC (opt-in)
+
+Ez külön Vue/Uppy mérőoldal és saját ideiglenes MinIO-példány, nem az alkalmazás feltöltőútja. Döntés és korlátok: [ADR-017](docs/02_architecture/adr/ADR-017-direct-multipart-poc.md); tényleges eredmények: [tesztriport](docs/04_quality/test_report.md#multipart-poc--2026-11-01). Nem olvas `.env`-et, nem kapcsolódik az alkalmazás adatbázisához vagy bucketjéhez. Root `npm ci` után a PoC dev-függőségei is rendelkezésre állnak; nincs külön lockfile vagy workspace-install.
+
+Szükséges egy WSL-en futtatható MinIO-bináris. A futtatott próba a `infra/minio/Dockerfile` rögzített forráscommitját használta. Elkülönített forrásbuild, megfelelő Go toolchainnel (a forrás go.mod-ja legalább Go1.24-et/toolchain1.24.8-at kér; ez kizárólag a PoC natív buildjének előfeltétele):
+
+```bash
+# Üres, erre a célra választott ideiglenes könyvtárban, nem a projektben:
+git init /tmp/cloudvault-minio-poc-src
+git -C /tmp/cloudvault-minio-poc-src remote add origin https://github.com/minio/minio.git
+git -C /tmp/cloudvault-minio-poc-src fetch --depth=1 origin 9e49d5e7a648f00e26f2246f4dc28e6b07f8c84a
+git -C /tmp/cloudvault-minio-poc-src checkout --detach FETCH_HEAD
+(cd /tmp/cloudvault-minio-poc-src && go build -trimpath -o /tmp/cloudvault-minio-poc .)
+
+# Ismét a projekt gyökeréből:
+npm run poc:multipart -- --minio-binary=/tmp/cloudvault-minio-poc --report=/tmp/cloudvault-multipart-result.json
+```
+
+A READY üzenet után nyisd meg a `http://127.0.0.1:5180/?auto=1` címet. Az 5180/19000/19001 port legyen szabad. A két szintetikus képet a program készíti el; ne adj meg saját fájlt vagy valódi credentialt. Előbb tényleges Node HTTP-részfeltöltést szakít meg, majd a Vue-oldal új Uppy-példánya standard S3 ListParts alapján folytatja. Az eredmény tartalmazza a PUT-részszámokat, payload-bájtszámokat és teljesfájl-hasheket, hozzáférési URL-ek nélkül. Sikeres végén automatikus takarítás/leállás; Ctrl+C vagy 10 perc timeout FAIL eredménnyel zár. Hiba esetén a riportot és az elkülönített adatkönyvtárat vizsgáld; a kísérlet nem bizonyít alkalmazáskvóta-felszabadítást. A futás nem része az `npm test`/CI-nak.

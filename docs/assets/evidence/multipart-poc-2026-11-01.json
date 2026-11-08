@@ -1,0 +1,123 @@
+{
+  "date": "2026-11-01T21:13:39.540Z",
+  "baseCommit": "0f9de9add46e148e5ebd06da997c90ad104c7d0a",
+  "environment": {
+    "node": "v22.23.2",
+    "minio": "minio version DEVELOPMENT.GOGET (commit-id=DEVELOPMENT.GOGET)\nRuntime: go1.27.3 linux/amd64\nLicense: GNU AGPLv3 - https://www.gnu.org/licenses/agpl-3.0.html\nCopyright: 2015-0000 MinIO, Inc.",
+    "minioBinarySha256": "eb53a4187d90cdd1e0f5b931d3b0d8d56cd3880f7d597e77702d09aea989812b",
+    "platform": "WSL Linux; isolated native MinIO, no Docker/application DB",
+    "uppyCore": "6.3.0",
+    "uppyAwsS3": "6.3.0",
+    "partSizeBytes": 5242880,
+    "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36"
+  },
+  "measurement": "Application payload bytes: interrupted Node HTTP request.write callbacks plus successful browser PUT Blob sizes. Not TCP traffic or MinIO partial-byte telemetry.",
+  "cases": [
+    {
+      "name": "small",
+      "width": 256,
+      "height": 256,
+      "sizeBytes": 207964,
+      "sha256": "92bbd987d81d47802ea98b476fa98c79e9911653982aa3bc9f1685691024c2a5",
+      "mimeType": "image/png",
+      "interruptedPart": 1,
+      "completedPartsBeforeResume": [],
+      "incompletePartAbsent": true,
+      "objectAbsentBeforeComplete": true,
+      "retainedETagUnchanged": null,
+      "initialCompletedPayloadBytes": 0,
+      "interruptedPayloadBytes": 65536,
+      "browserResumedPayloadBytes": 207964,
+      "totalPayloadBytes": 273500,
+      "redundantPayloadBytes": 65536,
+      "browserAttempts": [
+        {
+          "method": "GET",
+          "partNumber": null,
+          "sizeBytes": 0,
+          "status": 200
+        },
+        {
+          "method": "PUT",
+          "partNumber": 1,
+          "sizeBytes": 207964,
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "partNumber": null,
+          "sizeBytes": 0,
+          "status": 200
+        }
+      ],
+      "finalHashMatches": true,
+      "completedPartsNotResent": true
+    },
+    {
+      "name": "large",
+      "width": 2200,
+      "height": 2200,
+      "sizeBytes": 15338309,
+      "sha256": "f746fc9525b6b4b5def0ee1deffbbfb47bca2961bc9cabc47e28c4bab5496517",
+      "mimeType": "image/png",
+      "interruptedPart": 2,
+      "completedPartsBeforeResume": [
+        {
+          "partNumber": 1,
+          "sizeBytes": 5242880
+        }
+      ],
+      "incompletePartAbsent": true,
+      "objectAbsentBeforeComplete": true,
+      "retainedETagUnchanged": true,
+      "initialCompletedPayloadBytes": 5242880,
+      "interruptedPayloadBytes": 1048576,
+      "browserResumedPayloadBytes": 10095429,
+      "totalPayloadBytes": 16386885,
+      "redundantPayloadBytes": 1048576,
+      "browserAttempts": [
+        {
+          "method": "GET",
+          "partNumber": null,
+          "sizeBytes": 0,
+          "status": 200
+        },
+        {
+          "method": "PUT",
+          "partNumber": 2,
+          "sizeBytes": 5242880,
+          "status": 200
+        },
+        {
+          "method": "PUT",
+          "partNumber": 3,
+          "sizeBytes": 4852549,
+          "status": 200
+        },
+        {
+          "method": "POST",
+          "partNumber": null,
+          "sizeBytes": 0,
+          "status": 200
+        }
+      ],
+      "finalHashMatches": true,
+      "completedPartsNotResent": true
+    }
+  ],
+  "open": [
+    "Small-file intra-part resume",
+    "Production auth/quota/expiry/cleanup integration",
+    "Backend/MinIO restart and actual page-refresh recovery",
+    "10/50-image comparative measurements"
+  ],
+  "sourceSha256": {
+    "server.mjs": "5c621c7be9b43a7b6fe393643f3edbfbf4037b561cf27b0e5301df25203ac26b",
+    "storage.mjs": "aac2783d54aee5e40e99839ef66059a4dce3e57d97fd51faff502771517249e4",
+    "client.mjs": "0fbebd2738ad2926cb4ff22aef2528739c388906117aa071f78028a93e6bf576",
+    "index.html": "ba5c94d5eba761c1bddf3e6a2bc34964cc4ff6207613f590fa2bfcf025b3f5f4"
+  },
+  "dependencyLockSha256": "0aaecbdc44ea85bbc01cfe6daa207cbd548b7f05436e7f28c696fcc619a274b2",
+  "cleanup": "PASS: synthetic multipart sessions, objects and dedicated bucket removed",
+  "status": "PASS"
+}

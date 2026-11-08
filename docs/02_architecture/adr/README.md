@@ -18,12 +18,13 @@ Az ADR-ek elfogadott **tervezési döntéseket** rögzítenek. Elfogadott státu
 - [ADR-010: Short-lived JWT HttpOnly cookie authentication](ADR-010-jwt-http-only-cookie-auth.md)
 - [ADR-011: Idempotent upload confirmation and quota reservation](ADR-011-idempotent-upload-confirm-reservation.md)
 - [ADR-012: Optional human-in-the-loop AI metadata suggestions](ADR-012-optional-ai-metadata-suggestions.md)
+- [ADR-017: Direct S3 multipart transfer PoC](ADR-017-direct-multipart-poc.md) – Uppy S3 jelölt, 5 MiB-os részek, elkülönített próba; kis képek fájlon belüli resume-ja nyitott.
 
 ## Kanonikus döntési határok
 
 - Core MVP: ADR-001–ADR-011 releváns döntései.
 - MVP+: ADR-012, külön implementációs go/no-go kapuval.
-- Later: ADR-009 nagyvideós multipart bővítés és ADR-006 automatizált purge része. A kötelező folytatható képimport mechanizmusa külön PoC/ADR, nem automatikusan Later.
+- Later: ADR-009 nagyvideós multipart bővítés és ADR-006 automatizált purge része. A kötelező folytatható képimport nem automatikusan Later; ADR-017 a közvetlen multipart PoC-ját rögzíti, a teljes termékintegráció és kis képek resume-ja nyitott.
 
 ## Kötelező ADR-forma
 

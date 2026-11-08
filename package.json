@@ -26,6 +26,11 @@
     "test": "npm run test:container && npm run test --workspaces",
     "test:container": "node --test scripts/container-environment.test.mjs",
     "storage:verify": "npm run build --workspace backend && node scripts/verify-storage.mjs",
-    "uploads:cleanup": "npm run db:generate && npm run build --workspace backend && npm run cleanup:uploads --workspace backend"
+    "uploads:cleanup": "npm run db:generate && npm run build --workspace backend && npm run cleanup:uploads --workspace backend",
+    "poc:multipart": "node tools/multipart-poc/server.mjs"
+  },
+  "devDependencies": {
+    "@uppy/aws-s3": "6.3.0",
+    "@uppy/core": "6.3.0"
   }
 }

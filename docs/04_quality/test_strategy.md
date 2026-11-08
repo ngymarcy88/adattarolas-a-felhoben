@@ -269,3 +269,14 @@ Strict processing kliens (batch/order/version/public fields, safe error/timeout/
 ### Thumbnail watcher-regresszió – 2026-10-31
 
 Az SSR template nem futtatja az onMounted/láthatóság/watch ütemezést, ezért önmagában nem védi a thumbnail betöltését. A már telepített Vue compiler/TypeScript és Vue host renderer a tényleges kliens SFC-kódot fordítja/futtatja izolált unitban, új framework nélkül. Külön eset a visibility és SUCCEEDED ugyanabban a batchben: az invalidálásnak meg kell előznie az új URL-kérést; a cache READY marad, image-error után csak kézi retry, új result-azonosság egyszer invalidál. A komponens és a teljes parent lifecycle is fut; a tényleges Chrome/DB/MinIO bizonyíték külön a tesztriportban szerepel.
+
+### Multipart integráció – tervezett ellenőrzések, 2026-11-01
+
+Ez a dokumentáció nem hoz létre új tesztet/frameworköt és nem jelöl implementációt vagy próbát PASS-nak. A tényleges PoC eredménye a tesztriportban marad; az [API](../03_design/api.md#multipart-képimport--tervezett-szerződés-2026-11-01) / [modell](../03_design/data_model.md#multipart-import-és-transfer--tervezett-2026-11-01) elfogadási feladatai:
+
+- Unit: owner/Origin/404 és hibás mező/hash/cursor/részszám; import/file dedupe-kulcsok és normalizált payload, ugyanazon clientFileId új kulccsal;50/5-ös cap; méret- és kvótahatár, párhuzamos init, részleges kötegsiker és elveszett commit-response.
+- Adapter: pontos részméret/aláírt Content-Length, grantlejárat/maxExpiresAt kiadás előtt, lapozott teljes ListParts és ListMultipartUploads, complete rögzített rendezett manifestből, create-only feltétel, HTTP200-ba ágyazott hiba, timeout/NoSuchUpload, create nem-idempotens retry kizárása. A mock nem bizonyít MinIO-kompatibilitást.
+- Service: commit előtti/utáni create crash, CREATE_UNKNOWN egyeztetés; SEALING/sign verseny, part-csere a listázás után; complete timeout+object már létezik; confirm hash/signature/immutable read és egyszeri reserved→used+audit+thumbnail-job; késői régi fence nem publikálhat.
+- Lifecycle: complete/confirm és cancel/expiry kétféle sorrendje, régi part-PUT/complete abort utáni befejezése, üres ListParts/HEAD404/Abort204 önmagában nem release, unknown I/O/CLEANUP_BLOCKED megtartott foglalás, pozitív bizonyíték utáni egyszeri release. Legacy pending cleanup nem kezel multipartot; régi counters/adatok migráción át megmaradnak.
+- Valódi MinIO/böngésző: Uppy támogatott backend-complete illesztés cookie-auth mellett; megszakadt rész és kész rész, oldalfrissítés+újraválasztott fájl méret/hash, új login/lejárt URL, backend/MinIO restart; DB/storage/kvóta és másik owner kizárása. Két aktív fájl/egy rész és bounded polling tényleges megfigyelése.
+- Mérési kapu: kontrollált10/50 képes baseline/multipart összevetés; kész fájlok és részek újraküldésének hiánya, fölös payload, idő, hash és feldolgozóeredmények. Az5MiB alatti kép teljes retry-ja nyílt korlát; nem számítható teljes resumable elfogadásnak. Külső UAT továbbra külön feladat.
