@@ -12,7 +12,7 @@ Partially superseded by [ADR-017](ADR-017-direct-multipart-poc.md) on 2026-11-01
 
 A júniusi döntés indoklása történeti baseline. A [friss terv](../../plan.md) alapján a folytatható kötegelt képimport kötelező SZD2 követelmény; az alábbi single-PUT-only állítás nem a teljes SZD2 végleges átviteli szerződése. A nagy videók multipart-bővítése továbbra is későbbi scope.
 
-A 2026-10-20-i első [képfeltöltési API-szerződés](../../03_design/api.md#upload--első-képfeltöltési-szelet-tervezett) egyfájlos single-PUT baseline, nem végleges SZD2 átviteli döntés. Init/confirm idempotenciája vagy a teljes fájl újraküldése nem valódi resume.
+A 2026-10-20-i első [képfeltöltési API-szerződés](../../03_design/api.md#upload--első-képfeltöltési-szelet) egyfájlos single-PUT baseline, nem végleges SZD2 átviteli döntés. Init/confirm idempotenciája vagy a teljes fájl újraküldése nem valódi resume.
 
 A teljes resumable képimport mechanizmusa még nincs lezárva. A 2026-11-01-i [ADR-017](ADR-017-direct-multipart-poc.md) PoC-ja a közvetlen S3 multipart úthoz Uppy S3 klienst választott jelöltként, és igazolta a kész részek megtartását. A tus továbbra külön alternatíva a kis képek fájlon belüli folytatására. A PoC nem engedélyezi az éles út cseréjét vagy a teljes SZD2-resume késznek minősítését; a nagyvideós bővítés nem része ennek a feladatnak.
 
@@ -46,3 +46,6 @@ Az MVP egyetlen, legfeljebb 100 MB-os presigned PUT feltoltest hasznal. Multipar
 - A scope dokumentacio es kesobbi API dokumentacio egyertelmuen jeloli a 100 MB-os MVP limitet.
 - Unit tesztek fedik a meretlimit elutasitasat.
 - Multipart upload csak uj, kulon jovahagyott merfoldkoben kerulhet implementalasra.
+
+
+2026-11-03: a felhasználó kifejezetten az Uppy6 megtartását és a szerveres illesztés áttervezését választotta. Az [ADR-018](ADR-018-uppy6-companion-bridge.md) alapján Companion-kompatibilis JSON adapter és same-origin proxy került a meglévő alkalmazásba. Ez a kis képköteg termékútjának multipart beillesztése; nem a nagyvideós scope megnyitása vagy a kis képek intra-file resume-korlátjának lezárása.

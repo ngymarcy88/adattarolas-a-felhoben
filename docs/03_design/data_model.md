@@ -538,7 +538,7 @@ A retryWithOutcome a meglévő zárolt retry-CAS-t használja; a tranzakció adj
 
 ## Multipart import és transfer – tervezett, 2026-11-01
 
-**A célmodell Prisma-sémája és új migrációja implementált (2026-11-01); a backend import-/multipart service és HTTP API 2026-11-02-án implementált, a UI még tervezett.** Az [API multipart szakasza](api.md#multipart-képimport--tervezett-szerződés-2026-11-01) az irányadó publikus szerződés; az alábbi nevek tervezett entitások/mezők, a részletes implementált ORM/SQL-határ az alábbi új szakaszban szerepel. A [PoC](../02_architecture/adr/ADR-017-direct-multipart-poc.md) nem hozott létre termékadatot.
+**A célmodell Prisma-sémája és új migrációja implementált (2026-11-01); a backend import-/multipart service és HTTP API 2026-11-02-án implementált, a UI Uppy6-illesztése2026-11-03-án elkészült az ADR-018 szerint.** Az [API multipart szakasza](api.md#multipart-képimport--tervezett-szerződés-2026-11-01) az irányadó publikus szerződés; az alábbi nevek tervezett entitások/mezők, a részletes implementált ORM/SQL-határ az alábbi új szakaszban szerepel. A [PoC](../02_architecture/adr/ADR-017-direct-multipart-poc.md) nem hozott létre termékadatot.
 
 ### Tartós azonosság és adatok helye
 

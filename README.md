@@ -244,7 +244,7 @@ A READY üzenet után nyisd meg a `http://127.0.0.1:5180/?auto=1` címet. Az 518
 
 ## Multipart adatmodell ellenőrzése (opt-in)
 
-A multipart/import Prisma-séma és migráció elkészült; a működő upload továbbra single-PUT. A backend service/API már implementált, frontend-integráció még nincs. A [modell](docs/03_design/data_model.md#multipart-séma-és-migráció--implementált-2026-11-01) tartós import-, transfer-, rész-/manifest- és I/O-azonosságot ír le. A régi cleanup a multipart sorokat kihagyja; ez nem új multipart-cleanup implementáció.
+A multipart/import Prisma-séma, backend service/API és az Uppy6 frontend-illesztés elkészült; a régi single-PUT API kompatibilitási út marad. A [modell](docs/03_design/data_model.md#multipart-séma-és-migráció--implementált-2026-11-01) tartós import-, transfer-, rész-/manifest- és I/O-azonosságot ír le. A régi cleanup a multipart sorokat kihagyja; ez nem új multipart-cleanup implementáció.
 
 A meglévő sémapróba `--multipart` módban külön, automatikusan eltávolított PostgreSQL17.9 konténert használ; nem az alkalmazás adatbázisát. A Docker Server legyen elérhető, és a `postgres:17.9-bookworm` image legyen helyben (ha hiányzik: `docker pull postgres:17.9-bookworm`). Rootból, aktuális generált/built backenddel:
 
@@ -260,12 +260,12 @@ Upgrade/fresh-schema és SQL/ORM ellenőrzés, nem alkalmazás-e2e, tényleges m
 
 ## Multipart storage adapter (belső port)
 
-A storage adapter öt multipart művelete implementált: indítás, pontos méretű rövid rész-URL, teljes lapozott részlista, create-only véglegesítés és abort. Az új multipart import/transfer HTTP-végpontok a MultipartService-en keresztül hívják ezeket; a meglévő böngészős feltöltő még single-PUT. A [belső szerződés](docs/03_design/api.md#implementált-belső-multipart-storage-port--2026-11-02) és a [hibák](docs/03_design/error_handling.md#multipart-adapter-belső-hibák--implementált-2026-11-02) külön rögzítik a nem-idempotens create-ot és a bizonytalan kimenetelt. Az ETag nem teljesfájl-hash; abort/NoSuchUpload nem kvótafelszabadítás. A `storage:verify` régi single-PUT próbája ezeket még nem fedi; a multipart unitok nem MinIO-integrációs bizonyítékok.
+A storage adapter öt multipart művelete implementált: indítás, pontos méretű rövid rész-URL, teljes lapozott részlista, create-only véglegesítés és abort. Az új multipart import/transfer HTTP-végpontok a MultipartService-en keresztül hívják ezeket; a böngészős Uppy6-illesztést az alábbi dátumozott szakasz írja le. A [belső szerződés](docs/03_design/api.md#implementált-belső-multipart-storage-port--2026-11-02) és a [hibák](docs/03_design/error_handling.md#multipart-adapter-belső-hibák--implementált-2026-11-02) külön rögzítik a nem-idempotens create-ot és a bizonytalan kimenetelt. Az ETag nem teljesfájl-hash; abort/NoSuchUpload nem kvótafelszabadítás. A `storage:verify` régi single-PUT próbája ezeket még nem fedi; a multipart unitok nem MinIO-integrációs bizonyítékok.
 
 
 ## Multipart backend API (2026-11-02)
 
-A [multipart szerződés](docs/03_design/api.md#multipart-service-végrehajtási-határ--implementált-2026-11-02) import/transfer végpontjai implementáltak, cookie/session és mutációknál Origin ellenőrzéssel. A frontend még nem használja őket; nincs automatikus multipart-cleanup vagy kvótafelszabadítás. A recovery kérésvezérelt. Beállítások a `.env.example` négy `MULTIPART_*` változójában; minden új import a létrehozáskor rögzített határidővel dolgozik. Az alkalmazás MinIO policyja bucket szintű multipart discoveryt és csak originals prefixre part-list/abort jogot kap; a módosított init alkalmazásához a következő Compose build/start során a minio-initet is újra kell futtatni, volume-törlés nélkül.
+A [multipart szerződés](docs/03_design/api.md#multipart-service-végrehajtási-határ--implementált-2026-11-02) import/transfer végpontjai implementáltak, cookie/session és mutációknál Origin ellenőrzéssel. A frontend JSON import/transfer API-t és az Uppy6 compatibility adaptert használja; nincs automatikus multipart-cleanup vagy kvótafelszabadítás. A recovery kérésvezérelt. Beállítások a `.env.example` négy `MULTIPART_*` változójában; minden új import a létrehozáskor rögzített határidővel dolgozik. Az alkalmazás MinIO policyja bucket szintű multipart discoveryt és csak originals prefixre part-list/abort jogot kap; a módosított init alkalmazásához a következő Compose build/start során a minio-initet is újra kell futtatni, volume-törlés nélkül.
 
 Opt-in DB-komponenspróba, már buildelt backenddel és elérhető Docker Serverrel:
 
@@ -274,3 +274,12 @@ node scripts/verify-processing-schema.mjs --multipart-service
 ```
 
 Ugyanaz a külön PostgreSQL17.9 konténeres upgrade/fresh/schema ellenőrző, majd valódi service/Prisma/job/accounting próba szintetikus storage-porttal; az alkalmazás DB-jét és bucketjét nem használja. Windows Docker fallbackhez a fent dokumentált `CLOUDVAULT_DOCKER_CLI` használható. Nem valós multipart feltöltés vagy restart-elfogadás.
+
+
+## Folytatható képköteg a felületen (Uppy6)
+
+A termék feltöltőpanelje Uppy6.3.0-val, a meglévő NestJS service Companion-kompatibilis adapterével dolgozik ([döntés](docs/02_architecture/adr/ADR-018-uppy6-companion-bridge.md)). Azonos frontend originről induló `/api` kérésekhez a Vite proxy a `BACKEND_PUBLIC_URL` felé (alap127.0.0.1:3000), a Compose nginx a belső backend:3000 felé továbbít. Ez szükséges a Companion cookie-authjához; a bináris részek továbbra közvetlen MinIO PUT-ok. A canonical FRONTEND_PUBLIC_URL címen nyisd meg az alkalmazást. A konfigurált eredeti JSON API base érvényben marad.
+
+Kiválasztás → indítás; legfeljebb két kép párhuzamosan. Szüneteltetés megőrzi a kész részeket; folytatás kézi. Újratöltés/login után Importok frissítése → import megnyitása → szükség esetén eredeti fájl kiválasztása → Folytatás/állapotellenőrzés. Méret és teljes tartalomhash alapján ellenőrzi ugyanazt a fájlt. A már kész eredetit/részeket a friss szerverállapot szerint kihagyja; a félbemaradt rész újraküldődik.5MiB alatti kép egyetlen része teljesen újraküldhető. A külön Végleges megszakítás terminális, a foglalás bizonyított takarításig megmaradhat. Nincs automatikus multipart cleanup.
+
+A futó állapot és a helyi File objektum nem böngészőtárolóban él; újranyitáskor helyi újraválasztás szükséges lehet. A galéria kizárólag ACTIVE confirm után frissül. A valós böngészős/proxy/MinIO próbák tényleges állapota a meglévő tesztriportban szerepel; a unitból nem következik runtime elfogadás. A történeti korábbi szakaszok single-PUT-only állapotát ez a dátumozott beillesztés váltja fel.
