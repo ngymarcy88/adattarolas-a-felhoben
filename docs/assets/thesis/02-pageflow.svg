@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 370" role="img" aria-label="02-pageflow">
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#475569"/></marker></defs>
+<rect width="960" height="370" rx="14" fill="#f8fafc"/>
+<g font-family="Arial, sans-serif" fill="#0f172a">
+<polyline points="170,59 225,59" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+<polyline points="385,59 445,59" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+<polyline points="605,59 705,59" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+<polyline points="815,88 815,113 680,113 680,142" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+<polyline points="854,88 854,142" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+<polyline points="854,204 854,257" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+<polyline points="705,79 650,79 650,107 525,107 525,88" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+<polyline points="733,30 733,16 139,16 139,142" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+<polyline points="605,173 534,173" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+<polyline points="685,204 685,257" fill="none" stroke="#475569" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#a)"/>
+<rect x="25" y="30" width="145" height="58" rx="10" fill="#e0efff" stroke="#2563a0" />
+<text x="97.5" y="65.0" text-anchor="middle" font-size="17">/ · Kezdőlap</text>
+<rect x="225" y="30" width="160" height="58" rx="10" fill="#e0efff" stroke="#2563a0" />
+<text x="305.0" y="65.0" text-anchor="middle" font-size="17">/register</text>
+<rect x="445" y="30" width="160" height="58" rx="10" fill="#e0efff" stroke="#2563a0" />
+<text x="525.0" y="65.0" text-anchor="middle" font-size="17">/login</text>
+<rect x="705" y="30" width="220" height="58" rx="10" fill="#e0efff" stroke="#2563a0" />
+<text x="815.0" y="65.0" text-anchor="middle" font-size="17">/app · Védett felület</text>
+<rect x="605" y="142" width="150" height="62" rx="10" fill="#e0efff" stroke="#2563a0" />
+<text x="680.0" y="179.0" text-anchor="middle" font-size="17">Feltöltőpanel</text>
+<rect x="783" y="142" width="142" height="62" rx="10" fill="#e0efff" stroke="#2563a0" />
+<text x="854.0" y="179.0" text-anchor="middle" font-size="17">Galéria</text>
+<rect x="783" y="257" width="142" height="58" rx="10" fill="#e0efff" stroke="#2563a0" />
+<text x="854.0" y="292.0" text-anchor="middle" font-size="17">Nagy előnézet</text>
+<rect x="25" y="142" width="230" height="62" rx="10" fill="#e0efff" stroke="#2563a0" />
+<text x="140.0" y="168.0" text-anchor="middle" font-size="17">/auth-unavailable</text>
+<text x="140.0" y="190.0" text-anchor="middle" font-size="17">Újrapróbálás</text>
+<rect x="289" y="142" width="245" height="62" rx="10" fill="#e0efff" stroke="#2563a0" />
+<text x="411.5" y="168.0" text-anchor="middle" font-size="17">429 / 503 a panelen</text>
+<text x="411.5" y="190.0" text-anchor="middle" font-size="17">Hiba és kézi retry</text>
+<rect x="605" y="257" width="150" height="58" rx="10" fill="#fff7ed" stroke="#b45309" stroke-dasharray="6 5" />
+<text x="680.0" y="292.0" text-anchor="middle" font-size="17">Kuka / Megosztás</text>
+<text x="625" y="49" font-size="15">Belépés</text>
+<text x="556" y="102" font-size="15">401</text>
+<text x="29" y="115" font-size="15">Auth API /me hiba</text>
+<text x="28" y="348" font-size="15">Escape visszazárja az előnézetet. A szaggatott nézetek tervezettek.</text>
+</g></svg>
