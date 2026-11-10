@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 490" role="img" aria-label="04-states">
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#475569"/></marker></defs>
+<rect width="960" height="490" rx="14" fill="#f8fafc"/>
+<g font-family="Arial, sans-serif" fill="#0f172a">
+<polyline points="217,73 270,73" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+<polyline points="415,65 497,65" fill="none" stroke="#475569" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#a)"/>
+<polyline points="497,88 415,88" fill="none" stroke="#475569" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#a)"/>
+<polyline points="184,185 259,180" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+<polyline points="184,208 211,208 211,238 722,238 722,205" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+<polyline points="179,329 240,329" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+<polyline points="395,316 437,316 437,299 473,299" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+<polyline points="395,335 433,335 433,370 473,370" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+<polyline points="395,322 692,322 692,370 704,370" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+<polyline points="395,346 416,346 416,441 704,441" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+<polyline points="755,466 755,474 100,474 100,354" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+<polyline points="535,395 535,415 318,415 318,354" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+<rect x="24" y="48" width="193" height="50" rx="10" fill="#e0efff" stroke="#2563a0" />
+<text x="120.5" y="79.0" text-anchor="middle" font-size="17">PENDING_UPLOAD</text>
+<rect x="270" y="48" width="145" height="50" rx="10" fill="#e0efff" stroke="#2563a0" />
+<text x="342.5" y="79.0" text-anchor="middle" font-size="17">ACTIVE</text>
+<rect x="497" y="48" width="187" height="50" rx="10" fill="#fff7ed" stroke="#b45309" stroke-dasharray="6 5" />
+<text x="590.5" y="79.0" text-anchor="middle" font-size="17">SOFT_DELETED</text>
+<rect x="24" y="170" width="160" height="50" rx="10" fill="#e0efff" stroke="#2563a0" />
+<text x="104.0" y="201.0" text-anchor="middle" font-size="17">OPEN</text>
+<rect x="259" y="155" width="208" height="50" rx="10" fill="#e0efff" stroke="#2563a0" />
+<text x="363.0" y="186.0" text-anchor="middle" font-size="17">FINALIZED</text>
+<rect x="519" y="155" width="409" height="50" rx="10" fill="#e0efff" stroke="#2563a0" />
+<text x="723.5" y="186.0" text-anchor="middle" font-size="17">REJECTED / EXPIRED / CANCELLED</text>
+<rect x="24" y="304" width="155" height="50" rx="10" fill="#e0efff" stroke="#2563a0" />
+<text x="101.5" y="335.0" text-anchor="middle" font-size="17">QUEUED</text>
+<rect x="240" y="304" width="155" height="50" rx="10" fill="#e0efff" stroke="#2563a0" />
+<text x="317.5" y="335.0" text-anchor="middle" font-size="17">RUNNING</text>
+<rect x="473" y="274" width="201" height="50" rx="10" fill="#e0efff" stroke="#2563a0" />
+<text x="573.5" y="305.0" text-anchor="middle" font-size="17">SUCCEEDED</text>
+<rect x="704" y="345" width="224" height="50" rx="10" fill="#e0efff" stroke="#2563a0" />
+<text x="816.0" y="376.0" text-anchor="middle" font-size="17">FAILED / CANCELLED</text>
+<rect x="473" y="345" width="201" height="50" rx="10" fill="#e0efff" stroke="#2563a0" />
+<text x="573.5" y="376" text-anchor="middle" font-size="17">RETRY_WAIT</text>
+<rect x="704" y="416" width="224" height="50" rx="10" fill="#e0efff" stroke="#2563a0"/>
+<text x="816" y="447" text-anchor="middle" font-size="17">BLOCKED_QUOTA</text>
+<text x="25" y="32" font-size="15">FileObject</text>
+<text x="25" y="145" font-size="15">UploadOperation</text>
+<text x="25" y="280" font-size="15">ProcessingJob</text>
+<text x="26" y="383" font-size="15">Időzített retry → RUNNING</text>
+<text x="160" y="464" font-size="15">Kézi retry a kvóta rendezése után</text>
+</g></svg>
