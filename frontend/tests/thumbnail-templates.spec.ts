@@ -27,6 +27,14 @@ describe('Thumbnail processing card templates', () => {
     expect(html).toContain('Állapot újrapróbálása'); expect(html).toContain('Processor retry hiba.'); expect(html).toContain('30 mp'); expect(html).toContain('Az eredeti kép');
     expect(html).not.toContain('>Kiskép újrapróbálása');
   });
+  it('explains an input limit without offering a futile processing retry', async () => {
+    const x = fixture('FAILED');
+    x.processing.state.entries[file.id].status = row(1, 'FAILED', { errorCode: 'PROCESSOR_INPUT_LIMIT', retryable: false });
+    const html = await renderToString(createSSRApp(GalleryCard, { file, ...x, now: Date.now() }));
+    expect(html).toContain('A kép túllépi a kisképkészítés méretkorlátját');
+    expect(html).toContain('Az eredeti kép a fenti gombbal megnyitható.');
+    expect(html).not.toContain('Feldolgozás újrapróbálása');
+  });
   it('renders thumbnail on card and original in dialog using distinct memory managers', async () => {
     const x = fixture('SUCCEEDED'); const original = createPreviews({ get: vi.fn() }); original.retain([file.id]);
     const image = (url: string) => ({ phase: 'ready' as const, url, expiresAt: Date.now() + 10000, version: 1, error: '', retryable: false, retryAt: 0 });

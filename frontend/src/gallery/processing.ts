@@ -6,6 +6,7 @@ export interface ProcessingEntry {
   pendingRevision: number | null; generation: number; due: number;
 }
 const transient = (state: string) => ['QUEUED', 'RUNNING', 'RETRY_WAIT'].includes(state);
+const STATUS_POLL_INTERVAL_MS = 5000;
 export function createProcessing(client: ProcessingClient, onUnauthorized: () => void = () => {}) {
   const state = reactive({ entries: Object.create(null) as Record<string, ProcessingEntry>, retryAt: 0, retryingId: null as string | null });
   let allowed = new Set<string>(); const visible = new Set<string>();
@@ -31,7 +32,7 @@ export function createProcessing(client: ProcessingClient, onUnauthorized: () =>
       .sort((a, b) => entry(a).due - entry(b).due).slice(0, 20);
     if (!ids.length) { schedule(); return; }
     const task: Read = { controller: new AbortController(), entries: ids.map(id => ({ id, entry: entry(id), generation: entry(id).generation })) };
-    reading = task; nextReadAt = Date.now() + 10000;
+    reading = task; nextReadAt = Date.now() + STATUS_POLL_INTERVAL_MS;
     for (const item of task.entries) item.entry.loading = true;
     const current = (item: Read['entries'][number]) => usable(item.id) && !task.controller.signal.aborted && state.entries[item.id] === item.entry && item.entry.generation === item.generation;
     try {
@@ -39,7 +40,7 @@ export function createProcessing(client: ProcessingClient, onUnauthorized: () =>
       for (let i = 0; i < task.entries.length; i++) {
         const item = task.entries[i]; if (!current(item)) continue;
         item.entry.status = statuses[i]; item.entry.error = '';
-        item.entry.due = transient(statuses[i].state) ? Date.now() + 10000 : Infinity;
+        item.entry.due = transient(statuses[i].state) ? Date.now() + STATUS_POLL_INTERVAL_MS : Infinity;
       }
     } catch (cause) {
       if (task.controller.signal.aborted || disposed || !active) return;

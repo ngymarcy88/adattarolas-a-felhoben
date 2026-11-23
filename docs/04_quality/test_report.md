@@ -1019,3 +1019,20 @@ Nyitott az oldalfrissítés, az új belépés, a backend és MinIO újraindítá
 **Böngészős újrateszt – PASS:** szintetikus tesztfiókkal elindítottuk a 17 részes, 87 492 143 bájtos PNG feltöltését. A második rész kérését a böngészőben visszatartottuk, majd a panelen szüneteltettük a feltöltést. Az azonos méretű, eltérő tartalmú PNG-re a szerver 409-et adott Retry-After nélkül, a panel jelezte a tartalmi eltérést. Az eredeti fájl kiválasztásakor a gomb azonnal engedélyezett volt. A folytatás ugyanarra az átvitelre 200-as választ kapott, és a panel sikeres feltöltést jelzett.
 
 **Frontend ellenőrzések – PASS:** 458 Vitest eset, típusellenőrzést is tartalmazó build, Compose frontend build és health. Az automatizált esetek lefedik a tényleges Retry-After késleltetést, a fejléc nélküli 429-es alapvárakozást és a függőben lévő 202-es megerősítést. A böngészős próba a fájlújraválasztásra vonatkozott.
+
+## Kiskép megjelenési ideje és a bemeneti korlát – 2026-11-23
+
+**Környezet:** helyi Docker Compose, Chromium, PostgreSQL 17.9 és MinIO. A kiinduló frontend az 1-es javítás ága (`2afcaa7`), az új a `fix/thumbnail-feedback` frontend. A bemenet a két szintetikus PNG, egyenként feltöltve. A soridő a PostgreSQL-ben a job és az első attempt létrejötte közti idő, a feldolgozási idő az attempt létrejöttétől a job befejezéséig tart. A böngészős mérés a confirm HTTP 200 válaszától a kiskép dekódolásáig, nagy képnél a korlátjelzés megjelenéséig tartott.
+
+| Bemenet és frontend | Soridő | Feldolgozás | Böngésző |
+|---|---:|---:|---:|
+| 13,9 MiB, 10 másodperces lekérdezés | 1 178 ms | 409 ms | 10 405 ms, kiskép megjelenik |
+| 13,9 MiB, 5 másodperces lekérdezés | 793 ms | 396 ms | 5 775 ms, kiskép megjelenik |
+| 83,4 MiB, 10 másodperces lekérdezés | 717 ms | 24 ms | 5 759 ms, általános hiba |
+| 83,4 MiB, 5 másodperces lekérdezés | 230 ms | 16 ms | 870 ms, méretkorlátot jelző szöveg |
+
+A nagy fájlnál a DB mindkét futásban végleges `PROCESSOR_INPUT_LIMIT` kódot adott. Az eredeti mindkét böngészős próbában megnyitható volt. A 32 MiB-os bemeneti határ a dekódolás előtt érvényesül. A kisebb kép feldolgozása mindkét alkalommal 0,5 másodpercen belül véget ért, a böngésző főleg a következő státuszlekérdezésre várt. A táblázat egy-egy érvényes mintát mutat. A megjelenési idő a worker és a kliens lekérdezési ciklusától függ. A kiinduló próbán egy ismétlés a korábbi azonos nevű kártyát mérte, ezt kizártuk.
+
+A státuszlekérdezés egyszerre legfeljebb 20 látható kártyát kérdez le, egy aktív kéréssel és legalább 5 másodperc két indítás között. A terminális állapotoknál leáll. A gyorsítás a megjelenés idejét célozza, a worker és a dekóder erőforráskorlátai változatlanok.
+
+**Záró ellenőrzés az 1-es javítást is tartalmazó ágon – PASS:** 459 frontendteszt, típusellenőrzés, build és egészséges Compose frontend. Chromiumban a kiskép 5 760 ms alatt jelent meg. A nagy kép kártyája a méretkorlátot jelezte, az eredeti megnyílt.

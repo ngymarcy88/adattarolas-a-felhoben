@@ -213,7 +213,7 @@ Upload-state unitok: több párhuzamos confirm egy hullámjelzés, részleges si
 | Recovery/fencing | Két claim, heartbeat/lejárat/old worker, PUT előtt/után és DB-publication előtt/után crash-pontok; valid candidate adoption új fence alatt;9 generation/korlátozott recovery-probe, nincs számlálóreset restarttal |
 | Cleanup-race | Cleanup irréverzibilis ORPHANED claimje előtt/után ütemezett adoption; PUBLISHED sosem törölhető attempt-cleanupból. Lease/HEAD404/DELETE200 nem proof; régi candidate R megmarad az új winner mellett |
 | Lifecycle/API | Parent soft delete/restore és stale worker, purge részhiba/markerek; batch status ownership egész kérésre, old-state egységes404, thumbnail-url409/415/TTL/HEAD+finalrecheck; retryRevision CAS/replay/exhaustion; limiter/Origin/401 és safe error |
-| Frontend későbbi szelet | Pending/failed/quota/cleanup figyelmeztetés, eredeti fallback, thumbnail kártya/original modal; batch polling10s/20ID/egy in-flight, hidden/unmount stop, signed URL csak memory és max4 párhuzamos kérés |
+| Frontend későbbi szelet | Pending/failed/quota/cleanup figyelmeztetés, eredeti fallback, thumbnail kártya/original modal; batch polling 5 s/20 ID/egy aktív lekérés, hidden/unmount stop, signed URL csak memory és max4 párhuzamos kérés |
 
 **Külön valódi környezeti kapuk, még nyitottak:** pontos Sharp/bináris telepítés root lockfile-lal WSL/Linux és a Debian-image-ben; codec-allowlist és fixture-eredmény; worker512MiB/1CPU/pids64 limit és child15s kill/OOM mérése (a mock timeout nem bizonyítja); tényleges DB/storage job/objektum/used/reserved darabszám ismételt delivery és restart előtt/után; parent lifecycle és másik user; ambiguous PUT és closure-proof/cleanup. A worker lefagyasztása, késői PUT és publication–cleanup verseny külön próbát igényel, nem elég egy normál restart. Az exact input/output és erőforráslimitek helyessége csak implementáció után válik futtatással igazolttá.
 
@@ -263,7 +263,7 @@ Strict DTO/UUID/body/query, session/Origin route-wiring, külön bounded per-use
 
 ### Thumbnail galéria unit/template – 2026-10-31
 
-Strict processing kliens (batch/order/version/public fields, safe error/timeout/abort/Retry-After), fake-clock láthatósági scheduler (20 ID,10s globális spacing, egy in-flight, fairness, terminal stop, hiba utáni kézi retry), régi/fiókváltás utáni válasz eldobása és revision-megtartó manuális processor-retry. Közös thumbnail/original URL-sor4 fizikai slot, abort mellett is; külön image-error/no-loop memóriaállapot. SSR-kártya/modal template és page-visibility adapter lifecycle-unit ellenőrzi az eltérő URL-forrást, állapotokat/gombokat, visibilitychange/unmount abortot és listener cleanupot. Ez nem valódi DOM/böngészős vagy DB/MinIO elfogadás; az ellenőrzőlista a meglévő tesztriportban marad nyitott.
+Strict processing kliens (batch/order/version/public fields, safe error/timeout/abort/Retry-After), fake-clock láthatósági scheduler (20 ID, legalább 5 másodperc két kérés indítása között, egy in-flight, fairness, terminal stop, hiba utáni kézi retry), régi/fiókváltás utáni válasz eldobása és revision-megtartó manuális processor-retry. Közös thumbnail/original URL-sor4 fizikai slot, abort mellett is; külön image-error/no-loop memóriaállapot. SSR-kártya/modal template és page-visibility adapter lifecycle-unit ellenőrzi az eltérő URL-forrást, állapotokat/gombokat, visibilitychange/unmount abortot és listener cleanupot. Ez nem valódi DOM/böngészős vagy DB/MinIO elfogadás; az ellenőrzőlista a meglévő tesztriportban marad nyitott.
 
 
 ### Thumbnail watcher-regresszió – 2026-10-31

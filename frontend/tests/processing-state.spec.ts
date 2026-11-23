@@ -14,11 +14,11 @@ function fixture(count = 1) {
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date('2026-10-31T12:00:00Z')); });
 afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); });
 describe('Bounded visible-card batch status scheduler', () => {
-  it('coalesces cards, caps at20, fairly visits overflow and never sends faster than10s', async () => {
+  it('coalesces cards, caps at20, fairly visits overflow and never sends faster than 5 seconds', async () => {
     const x = fixture(45); await tick(); expect(x.client.status).toHaveBeenCalledTimes(1); expect(x.client.status.mock.calls[0][0]).toHaveLength(20);
-    await vi.advanceTimersByTimeAsync(9999); expect(x.client.status).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(4999); expect(x.client.status).toHaveBeenCalledTimes(1);
     await vi.advanceTimersByTimeAsync(1); expect(x.client.status.mock.calls[1][0]).toEqual(x.ids.slice(20, 40));
-    await vi.advanceTimersByTimeAsync(10000); expect(x.client.status.mock.calls[2][0]).toContain(x.ids[44]);
+    await vi.advanceTimersByTimeAsync(5000); expect(x.client.status.mock.calls[2][0]).toContain(x.ids[44]);
   });
   it('only queries visible allowed IDs and stops when terminal', async () => {
     const x = fixture(3); x.processing.setVisible(x.ids[1], false); x.processing.setVisible(x.ids[2], false);
@@ -57,7 +57,7 @@ describe('Independent manual processor retry', () => {
     const x = await failed(); const slow = deferred<RetryResult>(); x.client.retry.mockReturnValueOnce(slow.promise);
     const pending = x.processing.retry(id); await x.processing.retry(id); expect(x.client.retry).toHaveBeenCalledTimes(1); expect(x.processing.state.retryingId).toBe(id);
     slow.resolve(reply()); await pending; expect(x.processing.state.entries[id].status).toMatchObject({ state: 'QUEUED', retryRevision: 1, retryable: false });
-    await vi.advanceTimersByTimeAsync(10000); expect(x.client.status).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(5000); expect(x.client.status).toHaveBeenCalledTimes(2);
   });
   it('replays the SAME expected revision after a lost response, with no automatic mutation retry', async () => {
     const x = await failed(); x.client.retry.mockRejectedValueOnce(Error('private')); await x.processing.retry(id);
@@ -69,7 +69,7 @@ describe('Independent manual processor retry', () => {
   });
   it('handles409 by refreshing status, not repeating the mutation', async () => {
     const x = await failed(); x.client.retry.mockRejectedValueOnce(new ProcessingRequestError('conflict')); await x.processing.retry(id);
-    await vi.advanceTimersByTimeAsync(10000); expect(x.client.status).toHaveBeenCalledTimes(2); expect(x.client.retry).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(5000); expect(x.client.status).toHaveBeenCalledTimes(2); expect(x.client.retry).toHaveBeenCalledTimes(1);
   });
   it('aborts retry on navigation and ignores its late result', async () => {
     const x = await failed(); const slow = deferred<RetryResult>(); x.client.retry.mockReturnValueOnce(slow.promise); const pending = x.processing.retry(id);
