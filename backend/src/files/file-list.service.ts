@@ -5,6 +5,7 @@ import type { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ApiError } from '../common/errors/api-error';
 import { encodeFileCursor, type FileListQuery } from './file-list.query';
+import { OPAQUE_FILE_MIME } from './file-content-type';
 
 const imageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const select = { id: true, originalName: true, mimeType: true, detectedMimeType: true, sizeBytes: true, status: true, createdAt: true } satisfies Prisma.FileObjectSelect;
@@ -16,7 +17,7 @@ export class FileListService {
 
   async list(ownerId: string, query: FileListQuery) {
     const configured: readonly string[] = this.config.getOrThrow<AppConfig>('app').allowedMimeTypes;
-    const allowed = imageTypes.filter(mime => configured.includes(mime));
+    const allowed = [...imageTypes.filter(mime => configured.includes(mime)), OPAQUE_FILE_MIME];
     try {
       const cursor = query.cursor;
       const rows = await this.prisma.fileObject.findMany({

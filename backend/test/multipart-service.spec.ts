@@ -9,6 +9,30 @@ const flush=async()=>{for(let i=0;i<500;i++)await Promise.resolve();};
 function gate<T>(){let resolve!:(v:T)=>void;const promise=new Promise<T>(r=>resolve=r);return{promise,resolve};}
 
 describe('durable import identity, ownership and quota',()=>{
+  it('verifies opaque bytes, charges the original once and creates no thumbnail job', async () => {
+    const f = multipartFixture();
+    const s = await f.start(f.input({ originalName: 'notes.txt', mimeType: 'application/octet-stream' }));
+    f.ready(s.transferId);
+    await f.service.complete(owner, s.transferId);
+    const [object] = f.objects.values();
+    object.prefix = Buffer.from('not an image');
+    const result = await f.service.confirmFile(owner, s.fileId);
+    expect(result).toMatchObject({ status: 200, body: { file: { status: 'ACTIVE', detectedMimeType: 'application/octet-stream' } } });
+    await expect(f.service.confirmFile(owner, s.fileId)).resolves.toEqual(result);
+    expect(f.tables.user[0]).toMatchObject({ usedStorageBytes: 100n + BigInt(image.length), reservedStorageBytes: 0n });
+    expect(f.processing.enqueueConfirmedFile).not.toHaveBeenCalled();
+  });
+  it('rejects a changed full hash for an opaque upload and keeps it accounted', async () => {
+    const f = multipartFixture();
+    const s = await f.start(f.input({ mimeType: 'application/octet-stream' }));
+    f.ready(s.transferId);
+    await f.service.complete(owner, s.transferId);
+    const [object] = f.objects.values();
+    object.sha256 = 'b'.repeat(64);
+    await expect(f.service.confirmFile(owner, s.fileId)).rejects.toMatchObject({ code: 'UPLOAD_VALIDATION_FAILED' });
+    expect(f.tables.user[0]).toMatchObject({ usedStorageBytes: 100n, reservedStorageBytes: BigInt(image.length) });
+    expect(f.processing.enqueueConfirmedFile).not.toHaveBeenCalled();
+  });
   it('replays import creation without moving expiry or duplicating a collection',async()=>{
     const f=multipartFixture();const key=randomUUID();const first=await f.imports.create(owner,key);advance(1000);
     const replay=await f.imports.create(owner,key);expect(replay.status).toBe(200);expect(replay.body).toEqual(first.body);expect(f.tables.importSession).toHaveLength(1);

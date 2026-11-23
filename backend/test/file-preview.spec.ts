@@ -40,6 +40,20 @@ beforeEach(() => { jest.useFakeTimers(); jest.setSystemTime(now); });
 afterEach(() => { jest.useRealTimers(); jest.restoreAllMocks(); });
 
 describe('Private active image preview', () => {
+  it('allows an opaque original only as an attachment for its active owner', async () => {
+    const file = { ...row(), originalName: 'document.html', mimeType: 'application/octet-stream', detectedMimeType: 'application/octet-stream' };
+    const { service, storage, state } = fixture(file);
+    await expect(service.create(owner, id)).rejects.toMatchObject({ code: 'PREVIEW_NOT_ALLOWED' });
+    await expect(service.download(other, id)).rejects.toMatchObject({ code: 'FILE_NOT_FOUND' });
+    expect(storage.head).not.toHaveBeenCalled();
+    await expect(service.download(owner, id)).resolves.toMatchObject({ url });
+    expect(storage.createReadAccess).toHaveBeenCalledWith(expect.objectContaining({
+      originalName: 'document.html', mimeType: 'application/octet-stream', disposition: 'attachment',
+    }));
+    state.file!.status = 'SOFT_DELETED';
+    await expect(service.download(owner, id)).rejects.toMatchObject({ code: 'FILE_NOT_FOUND' });
+    expect(storage.createReadAccess).toHaveBeenCalledTimes(1);
+  });
   it('signs a validated original image inline and returns only the URL and actual expiry', async () => {
     const { service, findFirst, storage } = fixture(); const result = await service.create(owner, id);
     expect(result).toEqual({ url, expiresAt: new Date(+now + 300_000).toISOString() });

@@ -1,6 +1,7 @@
 import { parseApiBaseUrl } from './health';
 import { UploadRequestError, type UploadedFile } from './uploads';
 import { readRetryAfter } from './retry-after';
+import { OPAQUE_FILE_MIME } from '../file-content-type';
 
 export const TRANSFER_STATES = ['CREATING', 'CREATE_UNKNOWN', 'OPEN', 'SEALING', 'COMPLETING', 'COMPLETE_UNKNOWN', 'STORED', 'CONFIRMING', 'SUCCEEDED', 'REJECTED', 'CANCELLED', 'EXPIRED'] as const;
 export interface Transfer {
@@ -22,7 +23,7 @@ function exact(v: unknown, keys: string[]): Record<string, unknown> {
 const id = (v: unknown): v is string => typeof v === 'string' && v.length === 36 && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(v);
 const integer = (v: unknown, min = 0, max = Number.MAX_SAFE_INTEGER): v is number => Number.isSafeInteger(v) && Number(v) >= min && Number(v) <= max;
 const date = (v: unknown): v is string => typeof v === 'string' && Number.isFinite(Date.parse(v)) && new Date(v).toISOString() === v;
-const mime = (v: unknown): v is string => ['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(String(v));
+const mime = (v: unknown): v is string => typeof v === 'string' && ['image/jpeg', 'image/png', 'image/webp', 'image/gif', OPAQUE_FILE_MIME].includes(v);
 const errors = new Set(['AUTH_REQUIRED','ORIGIN_NOT_ALLOWED','VALIDATION_ERROR','INVALID_FILE_NAME','UNSUPPORTED_MEDIA_TYPE','FILE_TOO_LARGE','QUOTA_EXCEEDED','IDEMPOTENCY_CONFLICT','IMPORT_FILE_LIMIT','ACTIVE_IMPORT_LIMIT','FILE_NOT_FOUND','IMPORT_NOT_FOUND','TRANSFER_NOT_FOUND','PART_ALREADY_UPLOADED','TRANSFER_SOURCE_MISMATCH','TRANSFER_STATE_CONFLICT','RESOURCE_STATE_CONFLICT','UPLOAD_NOT_READY','UPLOAD_PARTS_INCOMPLETE','TRANSFER_PARTS_INVALID','UPLOAD_EXPIRED','UPLOAD_CANCELLED','UPLOAD_VALIDATION_FAILED','RATE_LIMITED','STORAGE_UNAVAILABLE','UPLOAD_VERIFICATION_UNAVAILABLE','DATABASE_UNAVAILABLE','INTERNAL_ERROR']);
 export function parseTransfer(value: unknown): Transfer {
   const v = exact(value, ['id','state','revision','partSizeBytes','partCount','expiresAt','completedBytes','partsObservedAt','parts','cleanupState','reservationState','lastErrorCode']);

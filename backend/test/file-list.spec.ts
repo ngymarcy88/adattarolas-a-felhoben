@@ -75,12 +75,15 @@ describe('Own active image list', () => {
     const result = await service.list(owner, new FileListQuery(1));
     expect(result.items.map(r => r.id)).toEqual([id(8)]); expect(result.hasNextPage).toBe(true);
     expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { ownerId: owner, status: 'ACTIVE',
-      mimeType: { in: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] }, detectedMimeType: { equals: { name: 'mimeType' } } }, take: 2 }));
+      mimeType: { in: ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/octet-stream'] }, detectedMimeType: { equals: { name: 'mimeType' } } }, take: 2 }));
   });
-  it('intersects the configured allowlist and never includes videos or unknown content', async () => {
-    const { service, findMany } = fixture([row(1), row(2, { mimeType: 'image/png', detectedMimeType: 'image/png' })], ['image/png', 'video/mp4']);
-    expect((await service.list(owner, new FileListQuery(20))).items.map(r => r.id)).toEqual([id(2)]);
-    expect(findMany.mock.calls[0][0].where.mimeType.in).toEqual(['image/png']);
+  it('lists opaque files alongside configured images, excluding raw media types', async () => {
+    const generic = row(3, { mimeType: 'application/octet-stream', detectedMimeType: 'application/octet-stream' });
+    const raw = row(4, { mimeType: 'text/html', detectedMimeType: 'text/html' });
+    const { service, findMany } = fixture([row(1), row(2, { mimeType: 'image/png', detectedMimeType: 'image/png' }), generic, raw], ['image/png', 'video/mp4']);
+    const result = await service.list(owner, new FileListQuery(20));
+    expect(new Set(result.items.map(r => r.id))).toEqual(new Set([id(2), id(3)]));
+    expect(findMany.mock.calls[0][0].where.mimeType.in).toEqual(['image/png', 'application/octet-stream']);
     expect((await fixture([row(1)], ['video/mp4']).service.list(owner, new FileListQuery(20))).items).toEqual([]);
   });
   it('returns only seven whitelisted fields, numeric bytes and ISO UTC time', async () => {

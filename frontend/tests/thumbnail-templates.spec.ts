@@ -35,6 +35,24 @@ describe('Thumbnail processing card templates', () => {
     expect(html).toContain('Az eredeti kép a fenti gombbal megnyitható.');
     expect(html).not.toContain('Feldolgozás újrapróbálása');
   });
+  it('renders an opaque file and a damaged image as separate non-inline cases', async () => {
+    const x = fixture('FAILED');
+    const generic = { ...file, mimeType: 'application/octet-stream', detectedMimeType: 'application/octet-stream' };
+    const card = await renderToString(createSSRApp(GalleryCard, { file: generic, ...x, now: Date.now() }));
+    expect(card).toContain('Ehhez a fájltípushoz nincs előnézet.');
+    expect(card).not.toContain('Feldolgozás újrapróbálása');
+    expect(card).not.toContain('<img');
+    for (const [source, invalidImage, label] of [
+      [generic, false, 'Ehhez a fájltípushoz nincs előnézet.'],
+      [file, true, 'A kép sérült vagy nem jeleníthető meg.'],
+    ] as const) {
+      const html = await renderToString(createSSRApp(PreviewDialog, { file: source, invalidImage, previews: x.previews, now: Date.now() }));
+      expect(html).toContain(label);
+      expect(html).toContain('Eredeti fájl letöltése');
+      expect(html).not.toContain('Előnézet betöltése');
+      expect(html).not.toContain('<img');
+    }
+  });
   it('renders thumbnail on card and original in dialog using distinct memory managers', async () => {
     const x = fixture('SUCCEEDED'); const original = createPreviews({ get: vi.fn() }); original.retain([file.id]);
     const image = (url: string) => ({ phase: 'ready' as const, url, expiresAt: Date.now() + 10000, version: 1, error: '', retryable: false, retryAt: 0 });

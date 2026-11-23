@@ -16,31 +16,31 @@ afterEach(() => vi.restoreAllMocks());
 describe('Metadata gallery templates (isolated SSR, not browser evidence)', () => {
   it('shows first-load feedback without a premature empty state', async () => {
     const gallery = setup(); gallery.state.loading = 'refresh'; const html = await render();
-    expect(html).toContain('Képek listájának betöltése…'); expect(html).toContain('aria-busy="true"'); expect(html).toContain('role="status"');
-    expect(html).not.toContain('Még nincs feltöltött képed.'); expect(client.list).not.toHaveBeenCalled();
+    expect(html).toContain('Fájlok listájának betöltése…'); expect(html).toContain('aria-busy="true"'); expect(html).toContain('role="status"');
+    expect(html).not.toContain('Még nincs feltöltött fájlod.'); expect(client.list).not.toHaveBeenCalled();
   });
   it('offers upload from a real empty success and no next-page button', async () => {
     const gallery = setup(); gallery.state.loaded = true; const html = await render();
-    expect(html).toContain('Még nincs feltöltött képed.');
-    expect(html).toMatch(/<button type="button"(?![^>]*\bdisabled(?:\s|=|>))[^>]*>Képek kiválasztása<\/button>/);
+    expect(html).toContain('Még nincs feltöltött fájlod.');
+    expect(html).toMatch(/<button type="button"(?![^>]*\bdisabled(?:\s|=|>))[^>]*>Fájlok kiválasztása<\/button>/);
     expect(html).not.toContain('href="#upload-title"');
-    expect(html).not.toContain('További képek</button>');
-    expect(await render(false, true)).toMatch(/<button type="button" disabled[^>]*>Képek kiválasztása<\/button>/);
+    expect(html).not.toContain('További fájlok</button>');
+    expect(await render(false, true)).toMatch(/<button type="button" disabled[^>]*>Fájlok kiválasztása<\/button>/);
   });
   it('renders filename/size/date cards with escaped text, no image or preview requests', async () => {
     const gallery = setup(); gallery.state.loaded = true; gallery.state.items = [file(1, { originalName: '<img src=x onerror=alert(1)>.jpg' })];
     const html = await render(); expect(html).toContain('&lt;img'); expect(html).not.toContain('<img'); expect(html).not.toMatch(/<iframe|<video|<picture/);
-    expect(html).toContain('1 MiB'); expect(html).toContain('datetime="2026-10-28T10:00:00.000Z"'); expect(html).toContain('1 betöltött kép');
-    expect(html).toContain('aria-label="Saját képek"'); expect(html).toContain('Létrehozva'); expect(client.list).not.toHaveBeenCalled();
+    expect(html).toContain('1 MiB'); expect(html).toContain('datetime="2026-10-28T10:00:00.000Z"'); expect(html).toContain('1 betöltött fájl');
+    expect(html).toContain('aria-label="Saját fájlok"'); expect(html).toContain('Létrehozva'); expect(client.list).not.toHaveBeenCalled();
   });
   it('keeps cards during page loading and disables more requests', async () => {
     const gallery = setup(); Object.assign(gallery.state, { loaded: true, items: [file()], nextCursor: 'next', loading: 'more' });
-    const html = await render(); expect(html).toContain('photo-1.jpg'); expect(html).toContain('További képek betöltése…'); expect(html).toMatch(/disabled[^>]*>További képek<\/button>/);
+    const html = await render(); expect(html).toContain('photo-1.jpg'); expect(html).toContain('További fájlok betöltése…'); expect(html).toMatch(/disabled[^>]*>További fájlok<\/button>/);
   });
   it('shows safe retry feedback beside retained cards on a pagination failure', async () => {
     const gallery = setup(); Object.assign(gallery.state, { loaded: true, items: [file()], nextCursor: 'next', error: 'Átmeneti hiba.' });
     const html = await render(); expect(html).toContain('photo-1.jpg'); expect(html).toContain('role="alert"'); expect(html).toContain('Újrapróbálás');
-    expect(html).not.toContain('További képek</button>');
+    expect(html).not.toContain('További fájlok</button>');
   });
   it('explains reset on an invalid cursor without removing the old cards', async () => {
     const gallery = setup(); Object.assign(gallery.state, { loaded: true, items: [file()], error: 'Lapozási hiba.', resetRequired: true });
