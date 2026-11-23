@@ -991,3 +991,23 @@ A közvetlen dependency-verziók és npm-források lockfile-ban rögzítettek; a
 - Két TypeScript-hiba (CORS callback paraméterek és teszt request cast) javítva lett.
 - A kezdeti npm proxykapcsolat megszakadt; a projekt `.npmrc`-je és a lockfile publikus npm-registryt használ.
 - A MinIO kliens image-e nem volt hozzáférhető; rögzített upstream forrásból épül a Docker multi-stage buildben.
+
+## Kézi multipart szüneteltetés és folytatás – 2026-11-23
+
+Helyi Docker Compose, PostgreSQL 17.9 és MinIO, alkalmazáscommit `d0a8509`. A felhasználói böngészős próba bemenete a szintetikus `multipart-xl.png` (87 492 143 bájt, 17 rész). A HAR részkéréseit feltöltésenként csoportosítva az egyik futásban a 12. rész szakadt meg, a másikban a 6. és a 10. rész. A megszakadt kérésekhez nem érkezett HTTP-státusz. A folytatás után csak ezek a részek indultak újra. A már 200-as választ kapott részekhez nem indult új PUT. Mindkét feltöltés sikeres megerősítéssel zárult. Ez a böngészőből indított szüneteltetés bizonyítéka. A restart, az objektumhash és a DB-kvóta egyezése e napló alapján nyitott.
+
+Külön felhasználói észrevétel és képernyőképes bizonyíték, hogy az azonos méretű, eltérő tartalmú fájl újraválasztása tartalmi hibát adott. A helyes fájl kiválasztása után a gomb a visszaszámlálás végéig tiltva maradt. A beküldött HAR ezt a hibás újraválasztást nem tartalmazza. A nyers HAR a repón kívül marad.
+
+### Kiinduló állapot és kézi esetek
+
+A 2026. november 23-án 10:40-kor (Europe/Budapest) rögzített kiinduló állapotban mindkét tesztfióknál sikeres volt a regisztráció, a belépés és a munkamenet-ellenőrzés. Fiókonként 0 bájt volt a használt és lefoglalt hely, 1 GiB-os kvóta mellett. A vizsgált adatbázisban nem volt fájl, import vagy feldolgozási feladat. A MinIO-ban nem volt kész objektum vagy nyitott multipart feltöltés. A beállított részméret 5 242 880 bájt volt.
+
+| Eset és lépés | Elvárt eredmény | Tényleges eredmény és bizonyíték |
+|---|---|---|
+| Normál feltöltés, `small.png` (12 420 bájt) | A kép feltöltése sikeresen lezárul. | **PASS, felhasználói visszajelzés:** a feltöltés sikerült. A megnyithatóságra és a tárolt objektum hashére ehhez az esethez nincs külön bizonyíték. |
+| A nagy kép szüneteltetése aktív rész-PUT közben, majd folytatása | A sikeresen fogadott részek megmaradnak, a megszakadt rész és a hiányzó részek továbbmennek. | **PASS a vizsgált esetekben, HAR:** két külön 17 részes feltöltés, a 12., illetve a 6. és 10. rész megszakításával. Egyik futásban sem küldte újra a kliens a már sikeres részeket. Mindkét megerősítés HTTP 200 választ adott. |
+| Azonos méretű, eltérő SHA-256 hashű kép kiválasztása szünetelő feltöltésnél | A rendszer a tartalmi eltérést jelzi és elutasítja a fájlt. | **PASS az elutasításra, képernyőkép:** a felület tartalmi eltérést jelzett. A helyes fájl kiválasztása után felesleges 60 másodperces visszaszámlálás maradt. A klienskód a hiányzó Retry-After fejléc alapértékét erre a hibára is alkalmazza. |
+| `invalid-signature.png` és `truncated.png` feltöltése | Az érvénytelen fejlécre hiba jelenik meg. Az érvényes PNG-aláírású csonka fájl feltöltése a jelenlegi aláírás- és hash-ellenőrzés mellett sikerülhet. | **Megfigyelt eredmény, képernyőképek:** a hibás aláírású fájlt a felület elutasította, a csonka fájl feltöltését sikeresnek jelezte. A csonka fájl kisképét és nagy előnézetét külön kell ellenőrizni. |
+| Kiskép megjelenése a feltöltés után | A felület az eredményt vagy a feldolgozási hibát jelzi. | **Részleges eredmény, képernyőkép:** a két 13,9 MiB-os kép kisképe elkészült, a két 83,4 MiB-os képnél sikertelen feldolgozás látszott. A késés mértéke és a hiba oka még ismeretlen. |
+
+Nyitott az oldalfrissítés, az új belépés, a backend és MinIO újraindítása utáni folytatás, a tulajdonosi elkülönítés, a vegyes köteg fájlhibáinak elszigetelése, valamint az objektumhash és a végső DB/storage/kvótaegyezés. A két sikeres szüneteltetési próba nem helyettesíti a hálózati megszakítás külön ellenőrzését vagy a 10/50 képes mérést. A hibák a [későbbi UI-feladatoknál](../01_product/ux_flows.md#későbbi-ui-feladatok) követhetők.
