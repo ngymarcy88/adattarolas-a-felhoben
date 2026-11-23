@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 375" role="img" aria-label="01-use-cases">
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#475569"/></marker></defs>
+<rect width="960" height="375" rx="14" fill="#f8fafc"/>
+<g font-family="Arial, sans-serif" fill="#0f172a">
+<rect x="285" y="13" width="650" height="326" rx="14" fill="none" stroke="#94a3b8"/><text x="299" y="36" font-size="17" font-weight="bold">CloudVault rendszerhatár</text>
+<polyline points="220,83 305,83" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+<polyline points="220,68 260,68 260,42 767,42 767,52" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+<polyline points="220,172 305,172" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+<polyline points="220,191 265,191 265,219 766,219 766,203" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+<polyline points="220,108 250,108 250,276 305,276" fill="none" stroke="#475569" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#a)"/>
+<polyline points="220,298 258,298 258,326 766,326 766,308" fill="none" stroke="#475569" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#a)"/>
+<rect x="22" y="60" width="198" height="62" rx="10" fill="#e0efff" stroke="#2563a0" />
+<text x="121.0" y="97.0" text-anchor="middle" font-size="17">Felhasználó</text>
+<rect x="22" y="153" width="198" height="62" rx="10" fill="#e0efff" stroke="#2563a0" />
+<text x="121.0" y="179.0" text-anchor="middle" font-size="17">Háttérfeldolgozó /</text>
+<text x="121.0" y="201.0" text-anchor="middle" font-size="17">cleanup worker</text>
+<rect x="22" y="259" width="198" height="62" rx="10" fill="#fff7ed" stroke="#b45309" stroke-dasharray="6 5" />
+<text x="121.0" y="285.0" text-anchor="middle" font-size="17">Vendég megosztási</text>
+<text x="121.0" y="307.0" text-anchor="middle" font-size="17">linkkel</text>
+<rect x="305" y="52" width="290" height="62" rx="10" fill="#e0efff" stroke="#2563a0" />
+<text x="450.0" y="78.0" text-anchor="middle" font-size="17">Belépés és saját</text>
+<text x="450.0" y="100.0" text-anchor="middle" font-size="17">képek kezelése</text>
+<rect x="623" y="52" width="286" height="62" rx="10" fill="#e0efff" stroke="#2563a0" />
+<text x="766.0" y="78.0" text-anchor="middle" font-size="17">Import, szüneteltetés</text>
+<text x="766.0" y="100.0" text-anchor="middle" font-size="17">és folytatás</text>
+<rect x="305" y="141" width="290" height="62" rx="10" fill="#e0efff" stroke="#2563a0" />
+<text x="450.0" y="167.0" text-anchor="middle" font-size="17">Kiskép készítése és</text>
+<text x="450.0" y="189.0" text-anchor="middle" font-size="17">félbemaradt job egyeztetése</text>
+<rect x="623" y="141" width="286" height="62" rx="10" fill="#e0efff" stroke="#2563a0" />
+<text x="766.0" y="167.0" text-anchor="middle" font-size="17">Függő single-PUT</text>
+<text x="766.0" y="189.0" text-anchor="middle" font-size="17">feltöltések ellenőrzése</text>
+<rect x="305" y="246" width="290" height="62" rx="10" fill="#fff7ed" stroke="#b45309" stroke-dasharray="6 5" />
+<text x="450.0" y="283.0" text-anchor="middle" font-size="17">Kuka és visszaállítás</text>
+<rect x="623" y="246" width="286" height="62" rx="10" fill="#fff7ed" stroke="#b45309" stroke-dasharray="6 5" />
+<text x="766.0" y="272.0" text-anchor="middle" font-size="17">Megosztott kép elérése</text>
+<text x="766.0" y="294.0" text-anchor="middle" font-size="17">lejáró linken</text>
+<text x="25" y="353" font-size="15">Szaggatott jelölés: tervezett használati eset.</text>
+</g></svg>

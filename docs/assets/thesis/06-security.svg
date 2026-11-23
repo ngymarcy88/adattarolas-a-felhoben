@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 342" role="img" aria-label="06-security">
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#475569"/></marker></defs>
+<rect width="960" height="342" rx="14" fill="#f8fafc"/>
+<g font-family="Arial, sans-serif" fill="#0f172a">
+<polyline points="267,69 356,69" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+<polyline points="604,69 693,69" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+<polyline points="480,105 480,163" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+<polyline points="356,198 267,198" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+<polyline points="149,235 149,265 815,265 815,235" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+<rect x="24" y="33" width="243" height="72" rx="10" fill="#e0efff" stroke="#2563a0" />
+<text x="145.5" y="64.0" text-anchor="middle" font-size="17">Böngésző</text>
+<text x="145.5" y="86.0" text-anchor="middle" font-size="17">HttpOnly JWT-cookie</text>
+<rect x="356" y="33" width="248" height="72" rx="10" fill="#e0efff" stroke="#2563a0" />
+<text x="480.0" y="64.0" text-anchor="middle" font-size="17">Védett HTTP-végpont</text>
+<text x="480.0" y="86.0" text-anchor="middle" font-size="17">SessionGuard + ellenőrzések</text>
+<rect x="693" y="33" width="243" height="72" rx="10" fill="#e0efff" stroke="#2563a0" />
+<text x="814.5" y="64.0" text-anchor="middle" font-size="17">PostgreSQL</text>
+<text x="814.5" y="86.0" text-anchor="middle" font-size="17">Aktuális user és ownerId</text>
+<rect x="356" y="163" width="248" height="72" rx="10" fill="#e0efff" stroke="#2563a0" />
+<text x="480.0" y="194.0" text-anchor="middle" font-size="17">S3 adapter</text>
+<text x="480.0" y="216.0" text-anchor="middle" font-size="17">Rövid, szűk hozzáférés</text>
+<rect x="24" y="163" width="243" height="72" rx="10" fill="#e0efff" stroke="#2563a0" />
+<text x="145.5" y="194.0" text-anchor="middle" font-size="17">Közvetlen adatátvitel</text>
+<text x="145.5" y="216.0" text-anchor="middle" font-size="17">Aláírt rész-PUT / kép-GET</text>
+<rect x="693" y="163" width="243" height="72" rx="10" fill="#e0efff" stroke="#2563a0" />
+<text x="814.5" y="194.0" text-anchor="middle" font-size="17">MinIO</text>
+<text x="814.5" y="216.0" text-anchor="middle" font-size="17">Privát objektumok</text>
+<text x="26" y="299" font-size="15">Módosítás: pontos Origin. Companion-kérések: same-origin Fetch Metadata.</text>
+<text x="26" y="322" font-size="15">A részhez és lejárathoz kötött jog nem ad complete vagy abort hozzáférést.</text>
+</g></svg>
