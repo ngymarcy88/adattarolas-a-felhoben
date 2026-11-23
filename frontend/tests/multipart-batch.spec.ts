@@ -27,8 +27,25 @@ it('fresh instance restores server imports; missing local bytes never sends a PU
 it('verifies reselected content hash through resume before calling the real transfer driver',async()=>{
  const f=fixture();await f.batch.open(id(99));f.batch.attach(id(50),image());f.batch.retry(id(50));await settled(f);expect(f.client.resume).toHaveBeenCalledWith(id(),{sizeBytes:16,contentSha256:'a'.repeat(64)},expect.any(AbortSignal));expect(f.driver).toHaveBeenCalledTimes(1);expect(f.client.initiate).not.toHaveBeenCalled();f.batch.dispose();
 });
-it('mismatched source prevents part upload and does not create a replacement session',async()=>{
- const f=fixture();f.client.resume.mockRejectedValue(new UploadRequestError('TRANSFER_SOURCE_MISMATCH'));await f.batch.open(id(99));f.batch.attach(id(50),image());f.batch.retry(id(50));await settled(f);expect(f.batch.state.rows[0].error).toContain('tartalma eltér');expect(f.driver).not.toHaveBeenCalled();expect(f.client.initiate).not.toHaveBeenCalled();f.batch.dispose();
+it('rejects mismatched content and immediately resumes the same transfer with the correct file',async()=>{
+ const f=fixture();
+ f.client.resume.mockRejectedValueOnce(new UploadRequestError('TRANSFER_SOURCE_MISMATCH'));
+ await f.batch.open(id(99));
+ f.batch.attach(id(50),image());
+ f.batch.retry(id(50));
+ await settled(f);
+ expect(f.batch.state.rows[0].error).toContain('tartalma eltér');
+ expect(f.batch.state.rows[0].retryAt).toBe(0);
+ expect(f.driver).not.toHaveBeenCalled();
+
+ f.batch.attach(id(50),image());
+ f.batch.retry(id(50));
+ await settled(f);
+ expect(f.client.resume.mock.calls.map(([id])=>id)).toEqual([id(),id()]);
+ expect(f.driver).toHaveBeenCalledTimes(1);
+ expect(f.client.initiate).not.toHaveBeenCalled();
+ expect(f.batch.summary.value.success).toBe(1);
+ f.batch.dispose();
 });
 it('rejects a wrong reselected size before hashing or requesting grants',async()=>{
  const f=fixture();await f.batch.open(id(99));f.batch.attach(id(50),new File(['wrong'],'other.png'));expect(f.batch.state.rows[0].error).toContain('mérete eltér');expect(f.hash).not.toHaveBeenCalled();expect(f.driver).not.toHaveBeenCalled();f.batch.dispose();

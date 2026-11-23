@@ -1011,3 +1011,11 @@ A 2026. november 23-án 10:40-kor (Europe/Budapest) rögzített kiinduló állap
 | Kiskép megjelenése a feltöltés után | A felület az eredményt vagy a feldolgozási hibát jelzi. | **Részleges eredmény, képernyőkép:** a két 13,9 MiB-os kép kisképe elkészült, a két 83,4 MiB-os képnél sikertelen feldolgozás látszott. A késés mértéke és a hiba oka még ismeretlen. |
 
 Nyitott az oldalfrissítés, az új belépés, a backend és MinIO újraindítása utáni folytatás, a tulajdonosi elkülönítés, a vegyes köteg fájlhibáinak elszigetelése, valamint az objektumhash és a végső DB/storage/kvótaegyezés. A két sikeres szüneteltetési próba nem helyettesíti a hálózati megszakítás külön ellenőrzését vagy a 10/50 képes mérést. A hibák a [későbbi UI-feladatoknál](../01_product/ux_flows.md#későbbi-ui-feladatok) követhetők.
+
+## Javítás: azonnali folytatás a helyes fájl kiválasztása után – 2026-11-23
+
+**Környezet:** a `fix/multipart-resume-cooldown` ág, `3e3e3ea` alapcommit, WSL Node 22.23.2/npm 10.9.8, helyi Docker Compose és Chromium. Az első böngészős futásnál a gomb a felület következő időzítéséig még tiltva maradt, mert a nulla várakozás időpontként került a sorba. A javított állapot külön jelöli, ha nincs várakozás.
+
+**Böngészős újrateszt – PASS:** szintetikus tesztfiókkal elindítottuk a 17 részes, 87 492 143 bájtos PNG feltöltését. A második rész kérését a böngészőben visszatartottuk, majd a panelen szüneteltettük a feltöltést. Az azonos méretű, eltérő tartalmú PNG-re a szerver 409-et adott Retry-After nélkül, a panel jelezte a tartalmi eltérést. Az eredeti fájl kiválasztásakor a gomb azonnal engedélyezett volt. A folytatás ugyanarra az átvitelre 200-as választ kapott, és a panel sikeres feltöltést jelzett.
+
+**Frontend ellenőrzések – PASS:** 458 Vitest eset, típusellenőrzést is tartalmazó build, Compose frontend build és health. Az automatizált esetek lefedik a tényleges Retry-After késleltetést, a fejléc nélküli 429-es alapvárakozást és a függőben lévő 202-es megerősítést. A böngészős próba a fájlújraválasztásra vonatkozott.
