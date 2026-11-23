@@ -15,7 +15,10 @@ const ready = computed(() => job.value?.status?.state === 'SUCCEEDED' && !!job.v
 const jobWait = computed(() => Math.max(0, Math.ceil((props.processing.state.retryAt - props.now) / 1000)));
 const statusText = computed(() => ({ NOT_SCHEDULED: 'Kiskép nincs ütemezve', QUEUED: 'Kisképre várakozik', RUNNING: 'Kiskép készítése…',
   RETRY_WAIT: 'Újabb feldolgozásra vár', SUCCEEDED: ready.value ? 'Kiskép elkészült' : 'A kiskép nem érhető el',
-  FAILED: 'A kiskép feldolgozása sikertelen', BLOCKED_QUOTA: 'Nincs elég tárhely a kisképhez', CANCELLED: 'A kiskép feldolgozása leállt' })[job.value?.status?.state ?? 'NOT_SCHEDULED']);
+  FAILED: job.value?.status?.errorCode === 'PROCESSOR_INPUT_LIMIT'
+    ? 'A kép túllépi a kisképkészítés méretkorlátját'
+    : 'A kiskép feldolgozása sikertelen',
+  BLOCKED_QUOTA: 'Nincs elég tárhely a kisképhez', CANCELLED: 'A kiskép feldolgozása leállt' })[job.value?.status?.state ?? 'NOT_SCHEDULED']);
 const wait = computed(() => Math.max(0, Math.ceil((Math.max(entry.value?.retryAt ?? 0, props.previews.state.retryAt) - props.now) / 1000)));
 // Keep invalidation before demand in one watcher: separate watchers can delete a request
 // created earlier in the same visibility/result update batch.
