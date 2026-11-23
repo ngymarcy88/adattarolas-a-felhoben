@@ -29,3 +29,5 @@ Uppy5 callbacks were rejected by the user. S3 XML emulation, private uploader fo
 Use actual installed Uppy6 with simulated Companion HTTP/part responses for retained-part/progress/cancel tests; controller/service ownership/guards and authoritative complete tests; scheduler/reselection/recovery and Vue template tests. Existing Jest/Vitest only. Full unit/typecheck/build once at subtask completion; failures rerun only affected checks. Real proxy/cookie/MinIO CORS/ETag exposure, browser reload and actual interruption/restart remain explicit manual gates unless actually executed. Unit success is not provider proof.
 
 Sources: installed public declarations and `CompanionS3.js`/`S3Uploader.js`; [Uppy S3 docs](https://uppy.io/docs/aws-s3/) and [migration guide](https://uppy.io/docs/guides/migration-guides/).
+
+2026-11-23: a több részes S3 út szerződése mellett a kis képes tus jelölt bizonyítéka és integrációs feltételei az [ADR-017 frissítésében](ADR-017-direct-multipart-poc.md#kis-képek-folytatása--technikai-döntés-2026-11-23) találhatók. Az alkalmazásban továbbra is az itt leírt Uppy S3 út fut.
