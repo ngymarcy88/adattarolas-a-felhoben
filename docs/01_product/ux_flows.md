@@ -190,7 +190,7 @@ A processor-retry egyszerre legfeljebb egy kézi kérés; elveszett/megszakadt v
 
 ## Későbbi UI-feladatok
 
-- [ ] **Az üres galéria feltöltési linkjének felülvizsgálata** (2026-11-23). A `/app` oldalon a „Képek feltöltése” link a feltöltőpanel címére ugrik (`#upload-title`). Ha a galéria és a panel egy képernyőn elfér, a kattintás hatása alig észrevehető. A felület átdolgozásakor nézzük meg, hogy az új elrendezésben segít-e az ugrás. A végső megoldásnál kisebb és nagyobb képernyőn, egérrel és billentyűzettel is legyen egyértelmű, hol lehet képet kiválasztani.
+- [x] **Képválasztás az üres galériából** (2026-11-23). Az üres galéria „Képek kiválasztása” gombja a feltöltőpanel fájlmezőjére viszi a fókuszt, és megnyitja a többfájlos fájlválasztót. A kiválasztott képek a feltöltőpanelre kerülnek, a feltöltést ott külön kell elindítani. Amikor a panel nem fogad új fájlt, a galéria gombja is letiltott.
 
 - [x] **A kisképek késésének és a nagy képek feldolgozási hibájának kivizsgálása** (2026-11-23). A 83,4 MiB-os PNG átlépte a kisképfeldolgozó 32 MiB-os bemeneti korlátját. A galéria ezt már külön jelzi, és az eredeti kép megnyitható. A látható kártyák csoportos státuszlekérdezésének időköze 10-ről 5 másodpercre csökkent. A helyi előtte-utána próba a [tesztriportban](../04_quality/test_report.md) szerepel.
 
