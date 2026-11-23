@@ -65,7 +65,9 @@ export function createMultipartClient(baseUrl: string | undefined) {
       if (![200,201,202].includes(r.status)) {
         let code = r.status === 401 ? 'AUTH_REQUIRED' : r.status === 429 ? 'RATE_LIMITED' : 'UNAVAILABLE';
         try { const data: unknown = await r.json(); if (object(data) && object(data.error) && typeof data.error.code === 'string' && errors.has(data.error.code)) code = data.error.code; } catch { /* Never expose raw server/storage text. */ }
-        throw new UploadRequestError(code, readRetryAfter(r.headers.get('Retry-After')));
+        const retryAfter = r.headers.get('Retry-After');
+        const retryAfterMs = r.status === 429 || retryAfter !== null ? readRetryAfter(retryAfter) : 0;
+        throw new UploadRequestError(code, retryAfterMs);
       }
       const data: unknown = await r.json(); if (controller.signal.aborted) return fail();
       return { data, pending:r.status === 202, retryAfterMs:r.status === 202 ? readRetryAfter(r.headers.get('Retry-After')) : 0 };

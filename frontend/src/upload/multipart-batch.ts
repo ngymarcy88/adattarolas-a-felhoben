@@ -82,7 +82,21 @@ export function createMultipartBatch(client:MultipartClient=multipartClient,opti
   if(disposed||state.authRequired||state.cooldownUntil>Date.now())return;
   while(state.running<2){const row=state.rows.find(r=>r.status==='queued');if(!row)break;
    const c=new AbortController();active.set(row.id,c);state.running++;row.status='initializing';
-   void run(row,c.signal).catch(async e=>{if(disposed)return;if(c.signal.aborted){row.status='paused';return;}let v=safeError(e);if(v.code==='UNAVAILABLE'&&row.transfer){try{await read(c.signal,()=>client.status(row.transfer!.id,c.signal));}catch(check){if(check instanceof UploadRequestError&&check.code==='AUTH_REQUIRED')v=check;}}if(disposed)return;if(c.signal.aborted){row.status='paused';return;}v=error(v);row.status='error';row.error=v.message;row.retryAt=Date.now()+v.retryAfterMs;}).finally(()=>{active.delete(row.id);state.running--;if(disposed)return;
+   void run(row,c.signal).catch(async e=>{
+    if(disposed)return;
+    if(c.signal.aborted){row.status='paused';return;}
+    let v=safeError(e);
+    if(v.code==='UNAVAILABLE'&&row.transfer){
+     try{await read(c.signal,()=>client.status(row.transfer!.id,c.signal));}
+     catch(check){if(check instanceof UploadRequestError&&check.code==='AUTH_REQUIRED')v=check;}
+    }
+    if(disposed)return;
+    if(c.signal.aborted){row.status='paused';return;}
+    v=error(v);
+    row.status='error';
+    row.error=v.message;
+    row.retryAt=v.retryAfterMs>0 ? Date.now()+v.retryAfterMs : 0;
+   }).finally(()=>{active.delete(row.id);state.running--;if(disposed)return;
      if(state.running===0&&wave){state.completionVersion++;wave=false;}pump();});
   }
  }

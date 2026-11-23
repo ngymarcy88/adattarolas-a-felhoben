@@ -54,9 +54,11 @@ it.each(['http://user:password@storage.invalid/object','javascript:alert(1)','in
  vi.useFakeTimers();vi.setSystemTime(new Date('2026-11-02T10:00:00Z'));reply({method:'PUT',partNumber:1,sizeBytes:1,url,headers:{},expiresAt:date});await expect(client().sign(id,1,signal())).rejects.toMatchObject({code:'UNAVAILABLE'});
 });
 it('keeps safe error codes and cooldown while discarding provider text',async()=>{
- reply({error:{code:'TRANSFER_SOURCE_MISMATCH',message:'private provider text'}},409);await expect(client().resume(id,{sizeBytes:1,contentSha256:'a'.repeat(64)},signal())).rejects.toMatchObject({code:'TRANSFER_SOURCE_MISMATCH'});
+ reply({error:{code:'TRANSFER_SOURCE_MISMATCH',message:'private provider text'}},409);await expect(client().resume(id,{sizeBytes:1,contentSha256:'a'.repeat(64)},signal())).rejects.toMatchObject({code:'TRANSFER_SOURCE_MISMATCH',retryAfterMs:0});
  reply({error:{code:'ProviderRawError',message:'private provider text'}},503);await expect(client().status(id,signal())).rejects.toMatchObject({code:'UNAVAILABLE'});
  reply({},429,{'Retry-After':'7'});await expect(client().status(id,signal())).rejects.toMatchObject({code:'RATE_LIMITED',retryAfterMs:7000});
+ reply({},429);await expect(client().status(id,signal())).rejects.toMatchObject({code:'RATE_LIMITED',retryAfterMs:60_000});
+ reply({},503,{'Retry-After':'3'});await expect(client().status(id,signal())).rejects.toMatchObject({code:'UNAVAILABLE',retryAfterMs:3000});
 });
 it('aborts during body consumption and rejects late parsed data',async()=>{
  const c=new AbortController();vi.stubGlobal('fetch',vi.fn().mockResolvedValue({status:200,headers:new Headers(),json:async()=>{c.abort();return{transfer:transfer()};}}));await expect(client().status(id,c.signal)).rejects.toMatchObject({code:'UNAVAILABLE'});
