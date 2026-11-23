@@ -49,3 +49,5 @@ Az MVP egyetlen, legfeljebb 100 MB-os presigned PUT feltoltest hasznal. Multipar
 
 
 2026-11-03: a felhasználó kifejezetten az Uppy6 megtartását és a szerveres illesztés áttervezését választotta. Az [ADR-018](ADR-018-uppy6-companion-bridge.md) alapján Companion-kompatibilis JSON adapter és same-origin proxy került a meglévő alkalmazásba. Ez a kis képköteg termékútjának multipart beillesztése; nem a nagyvideós scope megnyitása vagy a kis képek intra-file resume-korlátjának lezárása.
+
+2026-11-23: a [kis képes kontrollált S3–tus próba](ADR-017-direct-multipart-poc.md#kis-képek-folytatása--technikai-döntés-2026-11-23) az egyetlen S3-rész teljes újraküldését és a fájlalapú tusd bájtpozíciójának hard restart utáni megtartását igazolta. A következő alkalmazásintegráció kiválasztott jelöltje a tus 1.0 fájlalapú átmeneti tárral. A termékbevezetés, valamint a függőség és a szolgáltatás jóváhagyása nyitott. A nagyvideós scope külön marad.

@@ -1,0 +1,44 @@
+{
+  "date": "2026-11-23",
+  "appRevision": "439b76a",
+  "tusImageDigest": "sha256:96c48f09e37eb61d9d9afb538e172aadd77c9feb0a29f11c43c521b7dc332286",
+  "s3": {
+    "date": "2026-11-23",
+    "mode": "CloudVault authenticated S3 multipart",
+    "fixture": "small-resume.png",
+    "bytes": 1229603,
+    "originalSha256": "605705f21176a72fdebdc7e55bb1a151f36438e635f4f53a4b184af2ff59990b",
+    "interruption": "TCP disconnect before final PUT body and before its response",
+    "prefixSent": 393216,
+    "partCount": 1,
+    "retainedBytes": 0,
+    "resumePayloadBytes": 1229603,
+    "finalSha256Matches": true
+  },
+  "tus": {
+    "date": "2026-11-23",
+    "protocol": "1.0.0",
+    "image": "tusproject/tusd:v2.10.3",
+    "fixture": "small-resume.png",
+    "bytes": 1229603,
+    "originalSha256": "605705f21176a72fdebdc7e55bb1a151f36438e635f4f53a4b184af2ff59990b",
+    "interruption": "TCP disconnect before final PATCH body and before its response",
+    "prefixSent": 393216,
+    "retainedBeforeRestart": 393216,
+    "retainedAfterRestart": 393216,
+    "restart": "docker restart --time 0",
+    "staleOffsetHttp": 409,
+    "resumePayloadBytes": 836387,
+    "finalOffset": 1229603,
+    "finalSha256Matches": true,
+    "oversizeHttp": 413,
+    "publicDownloadHttp": 405
+  },
+  "chromiumS3": {
+    "clientProgressBeforePausePercent": 6,
+    "retainedBytes": 0,
+    "confirmedRetryContentLength": 1229603,
+    "finalSha256Matches": true
+  },
+  "savedResumePayloadBytes": 393216
+}
