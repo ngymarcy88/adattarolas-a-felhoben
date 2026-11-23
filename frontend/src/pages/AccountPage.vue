@@ -11,6 +11,7 @@ const router = useRouter();
 const user = session.user;
 const pending = ref(false);
 const uploading = ref(false);
+const uploadPanel = ref<InstanceType<typeof UploadPanel> | null>(null);
 const error = ref('');
 let active = true;
 const { request: galleryRefreshRequest, notify: uploadCompleted } = createGalleryRefreshSignal(() => active ? session.user.value?.id : undefined);
@@ -51,7 +52,7 @@ onBeforeUnmount(() => { active = false; controller?.abort(); });
       <button type="button" :disabled="pending || uploading" class="mt-7 rounded-xl border border-slate-300 px-4 py-3 font-semibold hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60" @click="logout">{{ pending ? 'Kijelentkezés…' : 'Kijelentkezés' }}</button>
       <p v-if="uploading" class="mt-2 text-xs text-slate-500">Kijelentkezés a futó feltöltések befejezése után.</p>
     </section>
-    <GalleryPanel v-if="user" :key="user.id" :owner-id="user.id" :refresh-version="galleryRefreshRequest?.ownerId === user.id ? galleryRefreshRequest.version : 0" :disabled="pending" @unauthorized="gallerySessionExpired" />
-    <UploadPanel v-if="user" :key="'upload-' + user.id" :owner-id="user.id" :disabled="pending" @busy="uploading = $event" @completed="uploadCompleted" />
+    <GalleryPanel v-if="user" :key="user.id" :owner-id="user.id" :refresh-version="galleryRefreshRequest?.ownerId === user.id ? galleryRefreshRequest.version : 0" :disabled="pending" :upload-selection-disabled="uploadPanel?.selectionDisabled ?? true" @select-upload="uploadPanel?.openFilePicker()" @unauthorized="gallerySessionExpired" />
+    <UploadPanel v-if="user" ref="uploadPanel" :key="'upload-' + user.id" :owner-id="user.id" :disabled="pending" @busy="uploading = $event" @completed="uploadCompleted" />
   </main>
 </template>

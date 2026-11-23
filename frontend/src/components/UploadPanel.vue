@@ -13,6 +13,15 @@ onMounted(()=>{void batch.discover();timer=setInterval(()=>{now.value=Date.now()
 onBeforeUnmount(()=>{clearInterval(timer);window.removeEventListener('offline',stop);window.removeEventListener('pagehide',stop);batch.dispose();emit('busy',false);});
 const labels:Record<MultipartStatus,string>={queued:'Várakozik',hashing:'Fájlazonosság ellenőrzése…',initializing:'Előkészítés…',uploading:'Feltöltés…',confirming:'Ellenőrzés és véglegesítés…',success:'Sikeresen feltöltve',error:'Nem sikerült',paused:'Szünetel', 'needs-file':'Folytatható feltöltés',cancelled:'Lezárva'};
 const hasQueued=computed(()=>state.rows.some(r=>r.status==='queued'));
+const fileInput = ref<HTMLInputElement | null>(null);
+const selectionDisabled = computed(() => !!props.disabled || busy.value || state.loading || state.authRequired);
+function openFilePicker() {
+  const input = fileInput.value;
+  if (!input || selectionDisabled.value) return;
+  input.focus();
+  input.click();
+}
+defineExpose({ openFilePicker, selectionDisabled });
 const working=(s:MultipartStatus)=>['hashing','initializing','uploading','confirming'].includes(s);
 const waits=(at:number)=>Math.max(0,Math.ceil((at-now.value)/1000));
 const size=(bytes:number)=>bytes<1048576?`${Math.ceil(bytes/1024)} KiB`:`${(bytes/1048576).toFixed(1)} MiB`;
@@ -36,7 +45,7 @@ function reselect(id:string,event:Event){const input=event.target as HTMLInputEl
  </div>
  <div class="mt-5 rounded-2xl border border-dashed border-indigo-300 p-4">
   <label for="upload-files" class="block font-semibold">Képek kiválasztása</label>
-  <input id="upload-files" type="file" multiple :accept="IMAGE_TYPES.join(',')" :disabled="disabled||busy||state.loading||state.authRequired" aria-describedby="upload-help upload-lifetime" class="mt-3 block w-full text-sm" @change="select" />
+  <input id="upload-files" ref="fileInput" type="file" multiple :accept="IMAGE_TYPES.join(',')" :disabled="selectionDisabled" aria-describedby="upload-help upload-lifetime" class="mt-3 block w-full text-sm" @change="select" />
  </div>
  <p v-if="waits(state.cooldownUntil)>0" role="alert" class="mt-3 text-sm text-amber-800">Túl sok kérés. Kézi folytatás {{ waits(state.cooldownUntil) }} mp múlva.</p>
  <p v-if="state.selectionError" role="alert" class="mt-3 text-sm text-amber-800">{{ state.selectionError }}</p>

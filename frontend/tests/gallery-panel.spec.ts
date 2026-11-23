@@ -7,7 +7,8 @@ import { galleryFile as file } from './helpers/gallery-fixture';
 
 const owner = '00000000-0000-4000-8000-000000000001';
 const client = { list: vi.fn() };
-const render = (disabled = false) => renderToString(createSSRApp(GalleryPanel, { ownerId: owner, disabled }));
+const render = (disabled = false, uploadSelectionDisabled = false) =>
+  renderToString(createSSRApp(GalleryPanel, { ownerId: owner, disabled, uploadSelectionDisabled }));
 function setup() {
   const gallery = galleryModule.createGallery(client); vi.spyOn(galleryModule, 'createGallery').mockReturnValue(gallery); return gallery;
 }
@@ -20,7 +21,11 @@ describe('Metadata gallery templates (isolated SSR, not browser evidence)', () =
   });
   it('offers upload from a real empty success and no next-page button', async () => {
     const gallery = setup(); gallery.state.loaded = true; const html = await render();
-    expect(html).toContain('Még nincs feltöltött képed.'); expect(html).toContain('href="#upload-title"'); expect(html).not.toContain('További képek</button>');
+    expect(html).toContain('Még nincs feltöltött képed.');
+    expect(html).toMatch(/<button type="button"(?![^>]*\bdisabled(?:\s|=|>))[^>]*>Képek kiválasztása<\/button>/);
+    expect(html).not.toContain('href="#upload-title"');
+    expect(html).not.toContain('További képek</button>');
+    expect(await render(false, true)).toMatch(/<button type="button" disabled[^>]*>Képek kiválasztása<\/button>/);
   });
   it('renders filename/size/date cards with escaped text, no image or preview requests', async () => {
     const gallery = setup(); gallery.state.loaded = true; gallery.state.items = [file(1, { originalName: '<img src=x onerror=alert(1)>.jpg' })];

@@ -10,8 +10,8 @@ import { restoreModalFocus, bindPageVisibility } from '../gallery/modal';
 import GalleryCard from './GalleryCard.vue';
 import PreviewDialog from './PreviewDialog.vue';
 
-const props = defineProps<{ ownerId: string; disabled?: boolean; refreshVersion?: number }>();
-const emit = defineEmits<{ unauthorized: [ownerId: string] }>();
+const props = defineProps<{ ownerId: string; disabled?: boolean; refreshVersion?: number; uploadSelectionDisabled?: boolean }>();
+const emit = defineEmits<{ unauthorized: [ownerId: string]; selectUpload: [] }>();
 function expired() { gallery.dispose(); previews.dispose(); thumbnails.dispose(); processing.dispose(); closePreview(); emit('unauthorized', props.ownerId); }
 const gallery = createGallery(galleryClient, expired);
 const pool = createPreviewPool();
@@ -68,7 +68,7 @@ async function refreshGallery() {
     </div>
     <div v-if="state.loaded && !state.items.length && !state.error && !state.loading" class="mt-6 rounded-2xl bg-slate-50 p-6 text-center">
       <p class="font-medium">Még nincs feltöltött képed.</p>
-      <a href="#upload-title" class="mt-3 inline-block font-semibold text-indigo-700 underline">Képek feltöltése</a>
+      <button type="button" :disabled="disabled || uploadSelectionDisabled" class="mt-3 rounded-lg bg-indigo-600 px-4 py-2 font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50" @click="emit('selectUpload')">Képek kiválasztása</button>
     </div>
     <template v-if="state.items.length">
       <p role="status" aria-live="polite" class="mt-5 text-sm text-slate-500">{{ state.items.length }} betöltött kép</p>

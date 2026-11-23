@@ -1036,3 +1036,9 @@ A nagy fájlnál a DB mindkét futásban végleges `PROCESSOR_INPUT_LIMIT` kódo
 A státuszlekérdezés egyszerre legfeljebb 20 látható kártyát kérdez le, egy aktív kéréssel és legalább 5 másodperc két indítás között. A terminális állapotoknál leáll. A gyorsítás a megjelenés idejét célozza, a worker és a dekóder erőforráskorlátai változatlanok.
 
 **Záró ellenőrzés az 1-es javítást is tartalmazó ágon – PASS:** 459 frontendteszt, típusellenőrzés, build és egészséges Compose frontend. Chromiumban a kiskép 5 760 ms alatt jelent meg. A nagy kép kártyája a méretkorlátot jelezte, az eredeti megnyílt.
+
+## Az üres galéria képválasztója – 2026-11-23
+
+**Környezet:** a `fix/gallery-upload-picker` ág, `34c0fa3` alapcommit, helyi Docker Compose és Chromium, új fiók üres galériával. **PASS:** 1366×1050-es nézetben az egérkattintás, 390×640-es nézetben a Tab és Enter ugyanazt a többfájlos mezőt nyitotta meg. A fájlmező megkapta a fókuszt, a `small.png` bekerült a feltöltési sorba, és a „Feltöltés indítása” gomb elérhetővé vált. Az URL töredéke üres maradt, és egyik kiválasztás sem indított importkérést.
+
+**Frontend ellenőrzések – PASS:** 459 Vitest eset, típusellenőrzés, build és Compose frontend health. Az üres állapot sablontesztje ellenőrzi, hogy a művelet le van tiltva, amikor a feltöltőpanel nem fogad új fájlt.
