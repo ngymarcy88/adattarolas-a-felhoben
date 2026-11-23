@@ -1,10 +1,9 @@
 import { computed, reactive } from 'vue';
 import { multipartClient, type MultipartClient, type ImportItem, type ImportSession, type Transfer } from '../api/multipart';
 import { UploadRequestError } from '../api/uploads';
-import { prepareImage } from './image-format';
-import { validateImage, IMAGE_TYPES } from './batch';
+import { prepareImportFile } from './image-format';
+import { validateImage } from './batch';
 import { transferWithUppy, type TransferDriver } from './uppy-transfer';
-export { IMAGE_TYPES };
 export type MultipartStatus='queued'|'hashing'|'initializing'|'uploading'|'confirming'|'success'|'error'|'paused'|'needs-file'|'cancelled';
 export interface MultipartRow { id:string;name:string;size:number;mime:string;status:MultipartStatus;progress:number;error:string;notice:string;retryAt:number;transfer?:Transfer;fileId?:string }
 interface Context { file?:File;hash?:string;prepared?:boolean;key:string }
@@ -51,7 +50,7 @@ export function createMultipartBatch(client:MultipartClient=multipartClient,opti
     if(!ctx.file){row.status='needs-file';return;}
     row.status='hashing';
     const invalid=validateImage(ctx.file);if(invalid)throw new UploadRequestError('VALIDATION_ERROR');
-    if(!ctx.prepared){const p=await prepareImage(ctx.file);alive(signal);ctx.file=p.file;ctx.prepared=true;row.notice=p.notice;row.name=p.file.name;row.mime=p.file.type;}
+    if(!ctx.prepared){const p=await prepareImportFile(ctx.file);alive(signal);ctx.file=p.file;ctx.prepared=true;row.notice=p.notice;row.name=p.file.name;row.mime=p.file.type;}
     ctx.hash??=await hash(ctx.file);alive(signal);
     const imported=await ensureImport(signal);alive(signal);row.status='initializing';
     const item=await client.initiate(imported,{clientFileId:row.id,originalName:row.name,mimeType:row.mime,sizeBytes:row.size,contentSha256:ctx.hash},ctx.key,signal);alive(signal);row.fileId=item.fileId;receive(row,item.transfer);
@@ -69,7 +68,7 @@ export function createMultipartBatch(client:MultipartClient=multipartClient,opti
     if(result.pending)throw new UploadRequestError('UPLOAD_NOT_READY',Math.max(2000,result.retryAfterMs));await finish(row,signal);return;
   }
   if(!ctx.file){row.status='needs-file';return;}
-  row.status='hashing';if(!ctx.hash){const p=await prepareImage(ctx.file);alive(signal);if(p.file.type!==row.mime)throw new UploadRequestError('TRANSFER_SOURCE_MISMATCH');ctx.file=p.file;ctx.hash=await hash(ctx.file);alive(signal);}
+  row.status='hashing';if(!ctx.hash){const p=await prepareImportFile(ctx.file);alive(signal);if(p.file.type!==row.mime)throw new UploadRequestError('TRANSFER_SOURCE_MISMATCH');ctx.file=p.file;ctx.hash=await hash(ctx.file);alive(signal);}
   if(t.state==='CREATING'||t.state==='CREATE_UNKNOWN'){
     const item=await client.initiate(state.importId,{clientFileId:row.id,originalName:row.name,mimeType:row.mime,sizeBytes:row.size,contentSha256:ctx.hash},ctx.key,signal);alive(signal);receive(row,item.transfer);t=item.transfer;
   }

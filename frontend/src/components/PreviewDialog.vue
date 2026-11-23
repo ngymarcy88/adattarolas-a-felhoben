@@ -4,22 +4,59 @@ import type { GalleryFile } from '../api/gallery';
 import type { Previews } from '../gallery/previews';
 import { mountModal } from '../gallery/modal';
 import GalleryImage from './GalleryImage.vue';
-const props = defineProps<{ file: GalleryFile; previews: Previews; now: number; disabled?: boolean }>();
+import { downloadClient, PreviewRequestError } from '../api/preview';
+import { OPAQUE_FILE_MIME } from '../file-content-type';
+const props = defineProps<{ file: GalleryFile; previews: Previews; now: number; disabled?: boolean; invalidImage?: boolean }>();
 const emit = defineEmits<{ close: [] }>();
 const dialog = ref<HTMLDialogElement | null>(null); const close = ref<HTMLButtonElement | null>(null); let cleanup: (() => void) | undefined;
 const entry = computed(() => props.previews.state.entries[props.file.id]);
 const wait = computed(() => Math.max(0, Math.ceil((Math.max(entry.value?.retryAt ?? 0, props.previews.state.retryAt) - props.now) / 1000)));
+const isOpaque = computed(() => props.file.mimeType === OPAQUE_FILE_MIME);
+const downloading = ref(false);
+const downloadError = ref('');
+const downloadRetryAt = ref(0);
+let downloadRequest: AbortController | undefined;
+async function download() {
+  if (props.disabled || downloading.value || Date.now() < downloadRetryAt.value) return;
+  const controller = new AbortController();
+  downloadRequest = controller;
+  downloading.value = true;
+  downloadError.value = '';
+  try {
+    const { url } = await downloadClient.get(props.file.id, controller.signal);
+    if (controller.signal.aborted || props.disabled) return;
+    const link = document.createElement('a');
+    link.href = url;
+    link.rel = 'noreferrer';
+    link.download = props.file.originalName;
+    link.click();
+  } catch (cause) {
+    if (controller.signal.aborted) return;
+    const error = cause instanceof PreviewRequestError ? cause : null;
+    downloadRetryAt.value = error?.retryAfterMs ? Date.now() + error.retryAfterMs : 0;
+    downloadError.value = error?.code === 'unauthorized' ? error.message
+      : error?.code === 'rate_limited' ? 'Várj egy kicsit a következő letöltési kérés előtt.'
+      : 'A fájl most nem tölthető le.';
+  } finally {
+    downloading.value = false;
+    downloadRequest = undefined;
+  }
+}
 onMounted(() => { if (dialog.value && close.value) cleanup = mountModal(dialog.value, close.value); });
-onBeforeUnmount(() => cleanup?.());
+onBeforeUnmount(() => { downloadRequest?.abort(); cleanup?.(); });
 </script>
 <template>
   <dialog ref="dialog" aria-modal="true" aria-labelledby="preview-dialog-title" aria-describedby="preview-dialog-help" class="fixed inset-0 m-auto max-h-[95vh] w-[min(95vw,72rem)] overflow-auto rounded-2xl border border-slate-200 bg-white p-5 text-slate-900 shadow-xl backdrop:bg-slate-950/70" @cancel.prevent="emit('close')">
     <div class="mb-4 flex items-start justify-between gap-4"><h2 id="preview-dialog-title" class="break-all text-lg font-semibold">{{ file.originalName }}</h2>
       <button ref="close" autofocus type="button" class="shrink-0 rounded-lg border border-slate-300 px-4 py-2 font-semibold" @click="emit('close')">Bezárás</button></div>
-    <p id="preview-dialog-help" class="mb-4 text-sm text-slate-500">Nagy előnézet. Az Escape billentyűvel vagy a Bezárás gombbal léphetsz vissza.</p>
-    <GalleryImage v-if="entry?.phase === 'ready' && entry.url" :key="entry.version" :url="entry.url" :version="entry.version" :name="file.originalName" large @failed="previews.imageFailed(file.id, $event)" />
+    <p id="preview-dialog-help" class="mb-4 text-sm text-slate-500">Az Escape billentyűvel vagy a Bezárás gombbal léphetsz vissza.</p>
+    <p v-if="isOpaque">Ehhez a fájltípushoz nincs előnézet.</p>
+    <p v-else-if="invalidImage" role="alert">A kép sérült vagy nem jeleníthető meg.</p>
+    <GalleryImage v-else-if="entry?.phase === 'ready' && entry.url" :key="entry.version" :url="entry.url" :version="entry.version" :name="file.originalName" large @failed="previews.imageFailed(file.id, $event)" />
     <p v-else-if="!entry || entry.phase === 'queued' || entry.phase === 'loading'" role="status">Előnézet betöltése…</p>
-    <p v-if="entry?.error" role="alert" class="text-sm text-red-700">{{ entry.error }}</p>
-    <button v-if="entry?.phase === 'error' && entry.retryable" type="button" :disabled="disabled || wait > 0" class="mt-4 rounded-lg border border-slate-300 px-4 py-2 font-semibold disabled:opacity-50" @click="previews.retry(file.id)">Kép újrapróbálása<span v-if="wait"> ({{ wait }} mp)</span></button>
+    <p v-if="!isOpaque && !invalidImage && entry?.error" role="alert" class="text-sm text-red-700">{{ entry.error }}</p>
+    <button v-if="!isOpaque && !invalidImage && entry?.phase === 'error' && entry.retryable" type="button" :disabled="disabled || wait > 0" class="mt-4 rounded-lg border border-slate-300 px-4 py-2 font-semibold disabled:opacity-50" @click="previews.retry(file.id)">Kép újrapróbálása<span v-if="wait"> ({{ wait }} mp)</span></button>
+    <button type="button" :disabled="disabled || downloading || downloadRetryAt > now" class="mt-4 rounded-lg border border-slate-300 px-4 py-2 font-semibold disabled:opacity-50" @click="download">{{ downloading ? 'Letöltés előkészítése…' : 'Eredeti fájl letöltése' }}</button>
+    <p v-if="downloadError" role="alert" class="mt-2 text-sm text-red-700">{{ downloadError }}</p>
   </dialog>
 </template>

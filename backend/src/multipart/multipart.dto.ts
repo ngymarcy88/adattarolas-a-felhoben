@@ -24,7 +24,7 @@ export class MultipartFilePipe implements PipeTransform<unknown, MultipartFileIn
   constructor(private readonly config: ConfigService) {}
   transform(value: unknown) {
     const v = record(value, ['clientFileId', 'originalName', 'mimeType', 'sizeBytes', 'contentSha256']);
-    const base = new UploadInitValidationPipe(this.config).transform({ originalName: v.originalName, mimeType: v.mimeType, sizeBytes: v.sizeBytes });
+    const base = new UploadInitValidationPipe(this.config).validateMultipart({ originalName: v.originalName, mimeType: v.mimeType, sizeBytes: v.sizeBytes });
     return { ...base, clientFileId: uuid(v.clientFileId, true), ...source({ sizeBytes: v.sizeBytes, contentSha256: v.contentSha256 }) };
   }
 }

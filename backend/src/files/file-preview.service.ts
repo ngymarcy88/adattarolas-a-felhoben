@@ -5,6 +5,7 @@ import type { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ApiError } from '../common/errors/api-error';
 import { OBJECT_STORAGE, type ObjectStorage } from '../storage/storage.interface';
+import { OPAQUE_FILE_MIME } from './file-content-type';
 
 const imageTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
 const select = { storageKey: true, originalName: true, mimeType: true, detectedMimeType: true, sizeBytes: true } satisfies Prisma.FileObjectSelect;
@@ -30,9 +31,12 @@ export class FilePreviewService {
     }
   }
 
-  async create(ownerId: string, id: string) {
+  create(ownerId: string, id: string) { return this.createAccess(ownerId, id, 'inline'); }
+  download(ownerId: string, id: string) { return this.createAccess(ownerId, id, 'attachment'); }
+
+  private async createAccess(ownerId: string, id: string, disposition: 'inline' | 'attachment') {
     const file = await this.ownActive(ownerId, id);
-    this.assertType(file); // Ownership/state precedes every type check and storage operation.
+    if (disposition === 'inline') this.assertType(file);
     let head;
     try { head = await this.storage.head(file.storageKey); }
     catch { throw new ApiError('STORAGE_UNAVAILABLE'); }
@@ -45,13 +49,14 @@ export class FilePreviewService {
     const deadline = Date.now() + ttl * 1000;
     const requested = new Date(deadline);
     let access;
-    try { access = await this.storage.createReadAccess({ key: file.storageKey, mimeType: file.detectedMimeType!,
-      originalName: file.originalName, disposition: 'inline', expiresAt: requested }); }
+    const mimeType = disposition === 'attachment' ? OPAQUE_FILE_MIME : file.detectedMimeType!;
+    try { access = await this.storage.createReadAccess({ key: file.storageKey, mimeType,
+      originalName: file.originalName, disposition, expiresAt: requested }); }
     catch { throw new ApiError('STORAGE_UNAVAILABLE'); }
 
     // Do not keep a transaction/row lock open across provider calls. Discard stale capabilities.
     const current = await this.ownActive(ownerId, id);
-    this.assertType(current);
+    if (disposition === 'inline') this.assertType(current);
     if (current.storageKey !== file.storageKey || current.originalName !== file.originalName || current.sizeBytes !== file.sizeBytes ||
         current.mimeType !== file.mimeType || current.detectedMimeType !== file.detectedMimeType) throw new ApiError('STORAGE_UNAVAILABLE');
     try {

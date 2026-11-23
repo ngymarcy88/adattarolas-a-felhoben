@@ -5,6 +5,7 @@ import { AbortMultipartUploadCommand, CompleteMultipartUploadCommand, CreateMult
   UploadPartCommand, DeleteObjectCommand, GetObjectCommand, HeadBucketCommand, HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import type { AppConfig } from '../config/app-config';
+import { OPAQUE_FILE_MIME } from '../files/file-content-type';
 import { mapStorageError, mapStorageWriteError, mapMultipartError, MultipartMutationError, StorageError } from './storage-error';
 import { assertDerivedKey, assertOriginalKey, assertStorageKey } from './storage-key';
 import type { DerivedWriteReceipt, MultipartPartReceipt, MultipartSession, MultipartStorage, ObjectHead, ObjectStorage, UploadAccess } from './storage.interface';
@@ -347,13 +348,15 @@ export class S3StorageAdapter implements ObjectStorage {
   }
 
   async initiateMultipart(input: Parameters<MultipartStorage['initiateMultipart']>[0]): Promise<{ uploadId: string }> {
-    const session = this.multipartGeometry(input); this.assertImage(input.mimeType);
+    const session = this.multipartGeometry(input);
+    const opaque = input.mimeType === OPAQUE_FILE_MIME;
+    if (!opaque) this.assertImage(input.mimeType);
     const transferId = input.transferId;
     if (typeof transferId !== 'string' || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.exec(transferId)?.[0] !== transferId) {
       throw new StorageError('INVALID_ARGUMENT');
     }
     const command = new CreateMultipartUploadCommand({ Bucket: this.config.storage.bucket, Key: session.key,
-      ContentType: input.mimeType, CacheControl: 'no-store', Metadata: { 'cloudvault-transfer-id': transferId,
+      ContentType: input.mimeType, ...(opaque ? { ContentDisposition: 'attachment' } : {}), CacheControl: 'no-store', Metadata: { 'cloudvault-transfer-id': transferId,
         'cloudvault-size-bytes': String(session.sizeBytes), 'cloudvault-part-size-bytes': String(session.partSizeBytes) } });
     return this.multipartMutation(input.signal, async (abortSignal, assertLive, dispatch) => {
       dispatch();
@@ -474,7 +477,7 @@ export class S3StorageAdapter implements ObjectStorage {
     const kind = assertStorageKey(input.key);
     if (kind === 'derived') {
       if (input.mimeType !== 'image/webp') throw new StorageError('INVALID_ARGUMENT');
-    } else this.assertImage(input.mimeType);
+    } else if (input.mimeType !== OPAQUE_FILE_MIME || input.disposition !== 'attachment') this.assertImage(input.mimeType);
     const name = input.originalName;
     if (!['inline', 'attachment'].includes(input.disposition) || typeof name !== 'string' || !name.trim() ||
         ['.', '..'].includes(name.trim().normalize('NFC')) || Array.from(name).length > 255 || /[\x00-\x1f\x7f-\x9f/\\\u202a-\u202e\u2066-\u2069]/u.test(name) ||

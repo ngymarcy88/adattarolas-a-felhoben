@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { RouterLink } from 'vue-router';
-import { createMultipartBatch, IMAGE_TYPES, type MultipartStatus } from '../upload/multipart-batch';
+import { createMultipartBatch, type MultipartStatus } from '../upload/multipart-batch';
 const props=defineProps<{ownerId:string;disabled?:boolean}>();
 const emit=defineEmits<{busy:[value:boolean];completed:[ownerId:string]}>();
 const batch=createMultipartBatch();const {state,summary,busy}=batch;const now=ref(Date.now());
@@ -30,31 +30,31 @@ function reselect(id:string,event:Event){const input=event.target as HTMLInputEl
 </script>
 <template>
 <section class="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm" aria-labelledby="upload-title">
- <h2 id="upload-title" class="text-xl font-semibold">Képek feltöltése</h2>
- <p id="upload-help" class="mt-3 text-sm text-slate-600">Egyszerre legfeljebb 20 kép választható, importonként legfeljebb 50, fájlonként 100 MiB. JPEG · PNG · WebP · GIF</p>
- <p id="upload-lifetime" class="mt-2 text-xs text-slate-500">A kész fájlok és teljes fájlrészek a szerveren megmaradnak. Oldalfrissítés után válaszd ki az importot, szükség esetén az eredeti helyi fájlt is. A félbemaradt rész újraküldődik; az 5 MiB alatti kép teljes átvitele elölről indul. A korábbi foglalás megmaradhat.</p>
+ <h2 id="upload-title" class="text-xl font-semibold">Fájlok feltöltése</h2>
+ <p id="upload-help" class="mt-3 text-sm text-slate-600">Egyszerre legfeljebb 20 fájl választható, importonként legfeljebb 50, fájlonként 100 MiB. Képelőnézet a támogatott JPEG, PNG, WebP és GIF képekhez készül.</p>
+ <p id="upload-lifetime" class="mt-2 text-xs text-slate-500">A kész fájlok és teljes fájlrészek a szerveren megmaradnak. Oldalfrissítés után válaszd ki az importot, szükség esetén az eredeti helyi fájlt is. A félbemaradt rész újraküldődik; az 5 MiB alatti fájl teljes átvitele elölről indul. A korábbi foglalás megmaradhat.</p>
  <div class="mt-4 space-y-2" aria-label="Korábbi importok">
   <button type="button" :disabled="disabled||busy||state.loading||state.authRequired" @click="batch.discover()" class="rounded-lg border px-3 py-2 text-sm">Importok frissítése</button>
   <span v-if="state.loading" role="status" class="ml-3 text-sm">Importok betöltése…</span>
   <p v-if="state.loadError" role="alert" class="text-sm text-red-700">{{ state.loadError }}</p>
   <ul class="space-y-1 text-sm"><li v-for="item in state.imports" :key="item.id">
-   <button type="button" :disabled="disabled||busy||state.loading||state.authRequired" :aria-pressed="state.importId===item.id" @click="batch.open(item.id)" class="rounded-lg border px-3 py-2">{{ new Date(item.createdAt).toLocaleString('hu-HU') }} · {{ item.acceptedFileCount }} kép · {{ item.state==='EXPIRED'?'Lejárt':'Megnyitás' }}</button>
+   <button type="button" :disabled="disabled||busy||state.loading||state.authRequired" :aria-pressed="state.importId===item.id" @click="batch.open(item.id)" class="rounded-lg border px-3 py-2">{{ new Date(item.createdAt).toLocaleString('hu-HU') }} · {{ item.acceptedFileCount }} fájl · {{ item.state==='EXPIRED'?'Lejárt':'Megnyitás' }}</button>
   </li></ul>
   <button v-if="state.importsCursor" type="button" :disabled="disabled||busy||state.loading||state.authRequired" @click="batch.discover(true)" class="rounded-lg border px-3 py-2 text-sm">További importok</button>
   <button type="button" :disabled="disabled||busy||state.loading||state.authRequired" @click="batch.fresh()" class="ml-2 rounded-lg border px-3 py-2 text-sm">Új import</button>
  </div>
  <div class="mt-5 rounded-2xl border border-dashed border-indigo-300 p-4">
-  <label for="upload-files" class="block font-semibold">Képek kiválasztása</label>
-  <input id="upload-files" ref="fileInput" type="file" multiple :accept="IMAGE_TYPES.join(',')" :disabled="selectionDisabled" aria-describedby="upload-help upload-lifetime" class="mt-3 block w-full text-sm" @change="select" />
+  <label for="upload-files" class="block font-semibold">Fájlok kiválasztása</label>
+  <input id="upload-files" ref="fileInput" type="file" multiple :disabled="selectionDisabled" aria-describedby="upload-help upload-lifetime" class="mt-3 block w-full text-sm" @change="select" />
  </div>
  <p v-if="waits(state.cooldownUntil)>0" role="alert" class="mt-3 text-sm text-amber-800">Túl sok kérés. Kézi folytatás {{ waits(state.cooldownUntil) }} mp múlva.</p>
  <p v-if="state.selectionError" role="alert" class="mt-3 text-sm text-amber-800">{{ state.selectionError }}</p>
- <p v-if="!state.rows.length" class="mt-6 text-sm text-slate-500">Még nem választottál képet.</p>
+ <p v-if="!state.rows.length" class="mt-6 text-sm text-slate-500">Még nem választottál fájlt.</p>
  <div v-else class="mt-5">
   <p role="status" aria-live="polite">{{ summary.success }} / {{ summary.total }} sikeres · {{ summary.failed }} hibás</p>
   <button type="button" :disabled="disabled||!hasQueued||busy||state.loading||state.authRequired" @click="batch.start()" class="mt-3 rounded-lg bg-indigo-600 px-4 py-3 font-semibold text-white disabled:opacity-50">{{ busy?'Feltöltés folyamatban…':'Feltöltés indítása' }}</button>
   <button v-if="busy" type="button" @click="batch.pauseAll()" class="ml-2 rounded-lg border px-4 py-3">Mind szüneteltetése</button>
-  <ul class="mt-5 space-y-3" aria-label="Kiválasztott képek">
+  <ul class="mt-5 space-y-3" aria-label="Kiválasztott fájlok">
    <li v-for="row in state.rows" :key="row.id" class="rounded-2xl border p-4" :aria-busy="working(row.status)">
     <p class="break-all font-medium">{{ row.name }} <span class="text-xs text-slate-500">{{ size(row.size) }}</span></p>
     <p v-if="row.notice" class="mt-2 text-sm text-indigo-700">{{ row.notice }}</p>
@@ -66,7 +66,7 @@ function reselect(id:string,event:Event){const input=event.target as HTMLInputEl
     <button v-if="working(row.status)" type="button" @click="batch.pause(row.id)" :aria-label="`${row.name} szüneteltetése`" class="mt-2 rounded-lg border px-3 py-2">Szüneteltetés</button>
     <div v-if="['paused','error','needs-file'].includes(row.status)" class="mt-2 space-y-2">
      <label :for="`resume-${row.id}`" class="block text-sm">Az eredeti helyi fájl kiválasztása (ha még vannak hiányzó részek)</label>
-     <input :id="`resume-${row.id}`" type="file" :accept="IMAGE_TYPES.join(',')" :disabled="disabled||state.authRequired||busy" @change="reselect(row.id,$event)" />
+     <input :id="`resume-${row.id}`" type="file" :disabled="disabled||state.authRequired||busy" @change="reselect(row.id,$event)" />
      <button type="button" :disabled="disabled||waits(row.retryAt)>0||state.authRequired" @click="batch.retry(row.id)" :aria-label="`${row.name} folytatása`" class="rounded-lg border px-3 py-2">Folytatás / állapotellenőrzés<span v-if="waits(row.retryAt)>0"> ({{ waits(row.retryAt) }} mp)</span></button>
      <button type="button" :disabled="disabled||busy||state.authRequired" @click="batch.cancel(row.id)" class="ml-2 rounded-lg border px-3 py-2">Végleges megszakítás</button>
     </div>

@@ -2,6 +2,7 @@ import { Injectable, PipeTransform } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AppConfig } from '../config/app-config';
 import { ApiError } from '../common/errors/api-error';
+import { OPAQUE_FILE_MIME } from './file-content-type';
 
 export class UploadInitDto {
   constructor(readonly originalName: string, readonly mimeType: string, readonly sizeBytes: number) {}
@@ -17,6 +18,14 @@ export function uploadKey(value: unknown): string {
 export class UploadInitValidationPipe implements PipeTransform<unknown, UploadInitDto> {
   constructor(private readonly config: ConfigService) {}
   transform(value: unknown): UploadInitDto {
+    return this.validate(value, false);
+  }
+
+  validateMultipart(value: unknown): UploadInitDto {
+    return this.validate(value, true);
+  }
+
+  private validate(value: unknown, allowOpaque: boolean): UploadInitDto {
     if (!value || typeof value !== 'object' || Array.isArray(value) ||
         Object.keys(value).length !== 3 || !['originalName', 'mimeType', 'sizeBytes'].every((key) => Object.hasOwn(value, key))) {
       throw new ApiError('VALIDATION_ERROR');
@@ -30,7 +39,8 @@ export class UploadInitValidationPipe implements PipeTransform<unknown, UploadIn
       throw new ApiError('INVALID_FILE_NAME');
     }
     const config = this.config.getOrThrow<AppConfig>('app');
-    if (!images.has(input.mimeType) || !config.allowedMimeTypes.includes(input.mimeType as AppConfig['allowedMimeTypes'][number])) {
+    const imageAllowed = images.has(input.mimeType) && config.allowedMimeTypes.includes(input.mimeType as AppConfig['allowedMimeTypes'][number]);
+    if (!imageAllowed && !(allowOpaque && input.mimeType === OPAQUE_FILE_MIME)) {
       throw new ApiError('UNSUPPORTED_MEDIA_TYPE');
     }
     if (input.sizeBytes > Math.min(config.maxUploadBytes, 104857600)) throw new ApiError('FILE_TOO_LARGE');

@@ -45,6 +45,16 @@ it('confirm remains bodyless and accepts 202 distinctly from ACTIVE',async()=>{
  const fetch=reply({transfer:{...transfer(),state:'CONFIRMING'}},202,{'Retry-After':'2'});expect((await client().confirm(id,signal())).file).toBeNull();expect(fetch.mock.calls[0][1].body).toBeUndefined();expect(fetch.mock.calls[0][1].headers['Content-Type']).toBeUndefined();
  const file={id,status:'ACTIVE',originalName:'a.png',mimeType:'image/png',detectedMimeType:'image/png',sizeBytes:5242881,confirmBy:date};reply({file});expect((await client().confirm(id,signal())).file).toEqual(file);
 });
+it('restores and confirms opaque files without treating arbitrary MIME as trusted', async () => {
+ const generic = {...item(),originalName:'notes.html',mimeType:'application/octet-stream'};
+ reply({import:imported(),items:[generic],nextCursor:null});
+ expect((await client().getImport(id,null,signal())).items[0]).toEqual(generic);
+ const file={id,status:'ACTIVE',originalName:generic.originalName,mimeType:generic.mimeType,detectedMimeType:generic.mimeType,sizeBytes:generic.sizeBytes,confirmBy:date};
+ reply({file});
+ expect((await client().confirm(id,signal())).file).toEqual(file);
+ reply({file:{...file,mimeType:'text/html',detectedMimeType:'text/html'}});
+ await expect(client().confirm(id,signal())).rejects.toMatchObject({code:'UNAVAILABLE'});
+});
 it('sign exposes only a validated ephemeral part PUT grant',async()=>{
  vi.useFakeTimers();vi.setSystemTime(new Date('2026-11-02T10:00:00Z'));
  const access={method:'PUT',partNumber:2,sizeBytes:1,url:'http://storage.invalid/synthetic-part',headers:{},expiresAt:'2026-11-02T10:02:00.000Z'};reply(access);expect(await client().sign(id,2,signal())).toEqual(access);

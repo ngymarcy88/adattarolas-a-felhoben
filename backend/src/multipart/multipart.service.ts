@@ -8,6 +8,7 @@ import { OBJECT_STORAGE, type ObjectStorage, type MultipartPartReceipt } from '.
 import { StorageError } from '../storage/storage-error';
 import { ProcessingStateService } from '../processing/processing-state.service';
 import { detectImageMime } from '../files/image-signature';
+import { OPAQUE_FILE_MIME } from '../files/file-content-type';
 import { publicFile } from '../files/upload-state.service';
 import { MultipartStore, publicTransfer, transferInclude, type Transfer, type TransferContext } from './multipart.store';
 import { source, uuid } from './multipart.dto';
@@ -255,6 +256,13 @@ export class MultipartService {
       await this.failed(owner, picked, 'COMPLETE_UNKNOWN');
     }
   }
+  private verifiedMime(declared: string, prefix: Uint8Array): string | null {
+    if (declared === OPAQUE_FILE_MIME) return OPAQUE_FILE_MIME;
+    const detected = detectImageMime(prefix);
+    const allowed: readonly string[] = this.config.getOrThrow<AppConfig>('app').allowedMimeTypes;
+    return detected && detected === declared && allowed.includes(detected) ? detected : null;
+  }
+
   private async recoverComplete(owner: string, id: string) {
     const picked = await this.store.locked(owner, id, async c => {
       await this.expire(c);
@@ -268,7 +276,7 @@ export class MultipartService {
     if (!picked) return;
     try {
       const verified = await this.storage.verifyMultipartObject({ ...session(picked.t), transferId: id });
-      if (verified.sha256 !== picked.t.contentSha256 || detectImageMime(verified.prefix) !== picked.t.uploadOperation.fileObject.mimeType) {
+      if (verified.sha256 !== picked.t.contentSha256 || !this.verifiedMime(picked.t.uploadOperation.fileObject.mimeType, verified.prefix)) {
         await this.store.locked(owner, id, async c => { await this.expire(c); if (this.owns(c, picked)) await this.close(c, 'REJECTED', 'UPLOAD_VALIDATION_FAILED'); });
         return;
       }
@@ -340,14 +348,13 @@ export class MultipartService {
       }
       await this.failed(owner, picked); throw new ApiError('UPLOAD_VERIFICATION_UNAVAILABLE');
     }
-    const mime = detectImageMime(verified.prefix);
     let finished;
     try { finished = await this.store.locked(owner, picked.t.id, async c => {
       await this.expire(c);
       if (c.transfer.state === 'SUCCEEDED' && c.transfer.uploadOperation.fileObject.status === 'ACTIVE') return { file: c.transfer.uploadOperation.fileObject };
       if (!this.owns(c, picked)) return { error: this.error(c.transfer) ?? 'TRANSFER_STATE_CONFLICT' };
-      if (verified.etag !== c.transfer.storedETag || verified.sha256 !== c.transfer.contentSha256 || !mime || mime !== c.transfer.uploadOperation.fileObject.mimeType ||
-          !this.config.getOrThrow<AppConfig>('app').allowedMimeTypes.includes(mime as AppConfig['allowedMimeTypes'][number])) {
+      const mime = this.verifiedMime(c.transfer.uploadOperation.fileObject.mimeType, verified.prefix);
+      if (verified.etag !== c.transfer.storedETag || verified.sha256 !== c.transfer.contentSha256 || !mime) {
         await this.close(c, 'REJECTED', 'UPLOAD_VALIDATION_FAILED'); return { error: 'UPLOAD_VALIDATION_FAILED' as const };
       }
       if (c.user.reservedStorageBytes < c.transfer.sizeBytes) throw new ApiError('DATABASE_UNAVAILABLE');
@@ -356,7 +363,7 @@ export class MultipartService {
       await c.tx.multipartTransfer.update({ where: { id: c.transfer.id }, data: { state: 'SUCCEEDED', verifiedAt: c.now, verifiedSha256: verified.sha256,
         leaseOwner: null, leaseUntil: null, recoveryAfter: null, lastErrorCode: null, revision: { increment: 1 } } });
       await c.tx.user.update({ where: { id: owner }, data: { reservedStorageBytes: { decrement: c.transfer.sizeBytes }, usedStorageBytes: { increment: c.transfer.sizeBytes } } });
-      await this.processing.enqueueConfirmedFile(c.tx, active);
+      if (mime !== OPAQUE_FILE_MIME) await this.processing.enqueueConfirmedFile(c.tx, active);
       await c.tx.auditEvent.create({ data: { actorUserId: owner, action: 'UPLOAD_CONFIRMED', resourceType: 'FILE_OBJECT', resourceId: active.id,
         requestId: requestId ?? randomUUID(), metadata: { sizeBytes: String(active.sizeBytes), mimeType: mime } } });
       const [clock] = await c.tx.$queryRaw<{ now: Date }[]>`SELECT clock_timestamp() AS "now"`;

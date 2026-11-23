@@ -612,3 +612,7 @@ Nincs új séma/migráció ebben a szeletben. A MultipartStore/User lock rendezi
 A lease/fence és sealed manifest aktuális DB-állapotát minden külső válasz után újraellenőrzi a service. A confirm véglegesítése együtt módosítja az ACTIVE/FINALIZED/SUCCEEDED állapotot, used/reserved számlálókat, auditot és a meglévő ProcessingStateService révén az egyedi thumbnail-jobot. Lejárt végső DB-work rollbackje után az EXPIRED külön tranzakcióban tartósul. Cancel/expiry/reject nem csökkent számlálót, nem ír release/closure-proofot. A restart-egyeztetés kérésekre fut, nem új háttérfolyamat.
 
 Az opt-in meglévő sémapróba `--multipart-service` kapcsolója friss eldobható PostgreSQL-en az aktuális build valódi Prisma-clientjét és service-eit is futtatja, **szintetikus storage-porttal**. Nem provider-/HTTP-/böngészőbizonyíték. Eredmény a tesztriportban; a migrációk és korábbi adatok története változatlan.
+
+### Általános fájlok tárolási osztálya
+
+Az általános multipart fájl a meglévő FileObject, UploadOperation és MultipartTransfer rekordokat használja, új sémaelem nélkül. Sikeres méret- és SHA-256-ellenőrzés után az ACTIVE rekordban a `mimeType` és a `detectedMimeType` egyaránt `application/octet-stream`. Ez csak a biztonságos tárolási osztályt jelzi, a tényleges formátumra nem ad állítást. A foglalt bájt egyszer kerül át használt bájtba. Ehhez a típushoz nem keletkezik kisképfeldolgozási feladat vagy eredmény.

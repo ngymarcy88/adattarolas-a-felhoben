@@ -39,6 +39,20 @@ function mutate(f: ReturnType<typeof fixture>, kind: typeof mutations[number], s
 }
 
 describe('multipart authority and limits', () => {
+  it('stores opaque data as an attachment and never signs an inline read for it', async () => {
+    const f = fixture();
+    f.write.mockResolvedValue(created());
+    const mimeType = 'application/octet-stream';
+    await f.adapter.initiateMultipart({ ...initial, mimeType });
+    expect(f.write.mock.calls[0][0].input).toMatchObject({ ContentType: mimeType, ContentDisposition: 'attachment' });
+    const input = { key, mimeType, originalName: 'doc.html', expiresAt: new Date(+now + 60000) };
+    await expect(f.adapter.createReadAccess({ ...input, disposition: 'inline' })).rejects.toMatchObject({ code: 'INVALID_ARGUMENT' });
+    expect(f.sign).not.toHaveBeenCalled();
+    await f.adapter.createReadAccess({ ...input, disposition: 'attachment' });
+    expect(f.sign.mock.calls[0][1].input).toMatchObject({
+      ResponseContentType: mimeType, ResponseContentDisposition: expect.stringMatching(/^attachment;/),
+    });
+  });
   it('creates an image session with server identity, not a client filename/key', async () => {
     const f = fixture(); f.write.mockResolvedValue(created());
     await expect(f.adapter.initiateMultipart(initial)).resolves.toEqual({ uploadId: session.uploadId });

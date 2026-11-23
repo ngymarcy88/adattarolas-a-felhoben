@@ -13,7 +13,7 @@ const messages: Record<PreviewErrorCode, string> = {
 export class PreviewRequestError extends Error {
   constructor(readonly code: PreviewErrorCode, readonly retryAfterMs = 0) { super(messages[code]); this.name = 'PreviewRequestError'; }
 }
-export function createPreviewClient(baseUrl: string | undefined, frontendOrigin = () => window.location.origin, resource: 'preview-url' | 'thumbnail-url' = 'preview-url') {
+export function createPreviewClient(baseUrl: string | undefined, frontendOrigin = () => window.location.origin, resource: 'preview-url' | 'thumbnail-url' | 'download-url' = 'preview-url') {
   return {
     async get(id: string, signal: AbortSignal): Promise<PreviewAccess> {
       if (id.length !== 36 || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id)) throw new PreviewRequestError('not_found');
@@ -47,3 +47,4 @@ export type PreviewClient = ReturnType<typeof createPreviewClient>;
 export const previewClient = createPreviewClient(import.meta.env.VITE_API_BASE_URL);
 
 export const thumbnailClient = createPreviewClient(import.meta.env.VITE_API_BASE_URL, undefined, 'thumbnail-url');
+export const downloadClient = createPreviewClient(import.meta.env.VITE_API_BASE_URL, undefined, 'download-url');

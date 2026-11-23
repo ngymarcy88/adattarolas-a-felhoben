@@ -25,6 +25,12 @@ export class FilesController {
   previewUrl(@Req() request: AuthenticatedRequest, @Param('fileId', FileIdPipe) id: string) {
     return this.preview.create(request.user.id, id);
   }
+  @Get(':fileId/download-url')
+  @Header('Cache-Control', 'no-store')
+  @UseGuards(SessionGuard, FilePreviewGuard)
+  downloadUrl(@Req() request: AuthenticatedRequest, @Param('fileId', FileIdPipe) id: string) {
+    return this.preview.download(request.user.id, id);
+  }
   @Get()
   @Header('Cache-Control', 'no-store')
   @UseGuards(SessionGuard, FileListGuard)

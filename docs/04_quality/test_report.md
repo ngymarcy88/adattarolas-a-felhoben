@@ -1042,3 +1042,14 @@ A státuszlekérdezés egyszerre legfeljebb 20 látható kártyát kérdez le, e
 **Környezet:** a `fix/gallery-upload-picker` ág, `34c0fa3` alapcommit, helyi Docker Compose és Chromium, új fiók üres galériával. **PASS:** 1366×1050-es nézetben az egérkattintás, 390×640-es nézetben a Tab és Enter ugyanazt a többfájlos mezőt nyitotta meg. A fájlmező megkapta a fókuszt, a `small.png` bekerült a feltöltési sorba, és a „Feltöltés indítása” gomb elérhetővé vált. Az URL töredéke üres maradt, és egyik kiválasztás sem indított importkérést.
 
 **Frontend ellenőrzések – PASS:** 459 Vitest eset, típusellenőrzés, build és Compose frontend health. Az üres állapot sablontesztje ellenőrzi, hogy a művelet le van tiltva, amikor a feltöltőpanel nem fogad új fájlt.
+
+## Általános fájlok és előnézet – 2026-11-23
+
+**Környezet:** `feature/general-file-storage`, `b523088` alapcommit, helyi Docker Compose, Chromium, PostgreSQL 17.9 és MinIO. Új szintetikus fiókok és fájlok.
+
+- **Vegyes import – PASS:** egy feltöltési kötegben szintetikus HTML, hibás PNG-aláírású fájl, érvényes aláírású csonka PNG és normál PNG. Mind a négy fájl aktív lett. A HTML és a hibás aláírású fájl általános fájlként jelent meg. A csonka képnél a kártya és az előnézeti párbeszédablak sérült képet jelzett, a normál PNG kisképe és eredetije sikeresen megjelent.
+- **Letöltés és tulajdonos – PASS:** a HTML böngészős letöltése az eredeti fájlnévvel indult. A MinIO válasza `application/octet-stream`, `attachment`, a letöltött bájtok egyeztek az eredetivel. Inline előnézet HTTP 415, munkamenet nélküli letöltés 401, másik fiók letöltési kérése 404.
+- **Elszámolás – PASS:** négy aktív eredeti 12 569 bájt, kész származtatott eredmény 3 164 bájt, használt összesen 15 733 bájt, foglalt 0 bájt. Az általános fájlokhoz nulla képfeldolgozási feladat tartozott.
+- **Folytatás újratöltés után – PASS:** a 10 485 769 bájtos általános fájl második részének kérését visszatartottuk, szüneteltettük a feltöltést, majd frissítettük az oldalt. Az import újbóli megnyitása és a fájl kiválasztása után csak a 2. és 3. részhez indult új PUT, a feltöltés befejeződött.
+
+**Automatizált ellenőrzések – PASS az érintett tesztek ismétlése után:** 1 255 backend-, 461 frontend- és 3 segédteszt összesítve. Az első kör régi listaszűrési és címkeelvárást, hiányzó tesztkomponens-importot és általános kártyán megjelenő felesleges újrapróbálást tárt fel. A javítás után az érintett négy tesztfájl zöld lett. A teljes típusellenőrzés, a build és a Compose health ellenőrzése is sikerült.

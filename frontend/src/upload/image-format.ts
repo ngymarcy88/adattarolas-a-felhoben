@@ -1,4 +1,5 @@
 import { UploadRequestError } from '../api/uploads';
+import { OPAQUE_FILE_MIME } from '../file-content-type';
 
 export const IMAGE_HEADER_BYTES = 16;
 export type ImageMime = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
@@ -29,12 +30,18 @@ export function imageFileName(originalName: string, mime: ImageMime): string {
   return [...stem].slice(0, 255 - suffix.length).join('') + suffix;
 }
 
-export async function prepareImage(file: File): Promise<{ file: File; notice: string }> {
+async function prepare(file: File, allowOpaque: boolean): Promise<{ file: File; notice: string }> {
   let bytes: Uint8Array;
   try { bytes = new Uint8Array(await file.slice(0, IMAGE_HEADER_BYTES).arrayBuffer()); }
   catch { throw new UploadRequestError('FILE_READ_FAILED'); }
   const mime = detectImageFormat(bytes);
-  if (!mime) throw new UploadRequestError('UNSUPPORTED_MEDIA_TYPE');
+  if (!mime) {
+    if (!allowOpaque) throw new UploadRequestError('UNSUPPORTED_MEDIA_TYPE');
+    return {
+      file: new File([file], file.name.trim().normalize('NFC'), { type: OPAQUE_FILE_MIME, lastModified: file.lastModified }),
+      notice: 'Általános fájl. Letölthető, képelőnézet nem készül.',
+    };
+  }
   const name = imageFileName(file.name, mime);
   // New File metadata, unchanged bytes; never overwrite or convert the user's local file.
   const prepared = new File([file], name, { type: mime, lastModified: file.lastModified });
@@ -42,3 +49,6 @@ export async function prepareImage(file: File): Promise<{ file: File; notice: st
     ? `A felismert formátum ${formats[mime].label}. Feltöltési név: ${name}. A képtartalom nem változik.` : '';
   return { file: prepared, notice };
 }
+
+export function prepareImage(file: File) { return prepare(file, false); }
+export function prepareImportFile(file: File) { return prepare(file, true); }

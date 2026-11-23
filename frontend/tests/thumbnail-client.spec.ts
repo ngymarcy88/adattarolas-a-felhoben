@@ -10,8 +10,10 @@ import { createProcessing } from '../src/gallery/processing';
 import { galleryFile } from './helpers/gallery-fixture';
 import { processingStatus } from './helpers/processing-fixture';
 import { clientComponent, componentModule, renderer, hostNode } from './helpers/client-renderer';
+import { OPAQUE_FILE_MIME } from '../src/file-content-type';
+const fileTypes = { OPAQUE_FILE_MIME };
 const image = clientComponent('GalleryImage', {});
-const card = clientComponent('GalleryCard', { '../gallery/modal': modal, './GalleryImage.vue': componentModule(image) });
+const card = clientComponent('GalleryCard', { '../file-content-type': fileTypes, '../gallery/modal': modal, './GalleryImage.vue': componentModule(image) });
 afterEach(() => { vi.unstubAllGlobals(); });
 it('requests a thumbnail when the mounted visible card changes from queued to succeeded', async () => {
   vi.stubGlobal('IntersectionObserver', class { constructor(private cb: (e: unknown[]) => void) {} observe(target: unknown) { this.cb([{ target, isIntersecting: true }]); } disconnect() {} });
@@ -26,14 +28,14 @@ it('requests a thumbnail when the mounted visible card changes from queued to su
   app.unmount(); previews.dispose(); processing.dispose();
 });
 
-const dialog = clientComponent('PreviewDialog', { '../gallery/modal': modal, './GalleryImage.vue': componentModule(image) });
+const dialog = clientComponent('PreviewDialog', { '../file-content-type': fileTypes, '../api/preview': { downloadClient: { get: vi.fn() } }, '../gallery/modal': modal, './GalleryImage.vue': componentModule(image) });
 it('loads ready thumbnails through the real gallery parent lifecycle', async () => {
   vi.useFakeTimers();
   vi.stubGlobal('document', { visibilityState: 'visible', addEventListener() {}, removeEventListener() {} });
   vi.stubGlobal('IntersectionObserver', class { constructor(private cb: (e: unknown[]) => void) {} observe(target: unknown) { setTimeout(() => this.cb([{ target, isIntersecting: true }]), 0); } disconnect() {} });
   const file = galleryFile(); const get = vi.fn().mockResolvedValue({ url: 'https://storage.invalid/thumbnail', expiresAt: new Date(Date.now() + 60000).toISOString() });
   const status = vi.fn().mockResolvedValueOnce([processingStatus()]).mockResolvedValue([processingStatus(1, 'SUCCEEDED')]);
-  const panel = clientComponent('GalleryPanel', { '../api/gallery': { galleryClient: { list: vi.fn().mockResolvedValue(galleryPage([file])) } },
+  const panel = clientComponent('GalleryPanel', { '../file-content-type': fileTypes, '../api/gallery': { galleryClient: { list: vi.fn().mockResolvedValue(galleryPage([file])) } },
     '../api/preview': { previewClient: { get: vi.fn() }, thumbnailClient: { get } }, '../api/processing': { processingClient: { status, retry: vi.fn() } },
     '../gallery/state': galleryState, '../gallery/processing': processingState, '../gallery/previews': previewState, '../gallery/modal': modal,
     './GalleryCard.vue': componentModule(card), './PreviewDialog.vue': componentModule(dialog) });

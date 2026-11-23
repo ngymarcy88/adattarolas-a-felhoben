@@ -1,5 +1,6 @@
 import { parseApiBaseUrl } from './health';
 import { readRetryAfter } from './retry-after';
+import { OPAQUE_FILE_MIME } from '../file-content-type';
 
 export const GALLERY_PAGE_SIZE = 20;
 export interface GalleryFile {
@@ -13,7 +14,7 @@ const messages: Record<GalleryErrorCode, string> = {
   cursor_invalid: 'A lapozás nem folytatható. Frissítsd a listát az elejéről.',
   rate_limited: 'Túl sok kérés. A jelzett várakozás után próbáld újra.',
   forbidden: 'Ezen a címen a lista nem érhető el. Ellenőrizd az alkalmazás beállításait.',
-  unavailable: 'A képek listája most nem tölthető be. Próbáld újra.',
+  unavailable: 'A fájlok listája most nem tölthető be. Próbáld újra.',
 };
 export class GalleryRequestError extends Error {
   constructor(readonly code: GalleryErrorCode, readonly retryAfterMs = 0) { super(messages[code]); this.name = 'GalleryRequestError'; }
@@ -21,11 +22,11 @@ export class GalleryRequestError extends Error {
 const record = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value);
 const validCursor = (value: unknown): value is string => typeof value === 'string' && value.length > 0 && value.length <= 512 && !/[^A-Za-z0-9_-]/.test(value);
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-const images = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+const storedTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', OPAQUE_FILE_MIME]);
 function parseFile(value: unknown): GalleryFile {
   if (!record(value) || Object.keys(value).length !== 7 || typeof value.id !== 'string' || value.id.length !== 36 || !uuid.test(value.id) ||
       typeof value.originalName !== 'string' || !value.originalName.trim() || [...value.originalName].length > 255 ||
-      typeof value.mimeType !== 'string' || !images.has(value.mimeType) || value.detectedMimeType !== value.mimeType || value.status !== 'ACTIVE' ||
+      typeof value.mimeType !== 'string' || !storedTypes.has(value.mimeType) || value.detectedMimeType !== value.mimeType || value.status !== 'ACTIVE' ||
       !Number.isSafeInteger(value.sizeBytes) || Number(value.sizeBytes) < 1 || typeof value.createdAt !== 'string' ||
       !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value.createdAt) || !Number.isFinite(Date.parse(value.createdAt)) ||
       new Date(value.createdAt).getUTCFullYear() < 1 || new Date(value.createdAt).toISOString() !== value.createdAt) throw new GalleryRequestError('unavailable');
