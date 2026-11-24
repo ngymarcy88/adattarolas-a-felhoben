@@ -1122,3 +1122,20 @@ A kontrollált mintában a tus 393 216 bájttal kevesebb adatot küldött újra.
 Az alkalmazáspróba egy kis képre és helyi Compose-ra terjedt ki. A tus úton a tárolói válasz elvesztését szimulált adapterrel ellenőriztük. Az integrált staging szolgáltatás restartja, a pozitív takarítási bizonyíték és a 10/50 képes összehasonlítás nyitott. A mérést saját fejlesztői próbaként rögzítettük.
 
 Az `npm test` 1 723 esetet futtatott sikeresen (1 258 backend, 462 frontend és 3 konténerkonfigurációs teszt). Az `npm run typecheck` és a helyi Compose backend/frontend image build is sikerült.
+
+### Tusd és backend újraindítása, staging lezárása
+
+**Verzió és környezet:** a #57-et tartalmazó `main` (`312fbbd`), a fenti Compose overlay, Chromium és PostgreSQL/MinIO. Külön szintetikus fiókkal és új importtal indult mindkét próba az 1 229 603 bájtos `small-resume.png` fájllal. A panelen az első PATCH közben szüneteltettünk, ellenőriztük a HEAD offsetjét, majd kijelentkeztünk. Az adott szolgáltatás kényszerített újraindítását a konténer `StartedAt` változása és a helyreállt HTTP-elérés igazolta. Új belépés és oldalfrissítés után ugyanazt az importot nyitottuk meg és az eredeti helyi fájlt választottuk ki.
+
+| Külön futás | Újraindítás előtti és utáni HEAD | Következő PATCH | Véglegesítés |
+|---|---:|---|---|
+| `tus-staging` kényszerített újraindítása | 114 688 → 114 688 bájt | HTTP 204, 114 688-as offset, 1 114 915 hátralevő bájt | **PASS.** Az eredeti letölthető, a hash egyezik. |
+| `backend` kényszerített újraindítása | 114 688 → 114 688 bájt | HTTP 204, 114 688-as offset, 1 114 915 hátralevő bájt | **PASS.** Az eredeti letölthető, a hash egyezik. |
+
+Mindkét futásnál a MinIO-ból letöltött és a PostgreSQL-ben rögzített SHA-256 megegyezett a fenti bemeneti hash-sel. A megismételt complete és confirm 200-at adott, egyetlen aktív eredeti, egy feldolgozási feladat és egy kiskép keletkezett. A foglalás fiókonként 1 229 603-ról 0 bájtra csökkent. A használat fiókonként 1 387 017 bájt, ebből 1 229 603 az eredeti és 157 414 a kiskép.
+
+**Integrált végleges megszakítás – PASS a jelenlegi megőrzési szabályra.** Egy harmadik import 114 688 megtartott bájtnál HTTP 202-vel `CANCELLED` lett. Ezután az alkalmazás HEAD és complete művelete 410-et, a letöltési URL kérése 404-et adott. A privát staging még elérhető volt az alkalmazáshálózaton, változatlan offsettel. PostgreSQL-ben `CLEANUP_BLOCKED`, 1 229 603 bájt foglalás, 0 használt bájt és 0 feldolgozási feladat maradt.
+
+**Elkülönített staging-törlés – PASS a helyi tusd fájlokra.** Egy eldobható, azonos digestű tusd-konténerben engedélyeztük a termination műveletet. A kezdeti 65 536 bájtos PATCH 204-et adott. Egy második nyitott PATCH alatt a DELETE 204-et adott, a nyitott kapcsolat lezárult, a későbbi HEAD és PATCH 404-et kapott. A bináris és a `.info` fájl is hiányzott a konténer fájlrendszerén. Ez a normál válasz mellett megfigyelt helyi törlés. Az alkalmazáshoz tartozó írási kísérlet és MinIO-objektum lezárása, az elveszett törlési válasz kezelése és a foglalás biztonságos felszabadítása további bizonyítékot igényel.
+
+A két újraindítás már szüneteltetett átvitelen történt. Az integrált konténerek adatkötetei megmaradtak. A biztonságos takarítás elfogadási feltételeit az [ADR-017](../02_architecture/adr/ADR-017-direct-multipart-poc.md#staging-takarítás-elfogadási-feltételei-2026-11-24) rögzíti. A több kis képes bővítés és a 10/50 képes összehasonlítás nyitott.
