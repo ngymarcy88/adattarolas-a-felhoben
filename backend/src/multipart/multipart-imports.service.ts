@@ -82,10 +82,10 @@ export class MultipartImportsService {
       if (tusStaged) {
         // Bound physical staging even for terminal and unknown-create attempts.
         await tx.$queryRaw`SELECT pg_advisory_xact_lock(1627387521) IS NULL`;
-        if (await tx.multipartTransfer.count({ where: { tusStaged: true } }) >= TUS_MAX_TRANSFERS) throw new ApiError('STORAGE_UNAVAILABLE');
+        if (await tx.multipartTransfer.count({ where: { tusStaged: true, cleanupState: { not: 'VERIFIED' } } }) >= TUS_MAX_TRANSFERS) throw new ApiError('STORAGE_UNAVAILABLE');
       }
       await tx.multipartTransfer.create({ data: { id: transferId, ownerId: owner, fileObjectId: file.id, importFileId: item.id, uploadOperationId: operation.id,
-        sizeBytes: size, partSizeBytes: policy.multipart.partSizeBytes, partCount: count, contentSha256: input.contentSha256, tusStaged,
+        sizeBytes: size, partSizeBytes: policy.multipart.partSizeBytes, partCount: count, contentSha256: input.contentSha256, tusStaged, tusDeferred: tusStaged,
         createdAt: now, providerNamespace: policy.storage.bucket, expiresAt: imported.expiresAt } });
       await tx.multipartPart.createMany({ data: Array.from({ length: count }, (_, i) => ({ transferId, partNumber: i + 1,
         expectedSizeBytes: Math.min(policy.multipart.partSizeBytes, input.sizeBytes - i * policy.multipart.partSizeBytes) })) });

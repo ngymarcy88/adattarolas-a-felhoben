@@ -384,6 +384,8 @@ model MultipartTransfer {
   providerNamespace     String                  @db.VarChar(255)
   providerUploadId      String?                 @db.VarChar(2048)
   tusStaged             Boolean                 @default(false)
+  tusDeferred           Boolean                 @default(false)
+  tusS3Started          Boolean                 @default(false)
   tusCreateStarted      Boolean                 @default(false)
   tusUploadId           String?                 @unique @db.VarChar(32)
   expiresAt             DateTime                @db.Timestamptz(3)

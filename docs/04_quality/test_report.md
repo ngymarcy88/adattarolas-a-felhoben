@@ -1139,3 +1139,21 @@ Mindkét futásnál a MinIO-ból letöltött és a PostgreSQL-ben rögzített SH
 **Elkülönített staging-törlés – PASS a helyi tusd fájlokra.** Egy eldobható, azonos digestű tusd-konténerben engedélyeztük a termination műveletet. A kezdeti 65 536 bájtos PATCH 204-et adott. Egy második nyitott PATCH alatt a DELETE 204-et adott, a nyitott kapcsolat lezárult, a későbbi HEAD és PATCH 404-et kapott. A bináris és a `.info` fájl is hiányzott a konténer fájlrendszerén. Ez a normál válasz mellett megfigyelt helyi törlés. Az alkalmazáshoz tartozó írási kísérlet és MinIO-objektum lezárása, az elveszett törlési válasz kezelése és a foglalás biztonságos felszabadítása további bizonyítékot igényel.
 
 A két újraindítás már szüneteltetett átvitelen történt. Az integrált konténerek adatkötetei megmaradtak. A biztonságos takarítás elfogadási feltételeit az [ADR-017](../02_architecture/adr/ADR-017-direct-multipart-poc.md#staging-takarítás-elfogadási-feltételei-2026-11-24) rögzíti. A több kis képes bővítés és a 10/50 képes összehasonlítás nyitott.
+
+### Korai tus-takarítás helyi próbája
+
+Kiinduló commit `99398d3`, a `20261124000200_tus_early_cleanup` additív migrációval. Helyi Docker Compose overlay, PostgreSQL 17.9, MinIO, tusd 2.10.3, Chromium és külön szintetikus fiókok. Bemenet a fenti, 1 229 603 bájtos `small-resume.png`; az első PATCH 114 688, tusd által igazolt bájtnál szünetelt.
+
+| Próba | Elvárt eredmény | Megfigyelt eredmény |
+|---|---|---|
+| Végleges megszakítás a panelen az első MinIO-művelet előtt | Mindkét staging fájl eltűnik, és a foglalás egyszer szabadul fel. | **PASS.** A cancel és ismétlése 202. PostgreSQL `CANCELLED/VERIFIED`, `tus_pre_s3_v1` bizonyíték, 0 S3-szándék és 0 használt bájt. A foglalás 1 229 603-ról 0-ra csökkent. Mindkét útvonal `ENOENT`; a folytatás és véglegesítés 410, a letöltési URL 404. A felület jelezte a felszabadítást. |
+| Takarítás tusd-kieséssel és backend-újraindítással | A foglalás megmarad kiesés alatt. Újraindítás után a lezárt importban kezdeményezett retry befejezi a takarítást. | **PASS.** Leállított tusd mellett a cancel 202, `CANCELLED/PENDING/HELD`; mindkét fájl megmaradt, 1 229 603 bájt foglalással. A backend kényszerített újraindítása és a tusd visszaindítása után az importból indított **Takarítás újrapróbálása** 202, `VERIFIED/RELEASED`, és a felület jelezte a felszabadítást. |
+| Érvényes staging fájl véglegesítése | A halasztott S3-engedély után az eredeti feltölthető és egyszer könyvelhető. | **PASS.** Chromium HEAD 200, PATCH 204, complete/confirm 200. A MinIO-letöltés 1 229 603 bájtja megegyezett a forrás SHA-256 értékével. Megismételt complete és confirm után egy feldolgozási feladat, egy eredeti, 0 bájt foglalás és 1 387 017 bájt használat, benne a 157 414 bájtos kiskép. |
+| Megszakítás és véglegesítés versenye | Ha a megszakítás nyer, nem indul MinIO-művelet. Ha az S3-szándék nyer, a foglalás megmarad. | **PASS, egységteszt.** A staging olvasását, illetve az S3 CREATE válaszát két külön esetben visszatartottuk. Az első esetben nulla S3-hívás és felszabadítás, a másodikban `CLEANUP_BLOCKED/HELD`, késői provider-azonosító, nulla részírás. |
+| Elveszett törlési vagy létrehozási válasz | Ismeretlen azonosító vagy fennmaradt staging fájl mellett a foglalás megmarad. | **PASS, egységteszt.** Új service-példányon a DELETE és HEAD 404 mellett fennmaradó `.info` fájl blokkolta a felszabadítást. Ismétléskor mindkét fájl igazolt hiánya után egyszer oldódott fel a foglalás. Az elveszett tusd-létrehozási válasz és ismeretlen azonosító esetén megmaradt. |
+
+Az újraindítási próba a tartós lezárás után, a staging törlése előtt szakította meg a takarítási folyamatot. Az elveszett már sikeres törlési válasz és a véglegesítés versenye egységtesztben szerepel. A már engedélyezett S3-írások utáni foglalásfelszabadítás nyitott.
+
+Az egyik backend-restart után a böngésző tus HEAD kérése 502-t kapott az nginx upstream kapcsolódási hibája miatt. A beállítás a Docker DNS-en újra feloldja a backend címét. Az `nginx -t`, az azonos frontend-példányon át mért health backend-restart után, valamint a böngészős véglegesítési próba sikerült. A javítás utáni restart alatt a backend címe megmaradt.
+
+WSL alatt az `npm test` mind az 1 729 tesztje (1 263 backend, 463 frontend, 3 konténerkonfigurációs teszt), az `npm run typecheck` és az `npm run build` sikerült.

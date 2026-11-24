@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import type { Prisma } from '../generated/prisma/client';
 import { ApiError } from '../common/errors/api-error';
+import { tusAwaitingStorage } from './tus-staging.policy';
 
 export const transferInclude = { uploadOperation: { include: { fileObject: true } }, importFile: { include: { importSession: true } },
   parts: { orderBy: { partNumber: 'asc' as const } }, manifestParts: { orderBy: { partNumber: 'asc' as const } }, ioOperations: true } as const;
@@ -45,7 +46,8 @@ export function publicImport(i: { id: string; state: string; createdAt: Date; ex
 export function publicTransfer(t: Transfer, observedAt?: Date) {
   const parts = t.parts.filter(p => p.observedSizeBytes !== null && p.observedETag !== null && p.observedAt !== null);
   const at = observedAt ?? parts.reduce<Date | undefined>((max, p) => !max || +p.observedAt! > +max ? p.observedAt! : max, undefined);
-  return { id: t.id, state: t.state, revision: t.revision, partSizeBytes: t.partSizeBytes, partCount: t.partCount,
+  const state = t.state === 'CREATING' && tusAwaitingStorage(t) ? 'OPEN' : t.state;
+  return { id: t.id, state, revision: t.revision, partSizeBytes: t.partSizeBytes, partCount: t.partCount,
     ...(t.tusStaged ? { tusStaged: true as const } : {}),
     expiresAt: t.expiresAt.toISOString(), completedBytes: parts.reduce((sum, p) => sum + p.observedSizeBytes!, 0), partsObservedAt: at?.toISOString() ?? null,
     parts: parts.map(p => ({ partNumber: p.partNumber, sizeBytes: p.observedSizeBytes! })), cleanupState: t.cleanupState,
