@@ -32,7 +32,7 @@ function reselect(id:string,event:Event){const input=event.target as HTMLInputEl
 <section class="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm" aria-labelledby="upload-title">
  <h2 id="upload-title" class="text-xl font-semibold">Fájlok feltöltése</h2>
  <p id="upload-help" class="mt-3 text-sm text-slate-600">Egyszerre legfeljebb 20 fájl választható, importonként legfeljebb 50, fájlonként 100 MiB. Képelőnézet a támogatott JPEG, PNG, WebP és GIF képekhez készül.</p>
- <p id="upload-lifetime" class="mt-2 text-xs text-slate-500">A kész fájlok és teljes fájlrészek a szerveren megmaradnak. Oldalfrissítés után válaszd ki az importot, szükség esetén az eredeti helyi fájlt is. A félbemaradt rész újraküldődik; az 5 MiB alatti fájl teljes átvitele elölről indul. A korábbi foglalás megmaradhat.</p>
+ <p id="upload-lifetime" class="mt-2 text-xs text-slate-500">Oldalfrissítés után válaszd ki az importot, szükség esetén az eredeti helyi fájlt is. S3-feltöltésnél a félbemaradt rész elölről indul. A korábbi foglalás megmaradhat.</p>
  <div class="mt-4 space-y-2" aria-label="Korábbi importok">
   <button type="button" :disabled="disabled||busy||state.loading||state.authRequired" @click="batch.discover()" class="rounded-lg border px-3 py-2 text-sm">Importok frissítése</button>
   <span v-if="state.loading" role="status" class="ml-3 text-sm">Importok betöltése…</span>
@@ -58,6 +58,7 @@ function reselect(id:string,event:Event){const input=event.target as HTMLInputEl
    <li v-for="row in state.rows" :key="row.id" class="rounded-2xl border p-4" :aria-busy="working(row.status)">
     <p class="break-all font-medium">{{ row.name }} <span class="text-xs text-slate-500">{{ size(row.size) }}</span></p>
     <p v-if="row.notice" class="mt-2 text-sm text-indigo-700">{{ row.notice }}</p>
+    <p v-if="row.transfer?.tusStaged && row.status !== 'success'" class="mt-2 text-xs text-slate-600">A tus próba a szerveren megmaradt bájtoktól folytatódik.</p>
     <p class="mt-2 text-sm">{{ labels[row.status] }}<span v-if="row.status==='uploading'"> {{ row.progress }}%</span></p>
     <progress :value="row.progress" max="100" :aria-label="`${row.name} átvitele`" class="mt-2 h-2 w-full accent-indigo-600" />
     <p v-if="row.status==='confirming'" class="text-xs text-slate-500">Az átvitel után a szerver ellenőrzése szükséges a sikerhez.</p>

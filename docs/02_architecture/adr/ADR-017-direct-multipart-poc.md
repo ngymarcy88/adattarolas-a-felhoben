@@ -101,3 +101,9 @@ The user rejected the Uppy5 proposal and explicitly authorized keeping Uppy6 wit
 **Alternatívák:** a jelenlegi S3-only út a kis, egyrészes képnél teljes fájlt küld újra. A tusd S3 hátterét külön kellene mérni azonos bájtpontú megszakítással. A fájlalapú staging működéséből nem következik ugyanaz a részleges viselkedés S3 háttérrel. A hivatalos Node tus szerver csökkenthetné a külön futtatandó szolgáltatások számát, de a meglévő NestJS folyamat terhelését és tárolóviselkedését ehhez külön kellene igazolni. Saját átviteli protokoll nem indokolt.
 
 **Források:** [tus 1.0 protokoll](https://tus.io/protocols/resumable-upload/1-0-x), [tusd helyi tárolás](https://tus.github.io/tusd/storage-backends/local-disk/), [Uppy tus](https://uppy.io/docs/tus/), [tus-js-client publikus API](https://github.com/tus/tus-js-client/blob/main/docs/api.md).
+
+### Helyi alkalmazásintegráció, 2026-11-24
+
+A külön Compose-konfigurációban a meglévő Uppy 6 feltöltőpanel közvetlenül a `tus-js-client` 4.3.1 publikus API-ját használja a próba fájljához. A kliens az alkalmazás munkamenethez kötött átvitel-URL-jével `HEAD`-del kezd, amelyet a meglévő importból állít elő. A konfiguráció kikapcsolja a böngészős URL-tárolást. Sikertelen folytatás után a felületről indított újrapróbálás ugyanezt a műveletet használja.
+
+A próba határa szándékosan 5 MiB alatti méret és importonként az első elfogadott fájl, ha támogatott kép. A NestJS a kész staging fájl hash- és szignatúra-ellenőrzése után egy S3-részt tölt fel. A már létező create-only véglegesítés és a tárolt objektum teljes újrahash-elése után az eredeti confirm könyveli a kvótát. Függő staging átvitel kézi folytatásához az eredeti helyi fájl újraválasztása szükséges. A prototípusnak véges staging kapacitása van, és a végleges staging takarítás vagy felszabadítás továbbra is külön feltétel a szélesebb bevezetéshez. [Alkalmazáspróba és eredmények](../../04_quality/test_report.md#kis-képes-tus-integráció--2026-11-24).

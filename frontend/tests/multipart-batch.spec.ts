@@ -3,6 +3,25 @@ import { fixture, id, image, item, transfer, settled } from './helpers/multipart
 import { UploadRequestError } from '../src/api/uploads';
 import { hashImage } from '../src/upload/multipart-batch';
 afterEach(()=>vi.useRealTimers());
+it('restores the staged transfer, checks the selected content and publishes through tus before confirm', async()=>{
+ const f=fixture(), staged=transfer({tusStaged:true});
+ f.client.getImport.mockResolvedValue({import:{} as never,items:[item({transfer:staged})],nextCursor:null});
+ f.client.status.mockResolvedValue(staged);
+ f.client.resume.mockResolvedValue(staged);
+ f.client.resume.mockRejectedValueOnce(new UploadRequestError('TRANSFER_SOURCE_MISMATCH'));
+ await f.batch.open(id(99));
+ f.batch.attach(id(50),image());f.batch.retry(id(50));await settled(f);
+ expect(f.client.prepareTus).not.toHaveBeenCalled();
+ f.batch.attach(id(50),image());f.batch.retry(id(50));await settled(f);
+ expect(f.client.prepareTus).toHaveBeenCalledWith(staged.id,expect.any(AbortSignal));
+ expect(f.tusDriver).toHaveBeenCalledWith(expect.any(File),staged,expect.any(AbortSignal),expect.any(Function));
+ expect(f.client.complete).toHaveBeenCalledWith(staged.id,expect.any(AbortSignal),true);
+ expect(f.client.complete.mock.invocationCallOrder[0]).toBeLessThan(f.client.confirm.mock.invocationCallOrder[0]);
+ expect(f.driver).not.toHaveBeenCalled();
+ expect(f.client.initiate).not.toHaveBeenCalled();
+ expect(f.batch.summary.value.success).toBe(1);
+ f.batch.dispose();
+});
 it('hashes actual bytes rather than name or modification time',async()=>{
  const a=image();expect(await hashImage(a)).toMatch(/^[a-f0-9]{64}$/);expect(await hashImage(new File([a],'renamed.png'))).toBe(await hashImage(a));expect(await hashImage(new File(['other'],'image.png'))).not.toBe(await hashImage(a));
 });

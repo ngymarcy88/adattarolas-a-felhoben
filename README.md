@@ -283,3 +283,15 @@ A termék feltöltőpanelje Uppy6.3.0-val, a meglévő NestJS service Companion-
 Kiválasztás → indítás; legfeljebb két kép párhuzamosan. Szüneteltetés megőrzi a kész részeket; folytatás kézi. Újratöltés/login után Importok frissítése → import megnyitása → szükség esetén eredeti fájl kiválasztása → Folytatás/állapotellenőrzés. Méret és teljes tartalomhash alapján ellenőrzi ugyanazt a fájlt. A már kész eredetit/részeket a friss szerverállapot szerint kihagyja; a félbemaradt rész újraküldődik.5MiB alatti kép egyetlen része teljesen újraküldhető. A külön Végleges megszakítás terminális, a foglalás bizonyított takarításig megmaradhat. Nincs automatikus multipart cleanup.
 
 A futó állapot és a helyi File objektum nem böngészőtárolóban él; újranyitáskor helyi újraválasztás szükséges lehet. A galéria kizárólag ACTIVE confirm után frissül. A valós böngészős/proxy/MinIO próbák tényleges állapota a meglévő tesztriportban szerepel; a unitból nem következik runtime elfogadás. A történeti korábbi szakaszok single-PUT-only állapotát ez a dátumozott beillesztés váltja fel.
+
+### Kis képes tus próba Docker Compose-zal
+
+A környezet inicializálása után a helyi próba a külön Compose-fájllal kapcsolható be:
+
+```bash
+docker compose -f docker-compose.yaml -f docker-compose.tus-poc.yaml up -d --build --wait
+```
+
+Új importba válassz egy 5 MiB-nál kisebb JPEG, PNG, WebP vagy GIF képet. Szüneteltetés és új belépés után nyisd meg ugyanazt az importot, válaszd ki az eredeti fájlt, majd indítsd a folytatást. A tus szerver adja meg az eltárolt bájtok számát. A próba importonként az első elfogadott fájlt érinti, ha az megfelel ezeknek a feltételeknek. Az alap Compose-konfiguráció az S3 útvonalat használja.
+
+A privát tusd a tartós `tus-staging-data` kötetre ír. A próba 32 staging átvitelre korlátozott, automatikus takarítás nélkül. A próba közben a kötetet tartsd meg. A böngészős mérés és a MinIO/PostgreSQL ellenőrzés a [tesztriportban](docs/04_quality/test_report.md#kis-képes-tus-integráció--2026-11-24) található.

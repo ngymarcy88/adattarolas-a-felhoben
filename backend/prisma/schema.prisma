@@ -383,6 +383,9 @@ model MultipartTransfer {
   contentSha256         String                  @db.Char(64)
   providerNamespace     String                  @db.VarChar(255)
   providerUploadId      String?                 @db.VarChar(2048)
+  tusStaged             Boolean                 @default(false)
+  tusCreateStarted      Boolean                 @default(false)
+  tusUploadId           String?                 @unique @db.VarChar(32)
   expiresAt             DateTime                @db.Timestamptz(3)
   leaseOwner            String?                 @db.Uuid
   leaseUntil            DateTime?               @db.Timestamptz(3)

@@ -616,3 +616,7 @@ Az opt-in meglévő sémapróba `--multipart-service` kapcsolója friss eldobhat
 ### Általános fájlok tárolási osztálya
 
 Az általános multipart fájl a meglévő FileObject, UploadOperation és MultipartTransfer rekordokat használja, új sémaelem nélkül. Sikeres méret- és SHA-256-ellenőrzés után az ACTIVE rekordban a `mimeType` és a `detectedMimeType` egyaránt `application/octet-stream`. Ez csak a biztonságos tárolási osztályt jelzi, a tényleges formátumra nem ad állítást. A foglalt bájt egyszer kerül át használt bájtba. Ehhez a típushoz nem keletkezik kisképfeldolgozási feladat vagy eredmény.
+
+### Helyi kis képes tus próba
+
+A meglévő MultipartTransfer rekordban a `tusStaged` az állandó staging mód, a `tusCreateStarted` a tartósan rögzített egyszeri tusd-létrehozási szándék, a `tusUploadId` a belső staging azonosító. Ismeretlen tusd-létrehozási kimenetnél a foglalás megmarad, és a próba nem indít helyettesítő erőforrást. Az S3-ba írt teljes eredetit a meglévő multipart confirm ellenőrzi, aktiválja és könyveli. A staginghez kiadott rekordokat a próba 32-re korlátozza, létrehozáskor közös tranzakciós zárral.

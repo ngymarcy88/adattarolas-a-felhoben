@@ -7,6 +7,8 @@ import { originalStorageKey } from '../storage/storage-key';
 import { MultipartStore, publicImport, publicItem, transferInclude } from './multipart.store';
 import { MultipartService } from './multipart.service';
 import { fingerprint, importFingerprint, MultipartFilePipe, pageCursor, pageInput, uuid, type MultipartFileInput } from './multipart.dto';
+import { OPAQUE_FILE_MIME } from '../files/file-content-type';
+import { TUS_MAX_BYTES, TUS_MAX_TRANSFERS } from './tus-staging.policy';
 
 const itemInclude = { fileObject: true, transfer: { include: transferInclude } } as const;
 @Injectable()
@@ -75,8 +77,15 @@ export class MultipartImportsService {
         createdAt: now, requestFingerprint: fp, replayUntil: imported.replayUntil } });
       const item = await tx.importFile.create({ data: { importId, ownerId: owner, fileObjectId: file.id, createdAt: now, clientFileId: input.clientFileId, ordinal: imported.nextOrdinal } });
       const count = Math.ceil(input.sizeBytes / policy.multipart.partSizeBytes);
+      const tusStaged = Boolean(policy.tusStagingOrigin && imported.acceptedFileCount === 0 &&
+        input.mimeType !== OPAQUE_FILE_MIME && input.sizeBytes <= TUS_MAX_BYTES);
+      if (tusStaged) {
+        // Bound physical staging even for terminal and unknown-create attempts.
+        await tx.$queryRaw`SELECT pg_advisory_xact_lock(1627387521) IS NULL`;
+        if (await tx.multipartTransfer.count({ where: { tusStaged: true } }) >= TUS_MAX_TRANSFERS) throw new ApiError('STORAGE_UNAVAILABLE');
+      }
       await tx.multipartTransfer.create({ data: { id: transferId, ownerId: owner, fileObjectId: file.id, importFileId: item.id, uploadOperationId: operation.id,
-        sizeBytes: size, partSizeBytes: policy.multipart.partSizeBytes, partCount: count, contentSha256: input.contentSha256,
+        sizeBytes: size, partSizeBytes: policy.multipart.partSizeBytes, partCount: count, contentSha256: input.contentSha256, tusStaged,
         createdAt: now, providerNamespace: policy.storage.bucket, expiresAt: imported.expiresAt } });
       await tx.multipartPart.createMany({ data: Array.from({ length: count }, (_, i) => ({ transferId, partNumber: i + 1,
         expectedSizeBytes: Math.min(policy.multipart.partSizeBytes, input.sizeBytes - i * policy.multipart.partSizeBytes) })) });
