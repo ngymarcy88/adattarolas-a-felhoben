@@ -10,6 +10,9 @@ export interface MultipartRow { id:string;name:string;size:number;mime:string;st
 interface Context { file?:File;hash?:string;prepared?:boolean;key:string }
 interface Options { driver?:TransferDriver;tusDriver?:TransferDriver;hash?:(file:File)=>Promise<string>;readGapMs?:number;newId?:()=>string }
 const terminal=new Set(['REJECTED','CANCELLED','EXPIRED']);
+const closedMessage=(transfer:Transfer)=>transfer.reservationState==='RELEASED'
+ ? 'A feltöltés lezárult, a tárhelyfoglalás felszabadult.'
+ : 'A feltöltés lezárult. A tárhelyfoglalás igazolt takarításig megmaradhat.';
 const safeError=(e:unknown)=>e instanceof UploadRequestError ? e : new UploadRequestError('UNAVAILABLE');
 export async function hashImage(file:File) {const digest=await crypto.subtle.digest('SHA-256',await file.arrayBuffer());return [...new Uint8Array(digest)].map(b=>b.toString(16).padStart(2,'0')).join('');}
 /** Durable identity lives on the backend. This state contains no persisted capabilities or file bytes. */
@@ -132,14 +135,14 @@ export function createMultipartBatch(client:MultipartClient=multipartClient,opti
    for(let i=0;i<3;i++){const page=await client.getImport(importId,cursor,c.signal);alive(c.signal);items.push(...page.items);cursor=page.nextCursor;if(!cursor)break;if(cursors.has(cursor))throw new UploadRequestError('UNAVAILABLE');cursors.add(cursor);}
    if(cursor||items.length>50||new Set(items.map(i=>i.clientFileId)).size!==items.length||new Set(items.map(i=>i.fileId)).size!==items.length)throw new UploadRequestError('UNAVAILABLE');
    contexts.clear();state.rows=[];state.importId=importId;
-   for(const item of items){const t=item.transfer;state.rows.push({id:item.clientFileId,name:item.originalName,size:item.sizeBytes,mime:item.mimeType,status:t.state==='SUCCEEDED'?'success':terminal.has(t.state)?'cancelled':'needs-file',progress:Math.floor(t.completedBytes/item.sizeBytes*100),error:terminal.has(t.state)?'A feltöltés lezárult; a korábbi foglalás megmaradhat.':'',notice:'',retryAt:0,transfer:t,fileId:item.fileId});contexts.set(item.clientFileId,{key:key()});}
+   for(const item of items){const t=item.transfer;state.rows.push({id:item.clientFileId,name:item.originalName,size:item.sizeBytes,mime:item.mimeType,status:t.state==='SUCCEEDED'?'success':terminal.has(t.state)?'cancelled':'needs-file',progress:Math.floor(t.completedBytes/item.sizeBytes*100),error:'',notice:terminal.has(t.state)?closedMessage(t):'',retryAt:0,transfer:t,fileId:item.fileId});contexts.set(item.clientFileId,{key:key()});}
   }catch(e){if(!disposed&&!c.signal.aborted)state.loadError=error(e).message;}finally{if(!disposed)state.loading=false;}
  }
  function fresh(){if(state.running||state.loading)return;contexts.clear();state.rows=[];state.importId='';importKey=key();state.selectionError='';}
  async function cancel(id:string){const row=state.rows.find(r=>r.id===id);if(!row||active.has(id)||state.running>=2||row.status==='success'||disposed)return;
   if(!row.transfer){row.status='cancelled';contexts.delete(id);return;}
   const c=new AbortController();active.set(id,c);state.running++;
-  try{const t=await client.cancel(row.transfer.id,c.signal);alive(c.signal);receive(row,t);row.status='cancelled';row.error='A feltöltés lezárva. A tárhelyfoglalás igazolt takarításig megmaradhat.';contexts.delete(id);}
+  try{const t=await client.cancel(row.transfer.id,c.signal);alive(c.signal);receive(row,t);row.status='cancelled';row.error='';row.notice=closedMessage(t);contexts.delete(id);}
   catch(e){if(!disposed){row.status='error';row.error=error(e).message;}}finally{active.delete(id);state.running--;}
  }
  function dispose(){disposed=true;discovery?.abort();for(const c of active.values())c.abort();contexts.clear();}

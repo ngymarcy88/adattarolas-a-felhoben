@@ -58,12 +58,13 @@ function reselect(id:string,event:Event){const input=event.target as HTMLInputEl
    <li v-for="row in state.rows" :key="row.id" class="rounded-2xl border p-4" :aria-busy="working(row.status)">
     <p class="break-all font-medium">{{ row.name }} <span class="text-xs text-slate-500">{{ size(row.size) }}</span></p>
     <p v-if="row.notice" class="mt-2 text-sm text-indigo-700">{{ row.notice }}</p>
-    <p v-if="row.transfer?.tusStaged && row.status !== 'success'" class="mt-2 text-xs text-slate-600">A tus próba a szerveren megmaradt bájtoktól folytatódik.</p>
+    <p v-if="row.transfer?.tusStaged && !['success','cancelled'].includes(row.status)" class="mt-2 text-xs text-slate-600">A tus próba a szerveren megmaradt bájtoktól folytatódik.</p>
     <p class="mt-2 text-sm">{{ labels[row.status] }}<span v-if="row.status==='uploading'"> {{ row.progress }}%</span></p>
     <progress :value="row.progress" max="100" :aria-label="`${row.name} átvitele`" class="mt-2 h-2 w-full accent-indigo-600" />
     <p v-if="row.status==='confirming'" class="text-xs text-slate-500">Az átvitel után a szerver ellenőrzése szükséges a sikerhez.</p>
     <p v-if="row.transfer" class="text-xs text-slate-500">Határidő: {{ new Date(row.transfer.expiresAt).toLocaleString('hu-HU') }}</p>
     <p v-if="row.error" role="alert" class="mt-2 text-sm text-red-700">{{ row.error }}</p>
+    <button v-if="row.status==='cancelled' && row.transfer?.tusStaged && row.transfer.cleanupState==='PENDING'" type="button" :disabled="disabled||busy||state.authRequired" @click="batch.cancel(row.id)" class="mt-2 rounded-lg border px-3 py-2">Takarítás újrapróbálása</button>
     <button v-if="working(row.status)" type="button" @click="batch.pause(row.id)" :aria-label="`${row.name} szüneteltetése`" class="mt-2 rounded-lg border px-3 py-2">Szüneteltetés</button>
     <div v-if="['paused','error','needs-file'].includes(row.status)" class="mt-2 space-y-2">
      <label :for="`resume-${row.id}`" class="block text-sm">Az eredeti helyi fájl kiválasztása (ha még vannak hiányzó részek)</label>

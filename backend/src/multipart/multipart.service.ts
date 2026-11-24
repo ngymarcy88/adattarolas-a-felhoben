@@ -13,6 +13,8 @@ import { publicFile } from '../files/upload-state.service';
 import { MultipartStore, publicTransfer, transferInclude, type Transfer, type TransferContext } from './multipart.store';
 import { source, uuid } from './multipart.dto';
 import { MultipartLimits } from './multipart.limit';
+import { TusEarlyCleanupService } from './tus-early-cleanup.service';
+import { tusAwaitingStorage } from './tus-staging.policy';
 
 const terminal = (t: Transfer) => ['SUCCEEDED', 'REJECTED', 'CANCELLED', 'EXPIRED'].includes(t.state);
 const session = (t: Transfer) => ({ key: t.uploadOperation.fileObject.storageKey, uploadId: t.providerUploadId!, sizeBytes: Number(t.sizeBytes), partSizeBytes: t.partSizeBytes });
@@ -24,7 +26,8 @@ type Claim = { t: Transfer; fence: bigint; leaseOwner: string; ioId?: string; ki
 @Injectable()
 export class MultipartService {
   constructor(private readonly store: MultipartStore, private readonly config: ConfigService,
-    @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage, private readonly processing: ProcessingStateService, private readonly limits: MultipartLimits) {}
+    @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage, private readonly processing: ProcessingStateService, private readonly limits: MultipartLimits,
+    private readonly tusCleanup: TusEarlyCleanupService) {}
 
   private async load(c: TransferContext) {
     return (await c.tx.multipartTransfer.findUnique({ where: { id: c.transfer.id }, include: transferInclude }))!;
@@ -33,7 +36,7 @@ export class MultipartService {
     if (terminal(c.transfer)) return;
     await c.tx.uploadOperation.update({ where: { id: c.transfer.uploadOperationId }, data: { state, terminalErrorCode: code, closedAt: c.now } });
     await c.tx.multipartTransfer.update({ where: { id: c.transfer.id }, data: { state, revision: { increment: 1 }, fence: { increment: 1n }, leaseOwner: null,
-      leaseUntil: null, publicationExcludedAt: c.now, cleanupState: 'CLEANUP_BLOCKED', lastErrorCode: code, recoveryAfter: null } });
+      leaseUntil: null, publicationExcludedAt: c.now, cleanupState: tusAwaitingStorage(c.transfer) ? 'PENDING' : 'CLEANUP_BLOCKED', lastErrorCode: code, recoveryAfter: null } });
   }
   private async expire(c: TransferContext) {
     if (!terminal(c.transfer) && +c.now >= +c.transfer.expiresAt) { await this.close(c, 'EXPIRED', 'UPLOAD_EXPIRED'); c.transfer = await this.load(c); }
@@ -57,7 +60,8 @@ export class MultipartService {
     const attemptNo = kind ? Math.max(0, ...t.ioOperations.filter(io => io.kind === kind).map(io => io.attemptNo)) + 1 : undefined;
     if (kind === 'COMPLETE' && attemptNo! > 3) return null;
     const leaseOwner = randomUUID(); const fence = t.fence + 1n;
-    await c.tx.multipartTransfer.update({ where: { id: t.id }, data: { fence, leaseOwner, leaseUntil: new Date(+c.now + 90000), revision: { increment: 1 } } });
+    await c.tx.multipartTransfer.update({ where: { id: t.id }, data: { fence, leaseOwner, leaseUntil: new Date(+c.now + 90000), revision: { increment: 1 },
+      ...(kind === 'CREATE' && t.tusDeferred ? { tusS3Started: true } : {}) } });
     let ioId: string | undefined;
     if (kind) {
       ioId = randomUUID();
@@ -84,10 +88,17 @@ export class MultipartService {
     });
   }
   async prepare(owner: string, id: string) {
+    return this.prepareStorage(owner, id, false);
+  }
+  async prepareVerifiedStaging(owner: string, id: string) {
+    return this.prepareStorage(owner, id, true);
+  }
+  private async prepareStorage(owner: string, id: string, verifiedStaging: boolean) {
     uuid(owner); id = uuid(id);
     const picked = await this.store.locked(owner, id, async c => {
       await this.expire(c); if (terminal(c.transfer)) return null;
       if (c.transfer.state !== 'CREATING' && c.transfer.state !== 'CREATE_UNKNOWN') return null;
+      if (tusAwaitingStorage(c.transfer) && (!verifiedStaging || !c.transfer.tusUploadId)) return null;
       const prior = c.transfer.ioOperations.find(io => io.kind === 'CREATE');
       if (!prior) return this.claim(c, 'CREATE');
       if (leaseLive(c.transfer, c.now)) return null;
@@ -155,7 +166,7 @@ export class MultipartService {
     const checked = await this.store.locked(owner, id, async c => {
       await this.expire(c); const error = this.error(c.transfer); if (error) return error;
       if (Number(c.transfer.sizeBytes) !== input.sizeBytes || c.transfer.contentSha256 !== input.contentSha256) return 'TRANSFER_SOURCE_MISMATCH';
-      if (c.transfer.state !== 'OPEN') return 'TRANSFER_STATE_CONFLICT'; return null;
+      if (c.transfer.state !== 'OPEN' && !(c.transfer.state === 'CREATING' && tusAwaitingStorage(c.transfer))) return 'TRANSFER_STATE_CONFLICT'; return null;
     });
     if (checked) throw new ApiError(checked);
     return this.status(owner, id);
@@ -196,6 +207,7 @@ export class MultipartService {
     uuid(owner); id = uuid(id);
     const start = await this.store.locked(owner, id, async c => {
       await this.expire(c); const error = this.error(c.transfer); if (error) return { error };
+      if (tusAwaitingStorage(c.transfer)) return { error: 'UPLOAD_NOT_READY' as const };
       if (c.transfer.state !== 'OPEN') return { claim: null };
       const claim = await this.claim(c);
       if (!claim) return { claim: null };
@@ -385,13 +397,14 @@ export class MultipartService {
       if (c.transfer.state === 'SUCCEEDED') return { error: 'TRANSFER_STATE_CONFLICT' as const };
       if (!terminal(c.transfer)) await this.close(c, 'CANCELLED', 'UPLOAD_CANCELLED');
       const t = await this.load(c);
-      if (!t.providerUploadId || t.providerNamespace !== this.config.getOrThrow<AppConfig>('app').storage.bucket || t.ioOperations.some(io => io.kind === 'ABORT')) return { claim: null };
+      if (!t.providerUploadId || t.providerNamespace !== this.config.getOrThrow<AppConfig>('app').storage.bucket || t.ioOperations.some(io => io.kind === 'ABORT')) return { claim: null, early: t.cleanupState === 'PENDING' && tusAwaitingStorage(t) };
       const ioId = randomUUID();
       await c.tx.multipartIoOperation.create({ data: { id: ioId, transferId: id, kind: 'ABORT', attemptNo: 1, fence: t.fence,
         state: 'DISPATCHED', createdAt: c.now, startedAt: c.now } });
       return { claim: { t, fence: t.fence, leaseOwner: '', ioId, kind: 'ABORT' as const } };
     });
     if (picked.error) throw new ApiError(picked.error);
+    if (picked.early) await this.tusCleanup.run(owner, id);
     if (picked.claim) {
       let success = false;
       try { await this.storage.abortMultipart(session(picked.claim.t)); success = true; } catch { /* Unknown: reservation retained. */ }

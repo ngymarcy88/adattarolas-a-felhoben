@@ -117,3 +117,11 @@ A fájlalapú tusd elkülönített próbájában a termination lezárta a nyitot
 - **Bizonytalan kimenetel:** elveszett létrehozási válasz és ismeretlen staging azonosító esetén az erőforrás további egyeztetést igényel. Az S3 adapter íráslezárási bizonyítéka továbbra is `unproven`. Az S3 abort alatt futó részírás még befejeződhet, ezért az abort válasza önmagában elégtelen. A foglalás ilyen helyzetben megmarad. [tusd helyi tárolás](https://tus.github.io/tusd/storage-backends/local-disk/) · [S3 AbortMultipartUpload](https://docs.aws.amazon.com/AmazonS3/latest/API/API_AbortMultipartUpload.html).
 
 A külön staging-takarítási próba igazolta a helyi fájlok törlésének lehetőségét. A teljes felszabadítási feltétel nyitott, ezért a több kis képes bővítés és a hozzá kapcsolódó 10/50 képes mérés továbbra is ezt követi.
+
+### Korai megszakítás MinIO-írás előtt
+
+Az új staging átvitelekhez a NestJS csak a teljes fájl méret-, hash- és szignatúra-ellenőrzése után rögzíthet S3 CREATE szándékot. A szándék és a visszavonhatatlan S3-engedély ugyanabban a zárolt tranzakcióban születik, amely a végleges megszakítással versenyez. A MinIO-engedély előtt lezárt átvitelre az integráció bizonyítani tudja, hogy S3-művelet nem indulhatott. A már engedélyezett és a korábbi átvitelek a meglévő foglalásmegőrzési szabályt követik.
+
+A backend a privát, rögzített tusd verzión keresztül kéri a termination műveletet. Az alkalmazás a DELETE 204 vagy 404 és egy utána kapott HEAD 404 mellett az ugyanarra a kötetre csatolt, csak olvasható könyvtárban ellenőrzi a bináris és a `.info` fájl hiányát. A végleges átvitel és az immutable tus azonosító kizárja az új erőforrás-létrehozást ehhez az átvitelhez. A tusd a létező fájlt megnyitva ír részadatot, és a PATCH nem hozza újra létre a törölt bináris fájlt. [A rögzített tusd fájltároló implementációja](https://github.com/tus/tusd/blob/v2.10.3/pkg/filestore/filestore.go).
+
+A függő takarítás tulajdonos által újrapróbálható. Ha az egyik staging fájl megmarad, vagy az elveszett létrehozási válasz miatt az erőforrás azonosítója ismeretlen, a foglalás megmarad. A staging nélkül megszakított műveletnél a tartós létrehozási szándék hiánya igazolja, hogy staging-erőforrás sem indulhatott. A kvótafelszabadítás és bizonyítéka egy tranzakcióban rögzül.

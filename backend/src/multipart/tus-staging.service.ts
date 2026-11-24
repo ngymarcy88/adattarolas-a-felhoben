@@ -9,9 +9,8 @@ import { detectImageMime } from '../files/image-signature';
 import { OBJECT_STORAGE, type ObjectStorage } from '../storage/storage.interface';
 import { MultipartService } from './multipart.service';
 import { MultipartStore, type Transfer, type TransferContext } from './multipart.store';
-import { TUS_MAX_BYTES, TUS_VERSION } from './tus-staging.policy';
+import { TUS_MAX_BYTES, TUS_STAGE_ID, TUS_VERSION, tusAwaitingStorage } from './tus-staging.policy';
 
-const TUS_ID = /^[a-f0-9]{32}$/;
 const DECIMAL = /^(?:0|[1-9][0-9]{0,6})$/;
 const VERSION_HEADER = { 'Tus-Resumable': TUS_VERSION };
 const providerFailure = () => new ApiError('STORAGE_UNAVAILABLE');
@@ -36,12 +35,14 @@ export class TusStagingService {
     if (t.state === 'CANCELLED') throw new ApiError('UPLOAD_CANCELLED');
     if (t.state === 'REJECTED') throw new ApiError('UPLOAD_VALIDATION_FAILED');
     if (t.state === 'EXPIRED' || (t.state !== 'SUCCEEDED' && +c.now >= +t.expiresAt)) throw new ApiError('UPLOAD_EXPIRED');
-    if (requireOpen && t.state !== 'OPEN') throw new ApiError('TRANSFER_STATE_CONFLICT');
+    if (requireOpen && t.state !== 'OPEN' && !(t.state === 'CREATING' && tusAwaitingStorage(t))) {
+      throw new ApiError('TRANSFER_STATE_CONFLICT');
+    }
     return t;
   }
 
   private providerUrl(t: Transfer): URL {
-    if (!t.tusUploadId || !TUS_ID.test(t.tusUploadId)) throw new ApiError('UPLOAD_NOT_READY');
+    if (!t.tusUploadId || !TUS_STAGE_ID.test(t.tusUploadId)) throw new ApiError('UPLOAD_NOT_READY');
     return new URL('/files/' + t.tusUploadId, this.origin());
   }
 
@@ -70,7 +71,7 @@ export class TusStagingService {
     try { location = new URL(created.headers.get('Location') ?? '', origin); }
     catch { throw providerFailure(); }
     const idFromProvider = location.pathname.split('/').at(-1);
-    if (!idFromProvider || !TUS_ID.test(idFromProvider) || location.pathname !== '/files/' + idFromProvider) throw providerFailure();
+    if (!idFromProvider || !TUS_STAGE_ID.test(idFromProvider) || location.pathname !== '/files/' + idFromProvider) throw providerFailure();
     await this.store.locked(owner, id, async c => {
       await c.tx.multipartTransfer.update({ where: { id }, data: { tusUploadId: idFromProvider } });
     });
@@ -181,17 +182,19 @@ export class TusStagingService {
   async complete(owner: string, id: string) {
     this.origin();
     const t = await this.store.locked(owner, id, async c => this.checked(c, false));
-    if (t.state !== 'OPEN') return this.transfers.complete(owner, id);
+    if (t.state !== 'OPEN' && !(t.tusDeferred && ['CREATING', 'CREATE_UNKNOWN'].includes(t.state))) return this.transfers.complete(owner, id);
     if (this.publishing.has(id) || this.publishing.size >= 2) throw new ApiError('UPLOAD_NOT_READY');
-    if (!t.providerUploadId || t.providerNamespace !== this.config.getOrThrow<AppConfig>('app').storage.bucket) throw providerFailure();
+    if (t.providerNamespace !== this.config.getOrThrow<AppConfig>('app').storage.bucket) throw providerFailure();
 
     this.publishing.add(id);
     try {
       const bytes = await this.readVerified(t);
+      if (t.tusDeferred && !t.providerUploadId) await this.transfers.prepareVerifiedStaging(owner, id);
       const current = await this.store.locked(owner, id, async c => this.checked(c, false));
+      if (!current.providerUploadId) throw new ApiError('UPLOAD_NOT_READY');
       if (current.state !== 'OPEN') return this.transfers.complete(owner, id);
-      const session = { key: t.uploadOperation.fileObject.storageKey, uploadId: t.providerUploadId,
-        sizeBytes: Number(t.sizeBytes), partSizeBytes: t.partSizeBytes };
+      const session = { key: current.uploadOperation.fileObject.storageKey, uploadId: current.providerUploadId,
+        sizeBytes: Number(current.sizeBytes), partSizeBytes: current.partSizeBytes };
       try {
         const parts = await this.storage.listMultipartParts(session);
         // Only this route can supply the staged part, and every retry verifies identical bytes.

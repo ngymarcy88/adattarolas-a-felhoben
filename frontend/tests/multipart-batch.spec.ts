@@ -85,6 +85,18 @@ it('manual pause aborts local work without terminal server cancellation',async()
 it('explicit terminal cancellation preserves the server-held reservation status',async()=>{
  const f=fixture();await f.batch.open(id(99));await f.batch.cancel(id(50));expect(f.batch.state.rows[0].status).toBe('cancelled');expect(f.batch.state.rows[0].transfer?.reservationState).toBe('HELD');expect(f.driver).not.toHaveBeenCalled();f.batch.dispose();
 });
+it('can retry cleanup from a reopened cancelled transfer and shows the server-confirmed release',async()=>{
+ const f=fixture(), pending=transfer({state:'CANCELLED',tusStaged:true,cleanupState:'PENDING'});
+ f.client.getImport.mockResolvedValue({import:{} as never,items:[item({transfer:pending})],nextCursor:null});
+ f.client.cancel.mockResolvedValue(transfer({state:'CANCELLED',tusStaged:true,cleanupState:'VERIFIED',reservationState:'RELEASED'}));
+ await f.batch.open(id(99));
+ expect(f.batch.state.rows[0].notice).toContain('megmaradhat');
+ await f.batch.cancel(id(50));
+ expect(f.client.cancel).toHaveBeenCalledWith(pending.id,expect.any(AbortSignal));
+ expect(f.batch.state.rows[0].notice).toContain('felszabadult');
+ expect(f.batch.state.rows[0].status).toBe('cancelled');
+ f.batch.dispose();
+});
 it('logout/401 stops further queued files and never emits a false success',async()=>{
  const f=fixture();f.client.createImport.mockRejectedValue(new UploadRequestError('AUTH_REQUIRED'));f.batch.add([image(),image(),image()]);f.batch.start();await settled(f);expect(f.batch.state.authRequired).toBe(true);expect(f.client.initiate).not.toHaveBeenCalled();expect(f.batch.state.completionVersion).toBe(0);f.batch.dispose();
 });
