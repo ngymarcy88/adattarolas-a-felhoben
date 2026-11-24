@@ -5,7 +5,7 @@ import { MultipartStore } from '../../src/multipart/multipart.store';
 import { MultipartService } from '../../src/multipart/multipart.service';
 import { MultipartImportsService } from '../../src/multipart/multipart-imports.service';
 import { MultipartLimits } from '../../src/multipart/multipart.limit';
-import { TusEarlyCleanupService } from '../../src/multipart/tus-early-cleanup.service';
+import { TusCleanupService } from '../../src/multipart/tus-cleanup.service';
 import { StorageError } from '../../src/storage/storage-error';
 
 export const multipartOwner = 'aaaaaa00-0000-4000-8000-000000000001';
@@ -32,7 +32,7 @@ export function multipartFixture(tusStagingOrigin?: string) {
     if (k.includes('_')) return match(row, v);
     if (v && typeof v === 'object' && !(v instanceof Date)) return Object.entries(v).every(([op, target]: [string, any]) => {
       const a = row[k] instanceof Date ? +row[k] : row[k]; const b = target instanceof Date ? +target : target;
-      return op === 'gt' ? a > b : op === 'lt' ? a < b : op === 'in' ? target.includes(a) : op === 'not' ? a !== b : a === b;
+      return op === 'gt' ? a > b : op === 'lt' ? a < b : op === 'lte' ? a <= b : op === 'in' ? target.includes(a) : op === 'not' ? a !== b : a === b;
     });
     return row[k] instanceof Date ? +row[k] === +v : row[k] === v;
   });
@@ -73,7 +73,7 @@ export function multipartFixture(tusStagingOrigin?: string) {
         if(name==='fileObject')Object.assign(defaults,{status:'PENDING_UPLOAD',detectedMimeType:null,deletedAt:null,visibility:'PRIVATE'});
         if(name==='uploadOperation')Object.assign(defaults,{state:'OPEN',terminalErrorCode:null,closedAt:null,reservationReleasedAt:null,writesClosedAt:null});
         if(name==='multipartTransfer')Object.assign(defaults,{state:'CREATING',revision:0,fence:0n,leaseOwner:null,leaseUntil:null,recoveryAfter:null,recoveryAttemptCount:0,
-          providerUploadId:null,tusCreateStarted:false,tusUploadId:null,tusDeferred:false,tusS3Started:false,manifestSealedAt:null,manifestHash:null,storedETag:null,storedAt:null,verifiedAt:null,verifiedSha256:null,lastErrorCode:null,cleanupState:'NOT_REQUIRED',publicationExcludedAt:null});
+          providerUploadId:null,tusCreateStarted:false,tusUploadId:null,tusDeferred:false,tusS3Started:false,tusStageRemovedAt:null,manifestSealedAt:null,manifestHash:null,storedETag:null,storedAt:null,verifiedAt:null,verifiedSha256:null,lastErrorCode:null,cleanupState:'NOT_REQUIRED',cleanupRetryAfter:null,publicationExcludedAt:null});
         if(name==='multipartPart')Object.assign(defaults,{observedSizeBytes:null,observedETag:null,observedAt:null,maxIssuedExpiresAt:null,lastIssuedRevision:null});
         if(name==='multipartIoOperation')Object.assign(defaults,{settledAt:null,lastErrorCode:null});
         const row={...defaults,...clone(data)}; tables[name].push(row); return include(name,row);
@@ -121,7 +121,7 @@ export function multipartFixture(tusStagingOrigin?: string) {
     if(tx!==db)throw Error('not the same transaction');return tx.processingJob.create({data:{fileObjectId:file.id,processorKey:'thumbnail',processorVersion:'1.0.0'}});
   })};
   const store=new MultipartStore(db); const limits=new MultipartLimits();
-  const makeService=()=>new MultipartService(store,config,storage as never,processing as never,limits,new TusEarlyCleanupService(store,config));
+  const makeService=()=>new MultipartService(store,config,storage as never,processing as never,limits,new TusCleanupService(store,config));
   const service=makeService();const imports=new MultipartImportsService(store,config,service);
   const input=(patch:any={})=>({clientFileId:randomUUID(),originalName:'fixture.png',mimeType:'image/png',sizeBytes:image.length,contentSha256:hash,...patch});
   async function start(value=input(),owner=multipartOwner) {

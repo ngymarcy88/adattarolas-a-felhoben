@@ -1,6 +1,9 @@
 import { multipartFixture, multipartOwner, multipartOther, image } from './helpers/multipart-fixture';
 import { TusStagingService } from '../src/multipart/tus-staging.service';
 import { lstat } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
+import { TusCleanupService } from '../src/multipart/tus-cleanup.service';
+import { TUS_MAX_TRANSFERS } from '../src/multipart/tus-staging.policy';
 
 jest.mock('node:fs/promises', () => ({ lstat: jest.fn() }));
 
@@ -35,6 +38,71 @@ function stagingFiles(infoExists = false) {
     throw Object.assign(new Error('absent'), { code: 'ENOENT' });
   });
 }
+
+it('frees staging capacity only after ACTIVE confirm and verified removal, without changing quota', async () => {
+  const f = await staged();
+  const cleanup = new TusCleanupService(f.store, f.config);
+  verifiedStage(f.fetchStage);
+  await f.staging.complete(multipartOwner, f.transferId);
+  await cleanup.cleanSuccessfulBatch();
+  expect(f.fetchStage).toHaveBeenCalledTimes(3); // Create, read HEAD and GET; no deletion at STORED.
+  await f.service.confirmFile(multipartOwner, f.fileId);
+
+  f.tables.multipartTransfer.push(...Array.from({ length: TUS_MAX_TRANSFERS - 1 }, () => ({
+    id: randomUUID(), state: 'CREATING', tusStaged: true, tusStageRemovedAt: null, cleanupState: 'NOT_REQUIRED',
+  })));
+  const quotaBefore = structuredClone(f.tables.user[0]);
+  const originalBefore = structuredClone(f.tables.fileObject[0]);
+  await expect(f.start()).rejects.toMatchObject({ code: 'STORAGE_UNAVAILABLE' });
+  stagingFiles();
+  f.fetchStage.mockResolvedValueOnce(new Response(null, { status: 204 }));
+  f.fetchStage.mockResolvedValueOnce(new Response(null, { status: 404 }));
+  await cleanup.cleanSuccessfulBatch();
+
+  expect(f.tables.multipartTransfer[0]).toMatchObject({ state: 'SUCCEEDED', cleanupState: 'NOT_REQUIRED' });
+  expect(+f.tables.multipartTransfer[0].tusStageRemovedAt).toBeGreaterThan(0);
+  expect(f.tables.user[0]).toEqual(quotaBefore);
+  expect(f.tables.fileObject[0]).toEqual(originalBefore);
+  expect(f.tables.processingJob).toHaveLength(1);
+  expect(f.storage.abortMultipart).not.toHaveBeenCalled();
+  expect(f.fetchStage.mock.calls.slice(-2).map(([, options]) => options?.method)).toEqual(['DELETE', 'HEAD']);
+  await expect(f.start()).resolves.toMatchObject({ initialized: { body: { item: { transfer: { tusStaged: true } } } } });
+});
+
+it('reconciles a deleted staging copy after a restart and keeps the successful original accounted for', async () => {
+  const f = await staged();
+  verifiedStage(f.fetchStage);
+  await f.staging.complete(multipartOwner, f.transferId);
+  await f.service.confirmFile(multipartOwner, f.fileId);
+  const quotaBefore = structuredClone(f.tables.user[0]);
+  const cleanup = new TusCleanupService(f.store, f.config);
+  f.fetchStage.mockRejectedValueOnce(new Error('lost DELETE response'));
+  stagingFiles();
+  await cleanup.cleanSuccessfulBatch();
+  expect(f.tables.multipartTransfer[0].tusStageRemovedAt).toBeNull();
+  expect(+f.tables.multipartTransfer[0].cleanupRetryAfter).toBeGreaterThan(0);
+  await cleanup.cleanSuccessfulBatch();
+  expect(f.fetchStage).toHaveBeenCalledTimes(4);
+
+  f.tables.multipartTransfer[0].cleanupRetryAfter = new Date(0);
+  const restarted = new TusCleanupService(f.store, f.config);
+  stagingFiles(true);
+  for (let i = 0; i < 2; i++) f.fetchStage.mockResolvedValueOnce(new Response(null, { status: 404 }));
+  await restarted.cleanSuccessfulBatch();
+  expect(f.tables.multipartTransfer[0].tusStageRemovedAt).toBeNull();
+  f.tables.multipartTransfer[0].cleanupRetryAfter = new Date(0);
+  stagingFiles();
+  for (let i = 0; i < 2; i++) f.fetchStage.mockResolvedValueOnce(new Response(null, { status: 404 }));
+  await restarted.cleanSuccessfulBatch();
+  const marker = +f.tables.multipartTransfer[0].tusStageRemovedAt;
+  await restarted.cleanSuccessfulBatch();
+
+  expect(marker).toBeGreaterThan(0);
+  expect(+f.tables.multipartTransfer[0].tusStageRemovedAt).toBe(marker);
+  expect(f.tables.multipartTransfer[0].cleanupRetryAfter).toBeNull();
+  expect(f.fetchStage).toHaveBeenCalledTimes(8);
+  expect(f.tables.user[0]).toEqual(quotaBefore);
+});
 
 it('uses one private resource, denies foreign publication and never signs a staged part', async () => {
   const f = await staged();

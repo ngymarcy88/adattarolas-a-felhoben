@@ -13,7 +13,7 @@ import { publicFile } from '../files/upload-state.service';
 import { MultipartStore, publicTransfer, transferInclude, type Transfer, type TransferContext } from './multipart.store';
 import { source, uuid } from './multipart.dto';
 import { MultipartLimits } from './multipart.limit';
-import { TusEarlyCleanupService } from './tus-early-cleanup.service';
+import { TusCleanupService } from './tus-cleanup.service';
 import { tusAwaitingStorage } from './tus-staging.policy';
 
 const terminal = (t: Transfer) => ['SUCCEEDED', 'REJECTED', 'CANCELLED', 'EXPIRED'].includes(t.state);
@@ -27,7 +27,7 @@ type Claim = { t: Transfer; fence: bigint; leaseOwner: string; ioId?: string; ki
 export class MultipartService {
   constructor(private readonly store: MultipartStore, private readonly config: ConfigService,
     @Inject(OBJECT_STORAGE) private readonly storage: ObjectStorage, private readonly processing: ProcessingStateService, private readonly limits: MultipartLimits,
-    private readonly tusCleanup: TusEarlyCleanupService) {}
+    private readonly tusCleanup: TusCleanupService) {}
 
   private async load(c: TransferContext) {
     return (await c.tx.multipartTransfer.findUnique({ where: { id: c.transfer.id }, include: transferInclude }))!;
@@ -404,7 +404,7 @@ export class MultipartService {
       return { claim: { t, fence: t.fence, leaseOwner: '', ioId, kind: 'ABORT' as const } };
     });
     if (picked.error) throw new ApiError(picked.error);
-    if (picked.early) await this.tusCleanup.run(owner, id);
+    if (picked.early) await this.tusCleanup.releaseEarly(owner, id);
     if (picked.claim) {
       let success = false;
       try { await this.storage.abortMultipart(session(picked.claim.t)); success = true; } catch { /* Unknown: reservation retained. */ }

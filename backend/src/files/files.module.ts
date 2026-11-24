@@ -2,7 +2,7 @@ import { UppyController, UppySameOriginGuard } from '../multipart/uppy.controlle
 import { MultipartController, MultipartGuard } from '../multipart/multipart.controller';
 import { TusStagingController } from '../multipart/tus-staging.controller';
 import { TusStagingService } from '../multipart/tus-staging.service';
-import { TusEarlyCleanupService } from '../multipart/tus-early-cleanup.service';
+import { TusCleanupService } from '../multipart/tus-cleanup.service';
 import { MultipartService } from '../multipart/multipart.service';
 import { MultipartImportsService } from '../multipart/multipart-imports.service';
 import { MultipartStore } from '../multipart/multipart.store';
@@ -33,5 +33,5 @@ import { FilePreviewService } from './file-preview.service';
 import { FilePreviewGuard } from './file-preview.guard';
 
 @Module({ imports: [AuthModule, PrismaModule, StorageModule, ProcessingModule], controllers: [UppyController, FilesController, ProcessingController, MultipartController, TusStagingController],
-  providers: [TusStagingService, TusEarlyCleanupService, UppySameOriginGuard, MultipartService, MultipartImportsService, MultipartStore, MultipartLimits, MultipartFilePipe, MultipartGuard, ProcessingApiService, ProcessingStatusPipe, ProcessingRetryPipe, ProcessingStatusGuard, ProcessingRetryGuard, ThumbnailUrlGuard, FilePreviewService, FilePreviewGuard, FileListService, FileListQueryPipe, FileListGuard, UploadStateService, UploadConfirmService, FileIdPipe, UploadConfirmGuard, UploadCleanupService, UploadCleanupWorker, UploadInitService, UploadInitValidationPipe, UploadInitGuard] })
+  providers: [TusStagingService, TusCleanupService, UppySameOriginGuard, MultipartService, MultipartImportsService, MultipartStore, MultipartLimits, MultipartFilePipe, MultipartGuard, ProcessingApiService, ProcessingStatusPipe, ProcessingRetryPipe, ProcessingStatusGuard, ProcessingRetryGuard, ThumbnailUrlGuard, FilePreviewService, FilePreviewGuard, FileListService, FileListQueryPipe, FileListGuard, UploadStateService, UploadConfirmService, FileIdPipe, UploadConfirmGuard, UploadCleanupService, UploadCleanupWorker, UploadInitService, UploadInitValidationPipe, UploadInitGuard] })
 export class FilesModule {}

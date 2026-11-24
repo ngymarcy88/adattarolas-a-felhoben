@@ -1157,3 +1157,15 @@ Az újraindítási próba a tartós lezárás után, a staging törlése előtt 
 Az egyik backend-restart után a böngésző tus HEAD kérése 502-t kapott az nginx upstream kapcsolódási hibája miatt. A beállítás a Docker DNS-en újra feloldja a backend címét. Az `nginx -t`, az azonos frontend-példányon át mért health backend-restart után, valamint a böngészős véglegesítési próba sikerült. A javítás utáni restart alatt a backend címe megmaradt.
 
 WSL alatt az `npm test` mind az 1 729 tesztje (1 263 backend, 463 frontend, 3 konténerkonfigurációs teszt), az `npm run typecheck` és az `npm run build` sikerült.
+
+### Sikeresen véglegesített tus staging takarítása
+
+**Környezet és bemenet:** a `57a3510` kiinduló verzió, a `20261124000300_tus_success_cleanup` migráció, helyi Docker Compose overlay, PostgreSQL 17.9, MinIO és tusd 2.10.3. A próba a fent dokumentált, 1 229 603 bájtos `small-resume.png` fájlt használta. Az új feltöltés és az eredeti visszaolvasása az alkalmazás valódi HTTP-végpontjain keresztül történt.
+
+| Próba | Megfigyelt eredmény |
+|---|---|
+| Korábban véglegesített feltöltés | **PASS.** Az induláskor mindkét staging fájl megvolt. A worker után mindkettő `ENOENT`, a `tusStageRemovedAt` rögzítve. Ismételt confirm és letöltés 200, egyező SHA-256. A használt hely 1 387 017, a foglalás 0 bájt maradt. |
+| Tusd-kiesés és backend-újraindítás | **PASS.** Az új fájl valódi véglegesítése után leállítottuk a tusd szolgáltatást. A worker újrapróbálási időt rögzített, mindkét fájl és a staging hely megmaradt. A backend kényszerített újraindítása és a tusd visszaindítása után a következő esedékes futás mindkét fájl hiányát igazolta és beállította a markert. Az ismételt confirm és letöltés 200, a letöltött SHA-256 egyezett. A használt hely 1 387 017, a foglalás 0 bájt maradt. |
+| Staging hely visszaadása, elveszett törlési válasz | **PASS, egységteszt.** A 32. foglalt hely mellett az új staging kezdeményezés elutasítást kapott. Igazolt staging törlés után elfogadta az új átvitelt. Elveszett válasz után a 404 mellett fennmaradó `.info` fájl blokkolta a markert. Új service-példányból mindkét fájl igazolt hiánya után a marker bekerült, és további ismétlésre nem indult törlési kérés. |
+
+A két MinIO-letöltés SHA-256 értéke a bemenetével egyezett (`605705f21176a72fdebdc7e55bb1a151f36438e635f4f53a4b184af2ff59990b`). Fiókonként egy eredeti és egy feldolgozási feladat maradt. A több kis képes import és az összehasonlító mérés továbbra is külön feladat. A kiesési próba a törlés előtt szakította meg a futást. Az elveszett törlési válasz egységtesztben szerepel.
