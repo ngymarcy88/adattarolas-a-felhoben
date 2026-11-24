@@ -14,10 +14,11 @@ export const hash = createHash('sha256').update(image).digest('hex');
 const clone = <T>(v: T): T => structuredClone(v);
 
 /** Unit-only Prisma port with serialization, rollback and post-commit response loss. Not PostgreSQL evidence. */
-export function multipartFixture() {
+export function multipartFixture(tusStagingOrigin?: string) {
   const configData = validateEnvironment({ DATABASE_URL: 'postgresql://unit:unit@localhost/db', JWT_SECRET: 'unit-only-secret-longer-than-32-characters',
     FRONTEND_PUBLIC_URL: 'http://localhost:5173', BACKEND_PUBLIC_URL: 'http://localhost:3000', S3_ENDPOINT: 'http://minio:9000',
-    S3_REGION: 'us-east-1', S3_BUCKET: 'unit-bucket', S3_ACCESS_KEY_ID: 'unit-access', S3_SECRET_ACCESS_KEY: 'unit-secret' });
+    S3_REGION: 'us-east-1', S3_BUCKET: 'unit-bucket', S3_ACCESS_KEY_ID: 'unit-access', S3_SECRET_ACCESS_KEY: 'unit-secret',
+    TUS_STAGING_ORIGIN: tusStagingOrigin });
   const config = new ConfigService({ app: configData });
   const names = ['user','fileObject','uploadOperation','importSession','importFile','multipartTransfer','multipartPart','multipartManifestPart','multipartIoOperation','processingJob','auditEvent'];
   const tables: Record<string, any[]> = Object.fromEntries(names.map(n => [n, []]));
@@ -71,7 +72,7 @@ export function multipartFixture() {
         if(name==='fileObject')Object.assign(defaults,{status:'PENDING_UPLOAD',detectedMimeType:null,deletedAt:null,visibility:'PRIVATE'});
         if(name==='uploadOperation')Object.assign(defaults,{state:'OPEN',terminalErrorCode:null,closedAt:null,reservationReleasedAt:null,writesClosedAt:null});
         if(name==='multipartTransfer')Object.assign(defaults,{state:'CREATING',revision:0,fence:0n,leaseOwner:null,leaseUntil:null,recoveryAfter:null,recoveryAttemptCount:0,
-          providerUploadId:null,manifestSealedAt:null,manifestHash:null,storedETag:null,storedAt:null,verifiedAt:null,verifiedSha256:null,lastErrorCode:null,cleanupState:'NOT_REQUIRED',publicationExcludedAt:null});
+          providerUploadId:null,tusCreateStarted:false,tusUploadId:null,manifestSealedAt:null,manifestHash:null,storedETag:null,storedAt:null,verifiedAt:null,verifiedSha256:null,lastErrorCode:null,cleanupState:'NOT_REQUIRED',publicationExcludedAt:null});
         if(name==='multipartPart')Object.assign(defaults,{observedSizeBytes:null,observedETag:null,observedAt:null,maxIssuedExpiresAt:null,lastIssuedRevision:null});
         if(name==='multipartIoOperation')Object.assign(defaults,{settledAt:null,lastErrorCode:null});
         const row={...defaults,...clone(data)}; tables[name].push(row); return include(name,row);
@@ -104,6 +105,11 @@ export function multipartFixture() {
     initiateMultipart:jest.fn(async(input:any)=>{const uploadId=`opaque-${++next}`;uploads.set(uploadId,{key:input.key,parts:[]});return{uploadId};}),
     findMultipartUploads:jest.fn(async(key:string)=>[...uploads].filter(([,u])=>u.key===key).map(([id])=>id)),
     listMultipartParts:jest.fn(async(input:any)=>{const u=uploads.get(input.uploadId);if(!u)throw new StorageError('UPLOAD_NOT_FOUND');return clone(u.parts);}),
+    uploadStagedPart:jest.fn(async(input:{uploadId:string; bytes:Uint8Array})=>{
+      const upload=uploads.get(input.uploadId);
+      if(!upload)throw new StorageError('UPLOAD_NOT_FOUND');
+      upload.parts=[{partNumber:1,sizeBytes:input.bytes.byteLength,etag:'"part-1"'}];
+    }),
     createMultipartPartAccess:jest.fn(async(input:any)=>({method:'PUT',url:'https://storage.invalid/synthetic',headers:{},partNumber:input.partNumber,
       sizeBytes:Math.min(input.partSizeBytes,input.sizeBytes-(input.partNumber-1)*input.partSizeBytes),expiresAt:input.expiresAt})),
     completeMultipart:jest.fn(async(input:any)=>{const result={etag:'"opaque-complete"',sha256:hash,prefix:image.subarray(0,16)};objects.set(input.key,result);return{etag:result.etag};}),

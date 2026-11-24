@@ -1,0 +1,24 @@
+services:
+  backend:
+    environment:
+      TUS_STAGING_ORIGIN: http://tus-staging:8080
+    depends_on:
+      tus-staging:
+        condition: service_started
+
+  tus-staging:
+    image: tusproject/tusd@sha256:96c48f09e37eb61d9d9afb538e172aadd77c9feb0a29f11c43c521b7dc332286
+    command:
+      - -upload-dir=/srv/tusd-data
+      - -max-size=5242879
+      - -disable-termination
+      - -disable-concatenation
+      - -expose-metrics=false
+      - -verbose=false
+    volumes:
+      - tus-staging-data:/srv/tusd-data
+    mem_limit: 128m
+    pids_limit: 64
+
+volumes:
+  tus-staging-data:

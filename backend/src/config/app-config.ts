@@ -29,4 +29,5 @@ export interface AppConfig {
   presignedUrlTtlSeconds: number;
   thumbnailPreviewTtlSeconds: number;
   multipart: { partSizeBytes: number; urlTtlSeconds: number; sessionTtlSeconds: number; maxFiles: number };
+  tusStagingOrigin?: string;
 }

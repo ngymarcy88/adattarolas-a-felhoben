@@ -11,12 +11,12 @@ export function fixture(){let next=100;const transfers=new Map<string,Transfer>(
  createImport:vi.fn().mockResolvedValue(imported()),listImports:vi.fn().mockResolvedValue({items:[imported()],nextCursor:null}),getImport:vi.fn().mockResolvedValue({import:imported(),items:[item()],nextCursor:null}),
  initiate:vi.fn().mockImplementation(async(_i,input)=>{const t=transfer({id:input.clientFileId});transfers.set(t.id,t);return item({clientFileId:input.clientFileId,fileId:t.id,originalName:input.originalName,sizeBytes:input.sizeBytes,transfer:t});}),
  status:vi.fn().mockImplementation(async id=>transfers.get(id)??transfer({id})),resume:vi.fn().mockImplementation(async id=>transfers.get(id)??transfer({id})),
- sign:vi.fn(),complete:vi.fn().mockImplementation(async id=>({transfer:transfer({id,state:'STORED'}),pending:false,retryAfterMs:0})),
+ sign:vi.fn(),prepareTus:vi.fn().mockResolvedValue(undefined),complete:vi.fn().mockImplementation(async id=>({transfer:transfer({id,state:'STORED'}),pending:false,retryAfterMs:0})),
  cancel:vi.fn().mockImplementation(async id=>transfer({id,state:'CANCELLED',cleanupState:'CLEANUP_BLOCKED'})),
  confirm:vi.fn().mockImplementation(async id=>({file:{id,status:'ACTIVE',originalName:'image.png',mimeType:'image/png',detectedMimeType:'image/png',sizeBytes:16,confirmBy:'2099-01-01T00:00:00.000Z'},transfer:null,retryAfterMs:0})),
  } satisfies Record<keyof MultipartClient,unknown>;
- const driver=vi.fn().mockResolvedValue(undefined),hash=vi.fn().mockResolvedValue('a'.repeat(64));
- const batch=createMultipartBatch(client as MultipartClient,{driver,hash,readGapMs:0,newId:()=>id(next++)});
- return {client,driver,hash,batch,transfers};
+ const driver=vi.fn().mockResolvedValue(undefined),tusDriver=vi.fn().mockResolvedValue(undefined),hash=vi.fn().mockResolvedValue('a'.repeat(64));
+ const batch=createMultipartBatch(client as MultipartClient,{driver,tusDriver,hash,readGapMs:0,newId:()=>id(next++)});
+ return {client,driver,tusDriver,hash,batch,transfers};
 }
 export async function settled(f:ReturnType<typeof fixture>){await vi.waitFor(()=>{if(f.batch.state.running)throw new Error('still running');});}

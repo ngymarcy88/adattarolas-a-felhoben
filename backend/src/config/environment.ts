@@ -105,6 +105,10 @@ export function validateEnvironment(env: Record<string, unknown>): AppConfig {
       maxFiles: integer('MULTIPART_MAX_FILES_PER_IMPORT', 50, 1, 50),
     },
   };
+  if (env.TUS_STAGING_ORIGIN !== undefined) {
+    if (environment !== 'local') invalid.add('TUS_STAGING_ORIGIN');
+    config.tusStagingOrigin = url('TUS_STAGING_ORIGIN', ['http:'], true);
+  }
   if (config.multipart.partSizeBytes % 1048576 !== 0) invalid.add('MULTIPART_PART_SIZE_BYTES');
   if (invalid.size) {
     throw new Error(`Invalid configuration variables: ${[...invalid].sort().join(', ')}`);

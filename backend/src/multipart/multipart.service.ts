@@ -167,7 +167,7 @@ export class MultipartService {
     });
     if (t.error) throw new ApiError(t.error);
     if (t.t.providerNamespace !== this.config.getOrThrow<AppConfig>('app').storage.bucket) throw new ApiError('STORAGE_UNAVAILABLE');
-    if (t.t.state !== 'OPEN') throw new ApiError('TRANSFER_STATE_CONFLICT');
+    if (t.t.state !== 'OPEN' || t.t.tusStaged) throw new ApiError('TRANSFER_STATE_CONFLICT');
     if (!Number.isInteger(partNumber) || partNumber < 1 || partNumber > t.t.partCount) throw new ApiError('VALIDATION_ERROR');
     const parts = await this.storage.listMultipartParts(session(t.t)).catch(() => { throw new ApiError('STORAGE_UNAVAILABLE'); });
     const policy = this.config.getOrThrow<AppConfig>('app');

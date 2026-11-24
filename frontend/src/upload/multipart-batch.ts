@@ -4,10 +4,11 @@ import { UploadRequestError } from '../api/uploads';
 import { prepareImportFile } from './image-format';
 import { validateImage } from './batch';
 import { transferWithUppy, type TransferDriver } from './uppy-transfer';
+import { transferWithTus } from './tus-transfer';
 export type MultipartStatus='queued'|'hashing'|'initializing'|'uploading'|'confirming'|'success'|'error'|'paused'|'needs-file'|'cancelled';
 export interface MultipartRow { id:string;name:string;size:number;mime:string;status:MultipartStatus;progress:number;error:string;notice:string;retryAt:number;transfer?:Transfer;fileId?:string }
 interface Context { file?:File;hash?:string;prepared?:boolean;key:string }
-interface Options { driver?:TransferDriver;hash?:(file:File)=>Promise<string>;readGapMs?:number;newId?:()=>string }
+interface Options { driver?:TransferDriver;tusDriver?:TransferDriver;hash?:(file:File)=>Promise<string>;readGapMs?:number;newId?:()=>string }
 const terminal=new Set(['REJECTED','CANCELLED','EXPIRED']);
 const safeError=(e:unknown)=>e instanceof UploadRequestError ? e : new UploadRequestError('UNAVAILABLE');
 export async function hashImage(file:File) {const digest=await crypto.subtle.digest('SHA-256',await file.arrayBuffer());return [...new Uint8Array(digest)].map(b=>b.toString(16).padStart(2,'0')).join('');}
@@ -74,7 +75,15 @@ export function createMultipartBatch(client:MultipartClient=multipartClient,opti
   }
   if(t.state!=='OPEN')throw new UploadRequestError('UPLOAD_NOT_READY',2000);
   t=await read(signal,()=>client.resume(t.id,{sizeBytes:row.size,contentSha256:ctx.hash!},signal));alive(signal);receive(row,t);
-  row.status='uploading';await driver(ctx.file,t,signal,bytes=>{if(!disposed&&!signal.aborted)row.progress=Math.min(100,Math.max(0,Math.floor(bytes/row.size*100)));});alive(signal);
+  if(t.tusStaged){await client.prepareTus(t.id,signal);alive(signal);}
+  row.status='uploading';
+  const upload=t.tusStaged ? options.tusDriver??transferWithTus : driver;
+  await upload(ctx.file,t,signal,bytes=>{if(!disposed&&!signal.aborted)row.progress=Math.min(100,Math.max(0,Math.floor(bytes/row.size*100)));});alive(signal);
+  if(t.tusStaged){
+    row.status='confirming';
+    const result=await client.complete(t.id,signal,true);alive(signal);receive(row,result.transfer);
+    if(result.pending)throw new UploadRequestError('UPLOAD_NOT_READY',Math.max(2000,result.retryAfterMs));
+  }
   await finish(row,signal);
  }
  function pump(){

@@ -425,6 +425,22 @@ export class S3StorageAdapter implements ObjectStorage {
     } catch (error) { throw mapMultipartError(error); }
   }
 
+  async uploadStagedPart(input: Parameters<MultipartStorage['uploadStagedPart']>[0]): Promise<void> {
+    const session = this.multipartSession(input);
+    if (session.partCount !== 1 || input.bytes.byteLength !== session.sizeBytes || session.sizeBytes >= MIN_MULTIPART_PART_BYTES) {
+      throw new StorageError('INVALID_ARGUMENT');
+    }
+    await this.multipartMutation(input.signal, async (abortSignal, assertLive, dispatch) => {
+      dispatch();
+      const result = await this.writeClient.send(new UploadPartCommand({
+        Bucket: this.config.storage.bucket, Key: session.key, UploadId: session.uploadId, PartNumber: 1,
+        Body: input.bytes, ContentLength: session.sizeBytes,
+      }), { abortSignal });
+      assertLive();
+      if (result.$metadata?.httpStatusCode !== 200 || !this.validEtag(result.ETag)) throw new StorageError('INVALID_RESPONSE');
+    });
+  }
+
   async completeMultipart(input: Parameters<MultipartStorage['completeMultipart']>[0]) {
     const session = this.multipartSession(input);
     if (!Array.isArray(input.parts) || input.parts.length !== session.partCount) throw new StorageError('INVALID_ARGUMENT');

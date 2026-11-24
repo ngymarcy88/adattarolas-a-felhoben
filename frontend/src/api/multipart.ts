@@ -9,6 +9,7 @@ export interface Transfer {
   expiresAt: string; completedBytes: number; partsObservedAt: string | null; parts: { partNumber: number; sizeBytes: number }[];
   cleanupState: 'NOT_REQUIRED' | 'PENDING' | 'CLEANUP_BLOCKED' | 'VERIFIED';
   reservationState: 'HELD' | 'CONVERTED_TO_USED' | 'RELEASED'; lastErrorCode: string | null;
+  tusStaged?: true;
 }
 export interface ImportSession { id: string; state: 'OPEN' | 'EXPIRED'; createdAt: string; expiresAt: string; acceptedFileCount: number }
 export interface ImportItem { clientFileId: string; fileId: string; originalName: string; mimeType: string; sizeBytes: number; transfer: Transfer }
@@ -26,7 +27,12 @@ const date = (v: unknown): v is string => typeof v === 'string' && Number.isFini
 const mime = (v: unknown): v is string => typeof v === 'string' && ['image/jpeg', 'image/png', 'image/webp', 'image/gif', OPAQUE_FILE_MIME].includes(v);
 const errors = new Set(['AUTH_REQUIRED','ORIGIN_NOT_ALLOWED','VALIDATION_ERROR','INVALID_FILE_NAME','UNSUPPORTED_MEDIA_TYPE','FILE_TOO_LARGE','QUOTA_EXCEEDED','IDEMPOTENCY_CONFLICT','IMPORT_FILE_LIMIT','ACTIVE_IMPORT_LIMIT','FILE_NOT_FOUND','IMPORT_NOT_FOUND','TRANSFER_NOT_FOUND','PART_ALREADY_UPLOADED','TRANSFER_SOURCE_MISMATCH','TRANSFER_STATE_CONFLICT','RESOURCE_STATE_CONFLICT','UPLOAD_NOT_READY','UPLOAD_PARTS_INCOMPLETE','TRANSFER_PARTS_INVALID','UPLOAD_EXPIRED','UPLOAD_CANCELLED','UPLOAD_VALIDATION_FAILED','RATE_LIMITED','STORAGE_UNAVAILABLE','UPLOAD_VERIFICATION_UNAVAILABLE','DATABASE_UNAVAILABLE','INTERNAL_ERROR']);
 export function parseTransfer(value: unknown): Transfer {
-  const v = exact(value, ['id','state','revision','partSizeBytes','partCount','expiresAt','completedBytes','partsObservedAt','parts','cleanupState','reservationState','lastErrorCode']);
+  const fields = ['id','state','revision','partSizeBytes','partCount','expiresAt','completedBytes','partsObservedAt','parts','cleanupState','reservationState','lastErrorCode'];
+  if (object(value) && Object.hasOwn(value, 'tusStaged')) {
+    if (value.tusStaged !== true || value.partCount !== 1) return fail();
+    fields.push('tusStaged');
+  }
+  const v = exact(value, fields);
   if (!id(v.id) || !TRANSFER_STATES.includes(v.state as Transfer['state']) || !integer(v.revision) || !integer(v.partSizeBytes,5242880,16777216) || v.partSizeBytes % 1048576 || !integer(v.partCount,1,20) || !date(v.expiresAt) || !integer(v.completedBytes,0,104857600) || !(v.partsObservedAt === null || date(v.partsObservedAt)) || !Array.isArray(v.parts) || v.parts.length > v.partCount || !['NOT_REQUIRED','PENDING','CLEANUP_BLOCKED','VERIFIED'].includes(String(v.cleanupState)) || !['HELD','CONVERTED_TO_USED','RELEASED'].includes(String(v.reservationState)) || !(v.lastErrorCode === null || typeof v.lastErrorCode === 'string' && errors.has(v.lastErrorCode))) return fail();
   let previous = 0, total = 0;
   for (const item of v.parts) {
@@ -59,7 +65,7 @@ export function createMultipartClient(baseUrl: string | undefined) {
   async function request(path: string, signal: AbortSignal, body?: unknown, key?: string, empty = false) {
     const controller = new AbortController(); const abort = () => controller.abort();
     signal.addEventListener('abort',abort,{once:true}); if (signal.aborted) abort();
-    const timer = setTimeout(abort, empty || path.startsWith('transfers/') ? 70000 : 15000);
+    const timer = setTimeout(abort, empty || path.startsWith('transfers/') || path.startsWith('tus/') ? 70000 : 15000);
     try {
       const r = await fetch(`${parseApiBaseUrl(baseUrl)}/${path}`, { method: body === undefined && !empty ? 'GET' : 'POST', credentials:'include',cache:'no-store',redirect:'error',signal:controller.signal,
         headers:{Accept:'application/json',...(body === undefined ? {} : {'Content-Type':'application/json'}),...(key ? {'Idempotency-Key':pathId(key)} : {})},...(body === undefined ? {} : {body:JSON.stringify(body)}) });
@@ -99,7 +105,11 @@ export function createMultipartClient(baseUrl: string | undefined) {
       try { const url=new URL(v.url);if(!['http:','https:'].includes(url.protocol)||url.username||url.password||url.hash||url.origin===globalThis.location?.origin)return fail(); } catch { return fail(); }
       return v as unknown as PartAccess;
     },
-    async complete(transferId: string, signal: AbortSignal) {const r=await request(`transfers/${pathId(transferId)}/complete`,signal,{});const t=parseTransfer(exact(r.data,['transfer']).transfer);if(t.id!==transferId)return fail();return {transfer:t,pending:r.pending,retryAfterMs:r.retryAfterMs};},
+    async prepareTus(transferId: string, signal: AbortSignal) {
+      const {data}=await request(`tus/${pathId(transferId)}/prepare`,signal,{});
+      if (exact(data, ['ready']).ready !== true) return fail();
+    },
+    async complete(transferId: string, signal: AbortSignal, tusStaged = false) {const r=await request(`${tusStaged ? 'tus' : 'transfers'}/${pathId(transferId)}/complete`,signal,{});const t=parseTransfer(exact(r.data,['transfer']).transfer);if(t.id!==transferId)return fail();return {transfer:t,pending:r.pending,retryAfterMs:r.retryAfterMs};},
     async cancel(transferId: string, signal: AbortSignal) {const r=await request(`transfers/${pathId(transferId)}/cancel`,signal,{});const t=parseTransfer(exact(r.data,['transfer']).transfer);if(t.id!==transferId)return fail();return t;},
     async confirm(fileId: string, signal: AbortSignal): Promise<{file: UploadedFile|null;transfer:Transfer|null;retryAfterMs:number}> {
       const r=await request(`files/${pathId(fileId)}/confirm`,signal,undefined,undefined,true);

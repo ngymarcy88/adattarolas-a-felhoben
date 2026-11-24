@@ -46,6 +46,7 @@ export function publicTransfer(t: Transfer, observedAt?: Date) {
   const parts = t.parts.filter(p => p.observedSizeBytes !== null && p.observedETag !== null && p.observedAt !== null);
   const at = observedAt ?? parts.reduce<Date | undefined>((max, p) => !max || +p.observedAt! > +max ? p.observedAt! : max, undefined);
   return { id: t.id, state: t.state, revision: t.revision, partSizeBytes: t.partSizeBytes, partCount: t.partCount,
+    ...(t.tusStaged ? { tusStaged: true as const } : {}),
     expiresAt: t.expiresAt.toISOString(), completedBytes: parts.reduce((sum, p) => sum + p.observedSizeBytes!, 0), partsObservedAt: at?.toISOString() ?? null,
     parts: parts.map(p => ({ partNumber: p.partNumber, sizeBytes: p.observedSizeBytes! })), cleanupState: t.cleanupState,
     reservationState: t.uploadOperation.state === 'FINALIZED' ? 'CONVERTED_TO_USED' : t.uploadOperation.reservationReleasedAt ? 'RELEASED' : 'HELD',

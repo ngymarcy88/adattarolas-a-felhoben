@@ -27,6 +27,8 @@ export interface MultipartStorage {
   createMultipartPartAccess(input: MultipartSession & { partNumber: number; expiresAt: Date; signal?: AbortSignal }):
     Promise<{ method: 'PUT'; url: string; partNumber: number; sizeBytes: number; expiresAt: Date; headers: Record<string, string> }>;
   listMultipartParts(input: MultipartSession & { signal?: AbortSignal }): Promise<MultipartPartReceipt[]>;
+  /** Server-only staging bridge. Never grants browser access to the S3 part. */
+  uploadStagedPart(input: MultipartSession & { bytes: Uint8Array; signal?: AbortSignal }): Promise<void>;
   /** Frozen complete manifest, create-only. Success does not validate the complete object's content. */
   completeMultipart(input: MultipartSession & { parts: readonly MultipartPartReceipt[]; signal?: AbortSignal }):
     Promise<{ etag: string; versionId?: string }>;
