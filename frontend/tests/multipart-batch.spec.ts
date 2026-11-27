@@ -3,6 +3,52 @@ import { fixture, id, image, item, transfer, settled } from './helpers/multipart
 import { UploadRequestError } from '../src/api/uploads';
 import { hashImage } from '../src/upload/multipart-batch';
 afterEach(()=>vi.useRealTimers());
+it('keeps independent work moving and retries only one pending admission after Retry-After', async () => {
+ vi.useFakeTimers();
+ const f=fixture();
+ const admit=f.client.initiate.getMockImplementation()!;
+ let release: (() => void) | undefined;
+ const full=new UploadRequestError('TUS_STAGING_FULL',7000);
+ f.client.initiate.mockRejectedValueOnce(full).mockRejectedValueOnce(full).mockImplementationOnce(admit)
+   .mockImplementationOnce((...args) => new Promise(resolve => {
+     release=()=>resolve(admit(...args));
+   }));
+ f.batch.add([image(),image(),image()]);
+ f.batch.start();
+ await vi.advanceTimersByTimeAsync(0);
+ expect(f.batch.state.rows.map(row=>row.status)).toEqual(['waiting-capacity','waiting-capacity','success']);
+ expect(f.batch.state.running).toBe(0);
+ const initial=f.client.initiate.mock.calls.slice(0,2).map(args=>args.slice(0,3));
+
+ await vi.advanceTimersByTimeAsync(6999);
+ expect(f.client.initiate).toHaveBeenCalledTimes(3);
+ await vi.advanceTimersByTimeAsync(1);
+ expect(f.client.initiate).toHaveBeenCalledTimes(4);
+ expect(f.client.initiate.mock.calls[3].slice(0,3)).toEqual(initial[0]);
+ await vi.advanceTimersByTimeAsync(7000);
+ expect(f.client.initiate).toHaveBeenCalledTimes(4);
+ release!();
+ await vi.advanceTimersByTimeAsync(0);
+ expect(f.client.initiate.mock.calls[4].slice(0,3)).toEqual(initial[1]);
+ expect(f.batch.summary.value.success).toBe(3);
+ expect(f.client.createImport).toHaveBeenCalledTimes(1);
+ expect(f.hash).toHaveBeenCalledTimes(3);
+ f.batch.dispose();
+});
+it('stops scheduling staging admission on pause and disposal', async () => {
+ vi.useFakeTimers();
+ const f=fixture();
+ f.client.initiate.mockRejectedValue(new UploadRequestError('TUS_STAGING_FULL',5000));
+ f.batch.add([image(),image()]);
+ f.batch.start();
+ await vi.advanceTimersByTimeAsync(0);
+ expect(f.batch.state.rows.every(row=>row.status==='waiting-capacity')).toBe(true);
+ f.batch.pause(f.batch.state.rows[0].id);
+ expect(f.batch.state.rows[0].status).toBe('paused');
+ f.batch.dispose();
+ await vi.advanceTimersByTimeAsync(30000);
+ expect(f.client.initiate).toHaveBeenCalledTimes(2);
+});
 it('restores the staged transfer, checks the selected content and publishes through tus before confirm', async()=>{
  const f=fixture(), staged=transfer({tusStaged:true});
  f.client.getImport.mockResolvedValue({import:{} as never,items:[item({transfer:staged})],nextCursor:null});

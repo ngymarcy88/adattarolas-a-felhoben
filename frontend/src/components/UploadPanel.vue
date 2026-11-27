@@ -11,8 +11,9 @@ let timer:ReturnType<typeof setInterval>|undefined;
 const stop=()=>batch.pauseAll();
 onMounted(()=>{void batch.discover();timer=setInterval(()=>{now.value=Date.now();},1000);window.addEventListener('offline',stop);window.addEventListener('pagehide',stop);});
 onBeforeUnmount(()=>{clearInterval(timer);window.removeEventListener('offline',stop);window.removeEventListener('pagehide',stop);batch.dispose();emit('busy',false);});
-const labels:Record<MultipartStatus,string>={queued:'Várakozik',hashing:'Fájlazonosság ellenőrzése…',initializing:'Előkészítés…',uploading:'Feltöltés…',confirming:'Ellenőrzés és véglegesítés…',success:'Sikeresen feltöltve',error:'Nem sikerült',paused:'Szünetel', 'needs-file':'Folytatható feltöltés',cancelled:'Lezárva'};
+const labels:Record<MultipartStatus,string>={queued:'Várakozik','waiting-capacity':'Várakozás szabad feltöltési helyre',hashing:'Fájlazonosság ellenőrzése…',initializing:'Előkészítés…',uploading:'Feltöltés…',confirming:'Ellenőrzés és véglegesítés…',success:'Sikeresen feltöltve',error:'Nem sikerült',paused:'Szünetel', 'needs-file':'Folytatható feltöltés',cancelled:'Lezárva'};
 const hasQueued=computed(()=>state.rows.some(r=>r.status==='queued'));
+const hasWaiting=computed(()=>state.rows.some(r=>r.status==='waiting-capacity'));
 const fileInput = ref<HTMLInputElement | null>(null);
 const selectionDisabled = computed(() => !!props.disabled || busy.value || state.loading || state.authRequired);
 function openFilePicker() {
@@ -53,19 +54,19 @@ function reselect(id:string,event:Event){const input=event.target as HTMLInputEl
  <div v-else class="mt-5">
   <p role="status" aria-live="polite">{{ summary.success }} / {{ summary.total }} sikeres · {{ summary.failed }} hibás</p>
   <button type="button" :disabled="disabled||!hasQueued||busy||state.loading||state.authRequired" @click="batch.start()" class="mt-3 rounded-lg bg-indigo-600 px-4 py-3 font-semibold text-white disabled:opacity-50">{{ busy?'Feltöltés folyamatban…':'Feltöltés indítása' }}</button>
-  <button v-if="busy" type="button" @click="batch.pauseAll()" class="ml-2 rounded-lg border px-4 py-3">Mind szüneteltetése</button>
+  <button v-if="busy||hasWaiting" type="button" @click="batch.pauseAll()" class="ml-2 rounded-lg border px-4 py-3">Mind szüneteltetése</button>
   <ul class="mt-5 space-y-3" aria-label="Kiválasztott fájlok">
    <li v-for="row in state.rows" :key="row.id" class="rounded-2xl border p-4" :aria-busy="working(row.status)">
     <p class="break-all font-medium">{{ row.name }} <span class="text-xs text-slate-500">{{ size(row.size) }}</span></p>
     <p v-if="row.notice" class="mt-2 text-sm text-indigo-700">{{ row.notice }}</p>
     <p v-if="row.transfer?.tusStaged && !['success','cancelled'].includes(row.status)" class="mt-2 text-xs text-slate-600">A tus próba a szerveren megmaradt bájtoktól folytatódik.</p>
-    <p class="mt-2 text-sm">{{ labels[row.status] }}<span v-if="row.status==='uploading'"> {{ row.progress }}%</span></p>
+    <p class="mt-2 text-sm" :aria-live="row.status==='waiting-capacity' ? 'polite' : undefined">{{ labels[row.status] }}<span v-if="row.status==='uploading'"> {{ row.progress }}%</span></p>
     <progress :value="row.progress" max="100" :aria-label="`${row.name} átvitele`" class="mt-2 h-2 w-full accent-indigo-600" />
     <p v-if="row.status==='confirming'" class="text-xs text-slate-500">Az átvitel után a szerver ellenőrzése szükséges a sikerhez.</p>
     <p v-if="row.transfer" class="text-xs text-slate-500">Határidő: {{ new Date(row.transfer.expiresAt).toLocaleString('hu-HU') }}</p>
     <p v-if="row.error" role="alert" class="mt-2 text-sm text-red-700">{{ row.error }}</p>
     <button v-if="row.status==='cancelled' && row.transfer?.tusStaged && row.transfer.cleanupState==='PENDING'" type="button" :disabled="disabled||busy||state.authRequired" @click="batch.cancel(row.id)" class="mt-2 rounded-lg border px-3 py-2">Takarítás újrapróbálása</button>
-    <button v-if="working(row.status)" type="button" @click="batch.pause(row.id)" :aria-label="`${row.name} szüneteltetése`" class="mt-2 rounded-lg border px-3 py-2">Szüneteltetés</button>
+    <button v-if="working(row.status)||row.status==='waiting-capacity'" type="button" @click="batch.pause(row.id)" :aria-label="`${row.name} szüneteltetése`" class="mt-2 rounded-lg border px-3 py-2">Szüneteltetés</button>
     <div v-if="['paused','error','needs-file'].includes(row.status)" class="mt-2 space-y-2">
      <label :for="`resume-${row.id}`" class="block text-sm">Az eredeti helyi fájl kiválasztása (ha még vannak hiányzó részek)</label>
      <input :id="`resume-${row.id}`" type="file" :disabled="disabled||state.authRequired||busy" @change="reselect(row.id,$event)" />

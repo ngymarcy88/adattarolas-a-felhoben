@@ -9,6 +9,24 @@ import { OriginGuard } from '../src/auth/origin.guard';
 import { FilesController } from '../src/files/files.controller';
 import { multipartFixture, multipartOwner as owner, hash, image } from './helpers/multipart-fixture';
 import { validateEnvironment } from '../src/config/environment';
+import { ApiError } from '../src/common/errors/api-error';
+
+it('distinguishes a full staging area from a storage outage and sends Retry-After', async () => {
+  const imports = { initiate: jest.fn()
+    .mockRejectedValueOnce(new ApiError('TUS_STAGING_FULL'))
+    .mockRejectedValueOnce(new ApiError('STORAGE_UNAVAILABLE')) };
+  const controller = new MultipartController(imports as never, undefined as never);
+  const response = { setHeader: jest.fn() };
+  const request = { user: { id: owner } };
+  const input = multipartFixture().input();
+  await expect(controller.initiate(request as never, owner, owner, input, response as never))
+    .rejects.toMatchObject({ code: 'TUS_STAGING_FULL' });
+  expect(response.setHeader).toHaveBeenCalledWith('Retry-After', '5');
+  response.setHeader.mockClear();
+  await expect(controller.initiate(request as never, owner, owner, input, response as never))
+    .rejects.toMatchObject({ code: 'STORAGE_UNAVAILABLE' });
+  expect(response.setHeader).not.toHaveBeenCalled();
+});
 
 it.each(['create','initiate','sign','resume','complete','cancel'] as const)('protects %s with Origin then current session then bounded request guard',method=>{
   const handler=MultipartController.prototype[method];expect(Reflect.getMetadata(GUARDS_METADATA,handler)).toEqual([OriginGuard,SessionGuard,MultipartGuard]);

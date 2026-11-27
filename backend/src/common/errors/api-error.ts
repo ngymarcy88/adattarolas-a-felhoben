@@ -29,6 +29,7 @@ const apiErrors = {
   UPLOAD_VALIDATION_FAILED: { status: 422, message: 'A feltöltött fájl ellenőrzése sikertelen.' },
   DATABASE_UNAVAILABLE: { status: 503, message: 'Az adatbázis átmenetileg nem érhető el.' },
   STORAGE_UNAVAILABLE: { status: 503, message: 'A fájltároló átmenetileg nem érhető el.' },
+  TUS_STAGING_FULL: { status: 503, message: 'A képfeltöltés átmeneti tárhelye megtelt.' },
   INVALID_CREDENTIALS: { status: 401, message: 'Hibás e-mail-cím vagy jelszó.' },
   AUTH_REQUIRED: { status: 401, message: 'A művelethez bejelentkezés szükséges.' },
   VALIDATION_ERROR: { status: 400, message: 'A megadott adatok érvénytelenek.' },

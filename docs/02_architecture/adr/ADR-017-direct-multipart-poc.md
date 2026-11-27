@@ -134,4 +134,6 @@ A worker egy futásban legfeljebb négy sikeres átvitelt kezel, egy perces újr
 
 ### Kis képek útvonala kötegben, 2026-11-27
 
-Az opt-in próba minden új, 5 MiB-nál kisebb támogatott képhez külön tus átvitelt hoz létre, a fájl importon belüli helyétől függetlenül. A korábban rögzített átviteli módot a retry megőrzi. A panel két globális feltöltési helyet használ, a 32 staging hely közös és tranzakciós zárral védett. A telítettségnél automatikusan várakozó sor külön feladat.
+Az opt-in próba minden új, 5 MiB-nál kisebb támogatott képhez külön tus átvitelt hoz létre, a fájl importon belüli helyétől függetlenül. A korábban rögzített átviteli módot a retry megőrzi. A panel két globális feltöltési helyet használ, a 32 staging hely közös és tranzakciós zárral védett.
+
+Telített stagingnél a szerver újrapróbálási időt ad. A panel közös időzítővel és az eredeti kliensazonosítókkal próbálkozik, egyenként engedve be a várakozó fájlokat. A szerver felvételi tranzakciója továbbra is a kapacitás egyetlen döntési pontja. A várakozási lista a panel memóriájában él, a szerver a sikeresen felvett átvitelt tartja meg.
