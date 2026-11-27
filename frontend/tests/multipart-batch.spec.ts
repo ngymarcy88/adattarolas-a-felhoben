@@ -25,9 +25,10 @@ it('restores the staged transfer, checks the selected content and publishes thro
 it('hashes actual bytes rather than name or modification time',async()=>{
  const a=image();expect(await hashImage(a)).toMatch(/^[a-f0-9]{64}$/);expect(await hashImage(new File([a],'renamed.png'))).toBe(await hashImage(a));expect(await hashImage(new File(['other'],'image.png'))).not.toBe(await hashImage(a));
 });
-it('uses at most two global workers and coalesces successful ACTIVE notifications',async()=>{
- const f=fixture();const releases:(()=>void)[]=[];let running=0,max=0;
- f.driver.mockImplementation(()=>new Promise<void>(resolve=>{running++;max=Math.max(max,running);releases.push(()=>{running--;resolve();});}));
+it.each([{mode:'S3',staged:false},{mode:'tus',staged:true}])('uses at most two global workers and coalesces ACTIVE notifications for $mode',async({staged})=>{
+ const f=fixture(staged);const releases:(()=>void)[]=[];let running=0,max=0;
+ const driver=staged?f.tusDriver:f.driver;
+ driver.mockImplementation(()=>new Promise<void>(resolve=>{running++;max=Math.max(max,running);releases.push(()=>{running--;resolve();});}));
  f.batch.add([image(),image(),image()]);f.batch.start();await vi.waitFor(()=>expect(releases).toHaveLength(2));expect(f.client.createImport).toHaveBeenCalledTimes(1);expect(f.batch.state.completionVersion).toBe(0);
  releases[0]();await vi.waitFor(()=>expect(releases).toHaveLength(3));expect(f.batch.state.completionVersion).toBe(0);releases[1]();releases[2]();await settled(f);expect(max).toBe(2);expect(f.batch.summary.value.success).toBe(3);expect(f.batch.state.completionVersion).toBe(1);f.batch.dispose();
 });

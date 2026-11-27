@@ -77,7 +77,7 @@ export class MultipartImportsService {
         createdAt: now, requestFingerprint: fp, replayUntil: imported.replayUntil } });
       const item = await tx.importFile.create({ data: { importId, ownerId: owner, fileObjectId: file.id, createdAt: now, clientFileId: input.clientFileId, ordinal: imported.nextOrdinal } });
       const count = Math.ceil(input.sizeBytes / policy.multipart.partSizeBytes);
-      const tusStaged = Boolean(policy.tusStagingOrigin && imported.acceptedFileCount === 0 &&
+      const tusStaged = Boolean(policy.tusStagingOrigin &&
         input.mimeType !== OPAQUE_FILE_MIME && input.sizeBytes <= TUS_MAX_BYTES);
       if (tusStaged) {
         // Bound physical staging even for terminal and unknown-create attempts.

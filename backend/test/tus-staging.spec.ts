@@ -3,7 +3,8 @@ import { TusStagingService } from '../src/multipart/tus-staging.service';
 import { lstat } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { TusCleanupService } from '../src/multipart/tus-cleanup.service';
-import { TUS_MAX_TRANSFERS } from '../src/multipart/tus-staging.policy';
+import { TUS_MAX_BYTES, TUS_MAX_TRANSFERS } from '../src/multipart/tus-staging.policy';
+import { OPAQUE_FILE_MIME } from '../src/files/file-content-type';
 
 jest.mock('node:fs/promises', () => ({ lstat: jest.fn() }));
 
@@ -38,6 +39,32 @@ function stagingFiles(infoExists = false) {
     throw Object.assign(new Error('absent'), { code: 'ENOENT' });
   });
 }
+
+it('admits each eligible small image in the same import and preserves older transport choices', async () => {
+  const f = multipartFixture();
+  f.tables.user[0].storageLimitBytes = 20_000_000n;
+  const first = await f.start();
+  expect(first.initialized.body.item.transfer.tusStaged).toBeUndefined();
+  f.configData.tusStagingOrigin = origin;
+  const add = (patch: Record<string, unknown>) => f.imports.initiate(multipartOwner, first.importId, randomUUID(), f.input(patch));
+
+  const upperSmall = await add({ sizeBytes: TUS_MAX_BYTES });
+  const anotherSmall = await add({ originalName: 'second.gif', mimeType: 'image/gif' });
+  const boundary = await add({ sizeBytes: TUS_MAX_BYTES + 1 });
+  const opaque = await add({ originalName: 'fixture.txt', mimeType: OPAQUE_FILE_MIME });
+  const replayed = await f.imports.initiate(multipartOwner, first.importId, first.key, first.input);
+
+  expect(upperSmall.body.item.transfer).toMatchObject({ tusStaged: true, partCount: 1, state: 'OPEN' });
+  expect(anotherSmall.body.item.transfer).toMatchObject({ tusStaged: true, partCount: 1, state: 'OPEN' });
+  expect(anotherSmall.body.item.transfer.id).not.toBe(upperSmall.body.item.transfer.id);
+  expect(boundary.body.item.transfer.tusStaged).toBeUndefined();
+  expect(opaque.body.item.transfer.tusStaged).toBeUndefined();
+  expect(replayed.status).toBe(200);
+  expect(replayed.body.item.transfer.id).toBe(first.transferId);
+  expect(replayed.body.item.transfer.tusStaged).toBeUndefined();
+  expect(f.storage.initiateMultipart).toHaveBeenCalledTimes(3);
+  expect(f.tables.importSession[0].acceptedFileCount).toBe(5);
+});
 
 it('frees staging capacity only after ACTIVE confirm and verified removal, without changing quota', async () => {
   const f = await staged();
