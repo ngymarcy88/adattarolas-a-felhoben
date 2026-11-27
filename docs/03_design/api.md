@@ -846,7 +846,7 @@ A `GET /files/{fileId}/download-url` csak a bejelentkezett tulajdonos aktív fá
 
 ### Helyi kis képes tus próba
 
-Opt-in, helyi konfigurációban az import első elfogadott fájlja `tusStaged: true` jelzést kap az átvitelben, ha 5 MiB-nál kisebb támogatott kép. A meglévő resume méret- és SHA-256-ellenőrzése után az alkalmazás a `POST /tus/{transferId}/prepare`, majd a tulajdonoshoz kötött szabványos `HEAD/PATCH /tus/{transferId}` útvonalat használja. A kliens az offsetet a HEAD-válaszból olvassa, és az import alapján talál vissza ugyanahhoz a fájlhoz. A böngésző nem kap tusd erőforrás-azonosítót vagy S3 rész-URL-t ehhez az átvitelhez.
+Opt-in, helyi konfigurációban az import minden új, 5 MiB-nál kisebb támogatott képe saját `tusStaged: true` átvitelt kap. A meglévő átvitelek a rögzített módjukkal folytatódnak. A 32 staging hely az importok között közös. A meglévő resume méret- és SHA-256-ellenőrzése után az alkalmazás a `POST /tus/{transferId}/prepare`, majd a tulajdonoshoz kötött szabványos `HEAD/PATCH /tus/{transferId}` útvonalat használja. A kliens az offsetet a HEAD-válaszból olvassa, és az import alapján talál vissza ugyanahhoz a fájlhoz. A böngésző nem kap tusd erőforrás-azonosítót vagy S3 rész-URL-t ehhez az átvitelhez.
 
 A `prepare` üres JSON objektumot fogad és `200 { "ready": true }` választ ad. A `HEAD` és `PATCH` a `Tus-Resumable: 1.0.0` fejlécet használja. A `HEAD` válasz az `Upload-Length` és `Upload-Offset` fejléceket adja. A `PATCH` bináris teste `application/offset+octet-stream` típusú, ismert hosszal. Siker esetén `204` és az új `Upload-Offset`, párhuzamos vagy elavult offsetű tárolói kérésnél `409`. A mutációk a meglévő Origin-ellenőrzés és a tulajdonosonkénti limit alatt futnak.
 

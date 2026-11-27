@@ -131,3 +131,7 @@ A függő takarítás tulajdonos által újrapróbálható. Ha az egyik staging 
 A meglévő takarítási worker külön, lokálisan engedélyezett körben választja ki a `SUCCEEDED`, hash-ellenőrzött és véglegesen elszámolt tus átviteleket. A tartós terminális állapot kizárja a folytatást. A worker ugyanazzal a privát tusd- és fájlhiány-ellenőrzéssel töröl, mint a korai takarítás. A törlés igazolásakor csak a staging marker és a staging újrapróbálási idő változik. Az eredeti fájl és a felhasználói kvóta nem része a takarításnak.
 
 A worker egy futásban legfeljebb négy sikeres átvitelt kezel, egy perces újrapróbálási idővel. Válaszvesztés vagy újraindítás után ugyanazt a tartós tus azonosítót egyezteti. Ha a tusd 404-et ad és mindkét fájl igazoltan hiányzik, a marker rögzíthető. Ha bármelyik fájl megmaradt, az átvitel továbbra is foglal staging helyet. A jelölés a korábbi sikeres tus rekordoknál is alkalmazható. A bizonytalan MinIO-írások kvótafelszabadítása ettől külön nyitott.
+
+### Kis képek útvonala kötegben, 2026-11-27
+
+Az opt-in próba minden új, 5 MiB-nál kisebb támogatott képhez külön tus átvitelt hoz létre, a fájl importon belüli helyétől függetlenül. A korábban rögzített átviteli módot a retry megőrzi. A panel két globális feltöltési helyet használ, a 32 staging hely közös és tranzakciós zárral védett. A telítettségnél automatikusan várakozó sor külön feladat.

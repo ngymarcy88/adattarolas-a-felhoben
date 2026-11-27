@@ -1169,3 +1169,9 @@ WSL alatt az `npm test` mind az 1 729 tesztje (1 263 backend, 463 frontend, 3 ko
 | Staging hely visszaadása, elveszett törlési válasz | **PASS, egységteszt.** A 32. foglalt hely mellett az új staging kezdeményezés elutasítást kapott. Igazolt staging törlés után elfogadta az új átvitelt. Elveszett válasz után a 404 mellett fennmaradó `.info` fájl blokkolta a markert. Új service-példányból mindkét fájl igazolt hiánya után a marker bekerült, és további ismétlésre nem indult törlési kérés. |
 
 A két MinIO-letöltés SHA-256 értéke a bemenetével egyezett (`605705f21176a72fdebdc7e55bb1a151f36438e635f4f53a4b184af2ff59990b`). Fiókonként egy eredeti és egy feldolgozási feladat maradt. A több kis képes import és az összehasonlító mérés továbbra is külön feladat. A kiesési próba a törlés előtt szakította meg a futást. Az elveszett törlési válasz egységtesztben szerepel.
+
+### Több kis kép tus útvonalának kiválasztása, 2026-11-27
+
+A #60-as PR `14b400a` verziójára épülő változást helyi Docker Compose overlay alatt ellenőriztük. Egy új importban három szintetikus PNG-leírással, 1 024, 2 048 és 5 242 879 bájtos deklarált mérettel indítottunk átvitelt a valós HTTP API-n keresztül. Mindhárom init HTTP 201, az importlekérés HTTP 200 lett. A válasz három különböző átvitelazonosítót és három `tusStaged: true` jelzést adott. A próba átviteleit lezártuk, minden foglalás `RELEASED` lett.
+
+Az egységteszt lefedi az 5 MiB-os határt, az általános fájl S3 útját és egy korábbi S3 átvitel változatlan azonosítóját és módját ismételt kéréskor. A panel tesztje három fájllal mind az S3, mind a tus útvonalon legfeljebb két egyidejű feltöltést ellenőriz. A 32 staging helyes korlát tesztje a már meglévő kapacitást és az igazolt törlés utáni újrafelhasználást ellenőrzi. A HTTP-próba az átvitelek létrehozására vonatkozik. A vegyes köteg megszakításos próbája és a telítettségnél automatikusan várakozó sor külön feladat.
