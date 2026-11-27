@@ -10,6 +10,11 @@ const client=()=>createMultipartClient('http://api.invalid/api/v1');
 const signal=()=>new AbortController().signal;
 function reply(data: unknown, status=200, headers: Record<string,string>={}) {const fetch=vi.fn().mockResolvedValue(new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json',...headers}}));vi.stubGlobal('fetch',fetch);return fetch;}
 afterEach(()=>{vi.unstubAllGlobals();vi.useRealTimers();});
+it('keeps the staging capacity signal distinct and respects the retry interval', async () => {
+ reply({error:{code:'TUS_STAGING_FULL'}},503,{'Retry-After':'5'});
+ const input={clientFileId:other,originalName:'a.png',mimeType:'image/png',sizeBytes:16,contentSha256:'a'.repeat(64)};
+ await expect(client().initiate(id,input,other,signal())).rejects.toMatchObject({code:'TUS_STAGING_FULL',retryAfterMs:5000});
+});
 it('keeps cookie-auth JSON control plane separate from storage and sends stable init key',async()=>{
  const fetch=reply({item:item()},201);const input={clientFileId:other,originalName:'a.png',mimeType:'image/png',sizeBytes:5242881,contentSha256:'a'.repeat(64)};
  expect((await client().initiate(id,input,other,signal())).fileId).toBe(id);

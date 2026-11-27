@@ -9,6 +9,7 @@ import { MultipartImportsService } from './multipart-imports.service';
 import { MultipartService } from './multipart.service';
 import { MultipartFilePipe, record, uuid, type MultipartFileInput } from './multipart.dto';
 import { MultipartLimits, type MultipartBudget } from './multipart.limit';
+import { TUS_STAGING_RETRY_SECONDS } from './tus-staging.policy';
 
 @Injectable()
 export class MultipartGuard implements CanActivate {
@@ -48,7 +49,14 @@ export class MultipartController {
   @Post('imports/:importId/files') @Mutation('init')
   async initiate(@Req() r: AuthenticatedRequest, @Param('importId', FileIdPipe) id: string, @Headers('idempotency-key') key: string,
     @Body(MultipartFilePipe) input: MultipartFileInput, @Res() response: Response) {
-    return reply(response, await this.imports.initiate(r.user.id, id, uuid(key, true), input));
+    try {
+      return reply(response, await this.imports.initiate(r.user.id, id, uuid(key, true), input));
+    } catch (error) {
+      if (error instanceof ApiError && error.code === 'TUS_STAGING_FULL') {
+        response.setHeader('Retry-After', String(TUS_STAGING_RETRY_SECONDS));
+      }
+      throw error;
+    }
   }
   @Get('transfers/:transferId') @Read()
   async status(@Req() r: AuthenticatedRequest, @Param('transferId', FileIdPipe) id: string, @Query() query: unknown) {

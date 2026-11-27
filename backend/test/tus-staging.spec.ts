@@ -80,7 +80,9 @@ it('frees staging capacity only after ACTIVE confirm and verified removal, witho
   })));
   const quotaBefore = structuredClone(f.tables.user[0]);
   const originalBefore = structuredClone(f.tables.fileObject[0]);
-  await expect(f.start()).rejects.toMatchObject({ code: 'STORAGE_UNAVAILABLE' });
+  await expect(f.start()).rejects.toMatchObject({ code: 'TUS_STAGING_FULL' });
+  expect(f.tables.user[0]).toEqual(quotaBefore);
+  expect(f.tables.fileObject).toHaveLength(1);
   stagingFiles();
   f.fetchStage.mockResolvedValueOnce(new Response(null, { status: 204 }));
   f.fetchStage.mockResolvedValueOnce(new Response(null, { status: 404 }));

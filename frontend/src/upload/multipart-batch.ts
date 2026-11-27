@@ -5,11 +5,12 @@ import { prepareImportFile } from './image-format';
 import { validateImage } from './batch';
 import { transferWithUppy, type TransferDriver } from './uppy-transfer';
 import { transferWithTus } from './tus-transfer';
-export type MultipartStatus='queued'|'hashing'|'initializing'|'uploading'|'confirming'|'success'|'error'|'paused'|'needs-file'|'cancelled';
+export type MultipartStatus='queued'|'waiting-capacity'|'hashing'|'initializing'|'uploading'|'confirming'|'success'|'error'|'paused'|'needs-file'|'cancelled';
 export interface MultipartRow { id:string;name:string;size:number;mime:string;status:MultipartStatus;progress:number;error:string;notice:string;retryAt:number;transfer?:Transfer;fileId?:string }
 interface Context { file?:File;hash?:string;prepared?:boolean;key:string }
 interface Options { driver?:TransferDriver;tusDriver?:TransferDriver;hash?:(file:File)=>Promise<string>;readGapMs?:number;newId?:()=>string }
 const terminal=new Set(['REJECTED','CANCELLED','EXPIRED']);
+const MIN_CAPACITY_RETRY_MS = 5000;
 const closedMessage=(transfer:Transfer)=>transfer.reservationState==='RELEASED'
  ? 'A feltöltés lezárult, a tárhelyfoglalás felszabadult.'
  : 'A feltöltés lezárult. A tárhelyfoglalás igazolt takarításig megmaradhat.';
@@ -21,11 +22,14 @@ export function createMultipartBatch(client:MultipartClient=multipartClient,opti
  const state=reactive({rows:[] as MultipartRow[],imports:[] as ImportSession[],importId:'',importsCursor:null as string|null,loading:false,cooldownUntil:0,loadError:'',selectionError:'',authRequired:false,running:0,completionVersion:0});
  const contexts=new Map<string,Context>(),active=new Map<string,AbortController>();let disposed=false,wave=false,importKey=key(),createPromise:Promise<string>|undefined,discovery:AbortController|undefined;
  let readTail:Promise<unknown>=Promise.resolve(),lastRead=0;
+ let capacityTimer: ReturnType<typeof setTimeout> | undefined;
+ let capacityRetryAt = 0;
+ let capacityProbe: string | undefined;
  const summary=computed(()=>({total:state.rows.length,success:state.rows.filter(r=>r.status==='success').length,failed:state.rows.filter(r=>r.status==='error').length}));
  const busy=computed(()=>state.running>0);
  function alive(signal:AbortSignal){if(disposed||signal.aborted)throw new UploadRequestError('UNAVAILABLE');}
  function error(e:unknown){const v=safeError(e);if(v.code==='RATE_LIMITED')state.cooldownUntil=Math.max(state.cooldownUntil,Date.now()+Math.max(1000,v.retryAfterMs));if(v.code==='AUTH_REQUIRED'){state.authRequired=true;for(const c of active.values())c.abort();}return v;}
- // Serialize all transfer status/resume reads. No per-file polling timers or automatic error retry.
+ // Serialize all transfer status/resume reads independently of staging admission.
  async function read<T>(signal:AbortSignal,fn:()=>Promise<T>):Promise<T> {
    const previous=readTail;let release!:()=>void;readTail=new Promise<void>(resolve=>{release=resolve;});
    await previous.catch(()=>{});
@@ -58,6 +62,10 @@ export function createMultipartBatch(client:MultipartClient=multipartClient,opti
     ctx.hash??=await hash(ctx.file);alive(signal);
     const imported=await ensureImport(signal);alive(signal);row.status='initializing';
     const item=await client.initiate(imported,{clientFileId:row.id,originalName:row.name,mimeType:row.mime,sizeBytes:row.size,contentSha256:ctx.hash},ctx.key,signal);alive(signal);row.fileId=item.fileId;receive(row,item.transfer);
+    if (capacityProbe === row.id) {
+      capacityProbe = undefined;
+      pump();
+    }
   }
   let t=await read(signal,()=>client.status(row.transfer!.id,signal));alive(signal);receive(row,t);
   if(t.state==='SUCCEEDED'){await finish(row,signal);return;}
@@ -89,9 +97,22 @@ export function createMultipartBatch(client:MultipartClient=multipartClient,opti
   }
   await finish(row,signal);
  }
+ function scheduleCapacity() {
+  clearTimeout(capacityTimer);
+  if (disposed || state.authRequired || state.loading || state.running >= 2 || capacityProbe ||
+      !state.rows.some(row => row.status === 'waiting-capacity')) return;
+  const delay = Math.max(0, Math.max(capacityRetryAt, state.cooldownUntil) - Date.now());
+  capacityTimer = setTimeout(pump, Math.min(delay, 2_147_483_647));
+ }
  function pump(){
-  if(disposed||state.authRequired||state.cooldownUntil>Date.now())return;
-  while(state.running<2){const row=state.rows.find(r=>r.status==='queued');if(!row)break;
+  clearTimeout(capacityTimer);
+  if(disposed||state.authRequired||state.loading||state.cooldownUntil>Date.now()){scheduleCapacity();return;}
+  while(state.running<2){
+   const waiting = !capacityProbe && capacityRetryAt <= Date.now()
+     ? state.rows.find(row => row.status === 'waiting-capacity') : undefined;
+   const row = waiting ?? state.rows.find(row => row.status === 'queued');
+   if (!row) break;
+   if (waiting) capacityProbe = row.id;
    const c=new AbortController();active.set(row.id,c);state.running++;row.status='initializing';
    void run(row,c.signal).catch(async e=>{
     if(disposed)return;
@@ -104,12 +125,22 @@ export function createMultipartBatch(client:MultipartClient=multipartClient,opti
     if(disposed)return;
     if(c.signal.aborted){row.status='paused';return;}
     v=error(v);
+    if (v.code === 'TUS_STAGING_FULL' && !row.transfer) {
+      capacityRetryAt = Math.max(capacityRetryAt, Date.now() + Math.max(MIN_CAPACITY_RETRY_MS, v.retryAfterMs));
+      row.status = 'waiting-capacity';
+      return;
+    }
+    if (v.code === 'RATE_LIMITED' && waiting) {
+      row.status = 'waiting-capacity';
+      return;
+    }
     row.status='error';
     row.error=v.message;
     row.retryAt=v.retryAfterMs>0 ? Date.now()+v.retryAfterMs : 0;
-   }).finally(()=>{active.delete(row.id);state.running--;if(disposed)return;
+   }).finally(()=>{active.delete(row.id);state.running--;if(capacityProbe===row.id)capacityProbe=undefined;if(disposed)return;
      if(state.running===0&&wave){state.completionVersion++;wave=false;}pump();});
   }
+  scheduleCapacity();
  }
  function add(files:File[]){
   if(disposed||state.authRequired||state.loading||state.running)return;state.selectionError='';
@@ -117,7 +148,7 @@ export function createMultipartBatch(client:MultipartClient=multipartClient,opti
   for(const file of files){const message=validateImage(file);const id=key();state.rows.push({id,name:file.name,size:file.size,mime:file.type,status:message?'error':'queued',progress:0,error:message,notice:'',retryAt:0});contexts.set(id,{file,key:key()});}
  }
  function start(){if(state.loading||state.running||disposed||state.authRequired)return;pump();}
- function pause(id:string){const r=state.rows.find(r=>r.id===id);if(!r||r.status==='success')return;const c=active.get(id);if(c)c.abort();else if(r.status==='queued')r.status='paused';}
+ function pause(id:string){const r=state.rows.find(r=>r.id===id);if(!r||r.status==='success')return;const c=active.get(id);if(c)c.abort();else if(r.status==='queued'||r.status==='waiting-capacity'){r.status='paused';scheduleCapacity();}}
  function pauseAll(){for(const r of state.rows)pause(r.id);}
  function retry(id:string){const r=state.rows.find(r=>r.id===id);if(!r||disposed||state.authRequired||active.has(id)||r.status==='success'||r.status==='cancelled'||r.retryAt>Date.now())return;r.status='queued';r.error='';pump();}
  function attach(id:string,file:File){const r=state.rows.find(r=>r.id===id),c=contexts.get(id);if(!r||!c||active.has(id)||state.loading||r.status==='success')return;
@@ -127,7 +158,7 @@ export function createMultipartBatch(client:MultipartClient=multipartClient,opti
  async function discover(more=false){
   if(disposed||state.running||state.loading)return;discovery?.abort();const c=discovery=new AbortController();state.loading=true;state.loadError='';
   try{const page=await client.listImports(more?state.importsCursor:null,c.signal);alive(c.signal);const map=new Map((more?state.imports:[]).map(i=>[i.id,i]));for(const i of page.items)map.set(i.id,i);state.imports=[...map.values()];state.importsCursor=page.nextCursor;}
-  catch(e){if(!disposed&&!c.signal.aborted)state.loadError=error(e).message;}finally{if(!disposed)state.loading=false;}
+  catch(e){if(!disposed&&!c.signal.aborted)state.loadError=error(e).message;}finally{if(!disposed){state.loading=false;scheduleCapacity();}}
  }
  async function open(importId:string){
   if(disposed||state.running||state.loading)return;discovery?.abort();const c=discovery=new AbortController();state.loading=true;state.loadError='';
@@ -136,15 +167,15 @@ export function createMultipartBatch(client:MultipartClient=multipartClient,opti
    if(cursor||items.length>50||new Set(items.map(i=>i.clientFileId)).size!==items.length||new Set(items.map(i=>i.fileId)).size!==items.length)throw new UploadRequestError('UNAVAILABLE');
    contexts.clear();state.rows=[];state.importId=importId;
    for(const item of items){const t=item.transfer;state.rows.push({id:item.clientFileId,name:item.originalName,size:item.sizeBytes,mime:item.mimeType,status:t.state==='SUCCEEDED'?'success':terminal.has(t.state)?'cancelled':'needs-file',progress:Math.floor(t.completedBytes/item.sizeBytes*100),error:'',notice:terminal.has(t.state)?closedMessage(t):'',retryAt:0,transfer:t,fileId:item.fileId});contexts.set(item.clientFileId,{key:key()});}
-  }catch(e){if(!disposed&&!c.signal.aborted)state.loadError=error(e).message;}finally{if(!disposed)state.loading=false;}
+  }catch(e){if(!disposed&&!c.signal.aborted)state.loadError=error(e).message;}finally{if(!disposed){state.loading=false;scheduleCapacity();}}
  }
- function fresh(){if(state.running||state.loading)return;contexts.clear();state.rows=[];state.importId='';importKey=key();state.selectionError='';}
+ function fresh(){if(state.running||state.loading)return;clearTimeout(capacityTimer);contexts.clear();state.rows=[];state.importId='';importKey=key();state.selectionError='';}
  async function cancel(id:string){const row=state.rows.find(r=>r.id===id);if(!row||active.has(id)||state.running>=2||row.status==='success'||disposed)return;
   if(!row.transfer){row.status='cancelled';contexts.delete(id);return;}
   const c=new AbortController();active.set(id,c);state.running++;
   try{const t=await client.cancel(row.transfer.id,c.signal);alive(c.signal);receive(row,t);row.status='cancelled';row.error='';row.notice=closedMessage(t);contexts.delete(id);}
-  catch(e){if(!disposed){row.status='error';row.error=error(e).message;}}finally{active.delete(id);state.running--;}
+  catch(e){if(!disposed){row.status='error';row.error=error(e).message;}}finally{active.delete(id);state.running--;scheduleCapacity();}
  }
- function dispose(){disposed=true;discovery?.abort();for(const c of active.values())c.abort();contexts.clear();}
+ function dispose(){disposed=true;clearTimeout(capacityTimer);discovery?.abort();for(const c of active.values())c.abort();contexts.clear();}
  return {state,summary,busy,add,start,pause,pauseAll,retry,attach,discover,open,fresh,cancel,dispose};
 }

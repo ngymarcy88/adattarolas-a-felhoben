@@ -37,6 +37,7 @@ const messages: Record<string, string> = {
   UPLOAD_VALIDATION_FAILED: 'A fájl tartalma vagy tényleges mérete nem felel meg a megadott képadatoknak.',
   UPLOAD_NOT_READY: 'A feltöltés még nem igazolható. Próbáld újra ezt a fájlt.',
   RATE_LIMITED: 'Túl sok kérés. A jelzett várakozás után próbáld újra.',
+  TUS_STAGING_FULL: 'Várakozás szabad feltöltési helyre',
   UNAVAILABLE: 'A művelet eredménye most nem ellenőrizhető. Az újrapróbálás ugyanazt a feltöltést ellenőrzi.',
 };
 const retryable = new Set(['UNAVAILABLE', 'STORAGE_UNAVAILABLE', 'UPLOAD_VERIFICATION_UNAVAILABLE', 'DATABASE_UNAVAILABLE', 'INTERNAL_ERROR', 'RATE_LIMITED', 'UPLOAD_NOT_READY']);

@@ -84,7 +84,7 @@ export class MultipartImportsService {
         await tx.$queryRaw`SELECT pg_advisory_xact_lock(1627387521) IS NULL`;
         if (await tx.multipartTransfer.count({ where: {
           tusStaged: true, tusStageRemovedAt: null, cleanupState: { not: 'VERIFIED' },
-        } }) >= TUS_MAX_TRANSFERS) throw new ApiError('STORAGE_UNAVAILABLE');
+        } }) >= TUS_MAX_TRANSFERS) throw new ApiError('TUS_STAGING_FULL');
       }
       await tx.multipartTransfer.create({ data: { id: transferId, ownerId: owner, fileObjectId: file.id, importFileId: item.id, uploadOperationId: operation.id,
         sizeBytes: size, partSizeBytes: policy.multipart.partSizeBytes, partCount: count, contentSha256: input.contentSha256, tusStaged, tusDeferred: tusStaged,
