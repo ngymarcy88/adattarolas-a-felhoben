@@ -388,6 +388,7 @@ model MultipartTransfer {
   tusS3Started          Boolean                 @default(false)
   tusCreateStarted      Boolean                 @default(false)
   tusUploadId           String?                 @unique @db.VarChar(32)
+  tusStageRemovedAt     DateTime?               @db.Timestamptz(3)
   expiresAt             DateTime                @db.Timestamptz(3)
   leaseOwner            String?                 @db.Uuid
   leaseUntil            DateTime?               @db.Timestamptz(3)
@@ -424,6 +425,7 @@ model MultipartTransfer {
   @@unique([providerNamespace, providerUploadId], map: "MultipartTransfer_provider_identity_key")
   @@index([state, recoveryAfter, leaseUntil])
   @@index([cleanupState, cleanupRetryAfter])
+  @@index([tusStaged, state, tusStageRemovedAt, cleanupRetryAfter], map: "MultipartTransfer_tus_success_cleanup_idx")
 }
 
 model MultipartPart {

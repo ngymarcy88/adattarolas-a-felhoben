@@ -7,6 +7,9 @@ import { ApiError } from '../common/errors/api-error';
 import { MultipartStore, type Transfer } from './multipart.store';
 import { TUS_STAGE_ID, TUS_STAGING_DIRECTORY, TUS_VERSION, tusAwaitingStorage } from './tus-staging.policy';
 
+const RETRY_DELAY_MS = 60_000;
+const SUCCESS_BATCH_SIZE = 4;
+
 function canRelease(transfer: Transfer): boolean {
   return tusAwaitingStorage(transfer) && transfer.cleanupState === 'PENDING' && transfer.publicationExcludedAt !== null &&
     transfer.providerUploadId === null && transfer.ioOperations.length === 0 && !transfer.uploadOperation.reservationReleasedAt &&
@@ -14,15 +17,13 @@ function canRelease(transfer: Transfer): boolean {
 }
 
 @Injectable()
-export class TusEarlyCleanupService {
+export class TusCleanupService {
   private readonly running = new Set<string>();
 
   constructor(private readonly store: MultipartStore, private readonly config: ConfigService) {}
 
-  async run(owner: string, id: string): Promise<void> {
-    if (this.running.has(id) || this.running.size >= 2) return;
-    this.running.add(id);
-    try {
+  async releaseEarly(owner: string, id: string): Promise<void> {
+    await this.withSlot(id, async () => {
       const planned = await this.store.locked(owner, id, async ({ transfer }) => canRelease(transfer) ? transfer : null);
       if (!planned) return;
       if (planned.tusCreateStarted && (!planned.tusUploadId || !await this.removeStage(planned.tusUploadId))) return;
@@ -40,18 +41,62 @@ export class TusEarlyCleanupService {
         } });
         await tx.user.update({ where: { id: owner }, data: { reservedStorageBytes: { decrement: transfer.sizeBytes } } });
       });
-    } finally {
-      this.running.delete(id);
+    });
+  }
+
+  async cleanSuccessfulBatch(signal?: AbortSignal): Promise<void> {
+    if (!this.config.getOrThrow<AppConfig>('app').tusStagingOrigin || signal?.aborted) return;
+    const candidates = await this.store.prisma.multipartTransfer.findMany({
+      where: {
+        tusStaged: true, state: 'SUCCEEDED', tusUploadId: { not: null }, tusStageRemovedAt: null,
+        OR: [{ cleanupRetryAfter: null }, { cleanupRetryAfter: { lte: new Date() } }],
+      },
+      select: { id: true, ownerId: true },
+      orderBy: [{ cleanupRetryAfter: { sort: 'asc', nulls: 'first' } }, { id: 'asc' }],
+      take: SUCCESS_BATCH_SIZE,
+    });
+    for (const { ownerId, id } of candidates) {
+      if (signal?.aborted) break;
+      try {
+        await this.withSlot(id, () => this.cleanSuccessful(ownerId, id, signal));
+      } catch {
+        // The next pass can reconcile this transfer using its durable state.
+      }
     }
   }
 
-  private async removeStage(id: string): Promise<boolean> {
+  private async cleanSuccessful(owner: string, id: string, signal?: AbortSignal): Promise<void> {
+    const eligible = (t: Transfer, now: Date) => t.tusStaged && t.state === 'SUCCEEDED' &&
+      t.uploadOperation.state === 'FINALIZED' && t.verifiedAt && t.verifiedSha256 === t.contentSha256 &&
+      t.tusUploadId && !t.tusStageRemovedAt && (!t.cleanupRetryAfter || +t.cleanupRetryAfter <= +now);
+    const stage = await this.store.locked(owner, id, async ({ transfer, now }) => eligible(transfer, now) ? transfer.tusUploadId : null);
+    if (!stage || signal?.aborted) return;
+    const removed = await this.removeStage(stage, signal);
+    if (signal?.aborted) return;
+    await this.store.locked(owner, id, async ({ tx, transfer, now }) => {
+      if (!eligible(transfer, now) || transfer.tusUploadId !== stage) return;
+      await tx.multipartTransfer.update({ where: { id }, data: removed
+        ? { tusStageRemovedAt: now, cleanupRetryAfter: null }
+        : { cleanupRetryAfter: new Date(+now + RETRY_DELAY_MS) } });
+    });
+  }
+
+  private async withSlot(id: string, action: () => Promise<void>): Promise<void> {
+    if (this.running.has(id) || this.running.size >= 2) return;
+    this.running.add(id);
+    try { await action(); }
+    finally { this.running.delete(id); }
+  }
+
+  private async removeStage(id: string, signal?: AbortSignal): Promise<boolean> {
     const origin = this.config.getOrThrow<AppConfig>('app').tusStagingOrigin;
     if (!origin || !TUS_STAGE_ID.test(id)) return false;
     try {
       if (!(await lstat(TUS_STAGING_DIRECTORY)).isDirectory()) return false;
       const url = new URL('/files/' + id, origin);
-      const options = { redirect: 'error' as const, headers: { 'Tus-Resumable': TUS_VERSION }, signal: AbortSignal.timeout(10000) };
+      const timeout = AbortSignal.timeout(10000);
+      const options = { redirect: 'error' as const, headers: { 'Tus-Resumable': TUS_VERSION },
+        signal: signal ? AbortSignal.any([timeout, signal]) : timeout };
       const deletion = await fetch(url, { ...options, method: 'DELETE' });
       void deletion.body?.cancel().catch(() => {});
       if (deletion.status !== 204 && deletion.status !== 404) return false;

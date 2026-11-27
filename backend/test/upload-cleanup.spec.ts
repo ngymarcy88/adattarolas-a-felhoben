@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { UploadCleanupService, CLEANUP_BATCH_SIZE } from '../src/files/upload-cleanup.service';
 import { UploadCleanupWorker } from '../src/files/upload-cleanup.worker';
+import type { TusCleanupService } from '../src/multipart/tus-cleanup.service';
 import { owner, id, now, uploadFixture } from './helpers/upload-fixture';
 
 beforeEach(() => { jest.useFakeTimers(); jest.setSystemTime(now); });
@@ -127,10 +128,14 @@ describe('Bounded cleanup batch and worker lifecycle', () => {
   });
   it('runs at most one tick and waits/clears on shutdown', async () => {
     let finish!: () => void; const service = { runBatch: jest.fn().mockImplementation(() => new Promise<void>(resolve => { finish = resolve; })) };
-    const worker = new UploadCleanupWorker(service as unknown as UploadCleanupService); worker.onModuleInit();
+    const staging = { cleanSuccessfulBatch: jest.fn().mockResolvedValue(undefined) };
+    const worker = new UploadCleanupWorker(service as unknown as UploadCleanupService, staging as unknown as TusCleanupService);
+    worker.onModuleInit();
     jest.advanceTimersByTime(60000); expect(service.runBatch).toHaveBeenCalledTimes(1);
+    expect(staging.cleanSuccessfulBatch).toHaveBeenCalledTimes(1);
     jest.advanceTimersByTime(60000); expect(service.runBatch).toHaveBeenCalledTimes(1);
     const stopped = worker.onModuleDestroy(); finish(); await stopped;
     jest.advanceTimersByTime(120000); expect(service.runBatch).toHaveBeenCalledTimes(1);
+    expect(staging.cleanSuccessfulBatch).toHaveBeenCalledTimes(1);
   });
 });

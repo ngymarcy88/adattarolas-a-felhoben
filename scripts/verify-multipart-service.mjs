@@ -13,7 +13,7 @@ export async function verifyMultipartService(root, datasource) {
   const { MultipartService } = require(`${root}/backend/dist/multipart/multipart.service.js`);
   const { MultipartImportsService } = require(`${root}/backend/dist/multipart/multipart-imports.service.js`);
   const { MultipartLimits } = require(`${root}/backend/dist/multipart/multipart.limit.js`);
-  const { TusEarlyCleanupService } = require(`${root}/backend/dist/multipart/tus-early-cleanup.service.js`);
+  const { TusCleanupService } = require(`${root}/backend/dist/multipart/tus-cleanup.service.js`);
   const { ProcessingStateService } = require(`${root}/backend/dist/processing/processing-state.service.js`);
   const { thumbnailProcessingPolicy } = require(`${root}/backend/dist/processing/thumbnail-processor.js`);
   const { StorageError, MultipartMutationError } = require(`${root}/backend/dist/storage/storage-error.js`);
@@ -36,7 +36,7 @@ export async function verifyMultipartService(root, datasource) {
     verifyMultipartObject: async input => { verifies++;const o=objects.get(input.key);if(!o)throw new StorageError('NOT_FOUND');return o; },
     abortMultipart: async () => { aborts++;return{writeClosureEvidence:'unproven'}; }, writeClosureEvidence:'unproven',
   };
-  const makeService = () => new MultipartService(store,config,storage,processing,new MultipartLimits(),new TusEarlyCleanupService(store,config));
+  const makeService = () => new MultipartService(store,config,storage,processing,new MultipartLimits(),new TusCleanupService(store,config));
   const service=makeService(); const imports=new MultipartImportsService(store,config,service);
   const owner='20000000-0000-4000-8000-000000000001', other='20000000-0000-4000-8000-000000000002';
   try {
