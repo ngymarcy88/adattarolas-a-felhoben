@@ -1,0 +1,271 @@
+{
+  "date": "2026-11-28",
+  "applicationCommit": "41fd5437578ffd3b2e307dc6925290916cff520e",
+  "environment": {
+    "runner": "WSL Node v22.23.2",
+    "services": "Docker Compose, PostgreSQL 17.9, MinIO and tusd 2.10.3"
+  },
+  "source": {
+    "name": "small-resume.png",
+    "bytes": 1229603,
+    "sha256": "605705f21176a72fdebdc7e55bb1a151f36438e635f4f53a4b184af2ff59990b"
+  },
+  "settings": {
+    "parallel": 2,
+    "chunkBytes": 16384,
+    "chunkDelayMs": 10,
+    "interruptedFiles": [
+      1,
+      2
+    ],
+    "prefixBytesEach": 98304,
+    "socketDrainMs": 120,
+    "outageDelayMs": 1000,
+    "processingPollMs": 1500,
+    "processingDeadlineMs": 150000
+  },
+  "manifest": [
+    {
+      "name": "benchmark-01.png",
+      "size": 1229629,
+      "sha256": "4aae7fb54bc1f0e367249daa85e38a7b795acf1e868ffd5bc612659b93e22160",
+      "expectedProcessing": "SUCCEEDED"
+    },
+    {
+      "name": "benchmark-02.png",
+      "size": 1229629,
+      "sha256": "7273876c0006fe8eeffee41279ee8ccc687ee5e1d1dc22501cc170c4f8203473",
+      "expectedProcessing": "SUCCEEDED"
+    },
+    {
+      "name": "benchmark-03.png",
+      "size": 1229629,
+      "sha256": "e9bfb751303d59f8c24779e9901853c4d82d4ef03e7da0f5b58368ef56d5a038",
+      "expectedProcessing": "SUCCEEDED"
+    },
+    {
+      "name": "benchmark-04.png",
+      "size": 1229629,
+      "sha256": "f93a3e038cdef854898aba0df279f21221c3d05107fa072a6703bf4f3ca15686",
+      "expectedProcessing": "SUCCEEDED"
+    },
+    {
+      "name": "benchmark-05.png",
+      "size": 1229629,
+      "sha256": "55fa76da89cad774b6874e38b26c8e8da42ac1cb4eb34df145b2cef667385505",
+      "expectedProcessing": "SUCCEEDED"
+    },
+    {
+      "name": "benchmark-06.png",
+      "size": 1229629,
+      "sha256": "75f7e78e525d03adee1f53bf24ff1c900ceb21d77ce4b75ed6b12da2c376b666",
+      "expectedProcessing": "SUCCEEDED"
+    },
+    {
+      "name": "benchmark-07.png",
+      "size": 1229629,
+      "sha256": "55be14b988d2ea5e485f8c3932519bcc4edd4544d0e4c2d52649bb500672133b",
+      "expectedProcessing": "SUCCEEDED"
+    },
+    {
+      "name": "benchmark-08.png",
+      "size": 1229629,
+      "sha256": "cb77361c0cd802012e80d08ec1f910aa8f66235c434c6632e230c5f2223d1405",
+      "expectedProcessing": "SUCCEEDED"
+    },
+    {
+      "name": "benchmark-09.png",
+      "size": 1229629,
+      "sha256": "eb2112a8bccf2b5fb17f1a678b7801d04e9e9064d737d2d613aa8f6892947211",
+      "expectedProcessing": "SUCCEEDED"
+    },
+    {
+      "name": "benchmark-10.png",
+      "size": 48,
+      "sha256": "acf56dcb0845ef91f036761a4fa1d240c8b3837e0d5db72cb1e700d3ea8c1f4d",
+      "expectedProcessing": "FAILED"
+    }
+  ],
+  "runs": [
+    {
+      "id": "restart-normal-1",
+      "mode": "restart",
+      "scenario": "normal",
+      "originalsMs": 6767,
+      "totalMs": 21891,
+      "sentBytes": 11066709,
+      "resentBytes": 0,
+      "db": {
+        "originals": 10,
+        "originalBytes": 11066709,
+        "derivedBytes": 1416726,
+        "usedBytes": 12483435,
+        "reservedBytes": 0
+      },
+      "interrupted": []
+    },
+    {
+      "id": "restart-interrupted-1",
+      "mode": "restart",
+      "scenario": "interrupted",
+      "originalsMs": 7500,
+      "totalMs": 22611,
+      "sentBytes": 11263317,
+      "resentBytes": 196608,
+      "db": {
+        "originals": 10,
+        "originalBytes": 11066709,
+        "derivedBytes": 1416726,
+        "usedBytes": 12483435,
+        "reservedBytes": 0
+      },
+      "interrupted": [
+        {
+          "name": "benchmark-01.png",
+          "prefixSent": 98304,
+          "retained": 0
+        },
+        {
+          "name": "benchmark-02.png",
+          "prefixSent": 98304,
+          "retained": 0
+        }
+      ]
+    },
+    {
+      "id": "tus-normal-1",
+      "mode": "tus",
+      "scenario": "normal",
+      "originalsMs": 7046,
+      "totalMs": 20661,
+      "sentBytes": 11066709,
+      "resentBytes": 0,
+      "db": {
+        "originals": 10,
+        "originalBytes": 11066709,
+        "derivedBytes": 1416726,
+        "usedBytes": 12483435,
+        "reservedBytes": 0
+      },
+      "interrupted": []
+    },
+    {
+      "id": "tus-interrupted-1",
+      "mode": "tus",
+      "scenario": "interrupted",
+      "originalsMs": 7908,
+      "totalMs": 23020,
+      "sentBytes": 11066709,
+      "resentBytes": 0,
+      "db": {
+        "originals": 10,
+        "originalBytes": 11066709,
+        "derivedBytes": 1416726,
+        "usedBytes": 12483435,
+        "reservedBytes": 0
+      },
+      "interrupted": [
+        {
+          "name": "benchmark-01.png",
+          "prefixSent": 98304,
+          "retained": 98304
+        },
+        {
+          "name": "benchmark-02.png",
+          "prefixSent": 98304,
+          "retained": 98304
+        }
+      ]
+    },
+    {
+      "id": "tus-normal-2",
+      "mode": "tus",
+      "scenario": "normal",
+      "originalsMs": 6725,
+      "totalMs": 20333,
+      "sentBytes": 11066709,
+      "resentBytes": 0,
+      "db": {
+        "originals": 10,
+        "originalBytes": 11066709,
+        "derivedBytes": 1416726,
+        "usedBytes": 12483435,
+        "reservedBytes": 0
+      },
+      "interrupted": []
+    },
+    {
+      "id": "tus-interrupted-2",
+      "mode": "tus",
+      "scenario": "interrupted",
+      "originalsMs": 7849,
+      "totalMs": 22958,
+      "sentBytes": 11066709,
+      "resentBytes": 0,
+      "db": {
+        "originals": 10,
+        "originalBytes": 11066709,
+        "derivedBytes": 1416726,
+        "usedBytes": 12483435,
+        "reservedBytes": 0
+      },
+      "interrupted": [
+        {
+          "name": "benchmark-01.png",
+          "prefixSent": 98304,
+          "retained": 98304
+        },
+        {
+          "name": "benchmark-02.png",
+          "prefixSent": 98304,
+          "retained": 98304
+        }
+      ]
+    },
+    {
+      "id": "restart-normal-2",
+      "mode": "restart",
+      "scenario": "normal",
+      "originalsMs": 6541,
+      "totalMs": 21679,
+      "sentBytes": 11066709,
+      "resentBytes": 0,
+      "db": {
+        "originals": 10,
+        "originalBytes": 11066709,
+        "derivedBytes": 1416726,
+        "usedBytes": 12483435,
+        "reservedBytes": 0
+      },
+      "interrupted": []
+    },
+    {
+      "id": "restart-interrupted-2",
+      "mode": "restart",
+      "scenario": "interrupted",
+      "originalsMs": 7593,
+      "totalMs": 22704,
+      "sentBytes": 11263317,
+      "resentBytes": 196608,
+      "db": {
+        "originals": 10,
+        "originalBytes": 11066709,
+        "derivedBytes": 1416726,
+        "usedBytes": 12483435,
+        "reservedBytes": 0
+      },
+      "interrupted": [
+        {
+          "name": "benchmark-01.png",
+          "prefixSent": 98304,
+          "retained": 0
+        },
+        {
+          "name": "benchmark-02.png",
+          "prefixSent": 98304,
+          "retained": 0
+        }
+      ]
+    }
+  ]
+}
