@@ -1200,3 +1200,36 @@ Az import négy fájlja 16 982 653 bájt eredetit és 394 068 bájt kisképet ad
 | Közös időzítő és független feltöltés | **PASS, egységteszt.** Két várakozó sor mellett a harmadik fájl véglegesült. A szerver által megadott várakozás előtt nem indult új kérés. Egyszerre csak egy kapacitáspróba futott, és szüneteltetés vagy a panel lezárása után az érintett sor nem próbálkozott újra. |
 
 A várakozás kliensoldali. Az újratöltés előtti, szerverre fel nem vett sort helyben újra ki kell választani. Az első futásban a kapacitásra várás és az automatikus felvétel megtörtént, de egy visszafelé mozdult PostgreSQL-időérték miatt a manifest időrend-ellenőrzése hibát adott. A foglalás megmaradt, a lease lejárta után a státusz visszatért `OPEN` állapotba a már eltárolt 1 229 603 bájttal. A meglévő átvitel ismételt complete, confirm és letöltés művelete 200-at adott, a hash egyezett. A második teljes futás automatikusan véglegesült. A 10/50 képes összehasonlító mérés külön feladat.
+
+### 10 képes összehasonlító próba, 2026-11-28
+
+**Környezet:** CloudVault `main` `41fd543`, WSL Node 22.23.2 és helyi Docker Compose, azonos PostgreSQL 17.9, MinIO és thumbnail worker. A fájlonként újrakezdő mód az alap Compose egyrészes S3-útvonalát, a bájtpontos mód a tusd 2.10.3 overlayt használja. Futásonként új szintetikus fiók és üres import indult. A tus futások előtt legalább tíz szabad staging helyet ellenőriztünk.
+
+**Bemenet és vágási pont:** a szintetikus `small-resume.png` alapján kilenc érvényes PNG készült egyedi `tEXt` chunkkal, a tizedik a forrás első 48 bájtja. Két párhuzamos feltöltési hely, egyenként 16 KiB-onként 10 ms várakozással. A megszakított esetben mindkét feltöltési hely első fájljánál 98 304 bájt után, a teljes kérés és a HTTP sikerjelzés előtt a kliens bontotta a kapcsolatot. A bontás előtt 120 ms-ot hagytunk a kiírt előtag továbbítására. A következő próbálkozás 1 000 ms múlva indulhatott. A tus kezdőpozícióját HEAD, az S3 eredményét a szerver által visszaolvasott kész részlista adta.
+
+**Mérés:** a küldött és az újraküldött bájt kizárólag kliensoldali bináris fájlpayload, fejlécek és TCP-többlet nélkül. Az eredetik ideje az import létrehozásától az utolsó confirmig, a teljes idő az utolsó kisképfeladat végállapotának észleléséig tart. A letöltéses SHA-256 és a PostgreSQL-ellenőrzés ezután futott. Minden futás elvárása 10 letölthető, egyező eredeti, 9 kész kiskép, a csonka fájlnál elkülönített feldolgozási hiba és pontos kvóta.
+
+A mérés a szokásos hitelesített HTTP-végpontokon és valós MinIO-kérésekkel fut. A kliensoldali átviteli korlátozás és a kapcsolat bontása a [mérőszkriptben](../../scripts/benchmark-upload-ten.mjs) található. WSL-ből, a repó gyökerében:
+
+```bash
+node scripts/benchmark-upload-ten.mjs restart interrupted ../szakdoga-data/resume-test-2026-11-23/small-resume.png restart-interrupted.json
+# A tus módú futás előtt indítsd az alkalmazást a docker-compose.tus-poc.yaml kiegészítéssel.
+node scripts/benchmark-upload-ten.mjs tus interrupted ../szakdoga-data/resume-test-2026-11-23/small-resume.png tus-interrupted.json
+```
+
+A zavartalan futáshoz az `interrupted` helyett `normal` adható. A kimenethez új fájlnevet adj. A mérés HTTP klienssel futott. A böngészős UI és a hálózati adapter teljes kiesése külön forgatókönyv. Az előfutás rövidebb feldolgozási megfigyelési ablaka az egyik feladatnál lejárt, ezért az előfutások ideje kimaradt az összehasonlításból. A mért futások azonos, 1 500 ms-os lekérdezési közökkel és 150 másodperces felső határral készültek.
+
+**Eredmények:** két ismétlés módonként és forgatókönyvenként. Az eredetik és a teljes futás ideje másodpercben, az egyedi mérések sorrendjében szerepel.
+
+| Feltöltési mód | Forgatókönyv | Eredetik ideje (s) | Teljes idő (s) | Kliens által küldött bájt / futás | Újraküldött bájt / futás |
+|---|---|---:|---:|---:|---:|
+| Újrakezdő S3 | Zavartalan | 6,767 / 6,541 | 21,891 / 21,679 | 11 066 709 | 0 |
+| Újrakezdő S3 | Megszakított | 7,500 / 7,593 | 22,611 / 22,704 | 11 263 317 | 196 608 |
+| Bájtpontos tus | Zavartalan | 7,046 / 6,725 | 20,661 / 20,333 | 11 066 709 | 0 |
+| Bájtpontos tus | Megszakított | 7,908 / 7,849 | 23,020 / 22,958 | 11 066 709 | 0 |
+
+Az S3 az első két fájlnál 0 bájt befejezett részt igazolt. A tus mindkét fájlnál 98 304 bájtot igazolt és onnan indult a folytatás. **A tus megszakított futásonként 196 608 bájt újraküldését kerülte el.** A megszakított futások teljes idejének átlaga S3-nál 22,658 s, tusnál 22,989 s. A minta kétszer ismételt helyi pilot, a teljes időben a két adatút és a kisképfeldolgozás ideje is benne van.
+
+Mind a nyolc futásban tíz aktív eredeti lett, a MinIO-ból visszaolvasott SHA-256 értékek végig egyeztek, fájlonként egy megerősítési audit maradt. Kilenc kiskép elkészült, a csonka PNG kisképfeladata `PROCESSOR_INPUT_INVALID` hibával zárult. Fiókonként 11 066 709 bájt eredeti, 1 416 726 bájt kiskép, 12 483 435 bájt használt hely és 0 foglalás egyezett a PostgreSQL-ben.
+
+A második tus ismétlés első indítása a fiókbeállításkor 429-et kapott. A szerver felvételi korlátja megmaradt, a mérőszkript az időmérés előtt várta ki. A zavartalan és megszakított feltöltési pár ellenőrzése elkészült. A worker-újraindítással kiegészített 10 képes mérés és az 50 képes sorozat nyitott. [Bemeneti manifest és futásonkénti mérési adatok](../assets/evidence/upload-benchmark-ten-2026-11-28.json).
